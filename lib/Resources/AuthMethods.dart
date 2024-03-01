@@ -6,7 +6,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 
 class AuthMethods {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -92,8 +91,6 @@ class AuthMethods {
     try {
       await _googleSignIn.disconnect();
       await _googleSignIn.signOut();
-      ZegoUIKitPrebuiltCallInvitationService().uninit();
-
     } catch (e) {
       print(e);
     }

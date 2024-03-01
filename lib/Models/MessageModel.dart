@@ -6,6 +6,8 @@ class MessageModel{
   String type = "";
   String message= "";
   String photoUrl="";
+  String videoUrl = "";
+  String thumbnailUrl = "";
   late Timestamp timestamp;
 
   MessageModel({
@@ -13,7 +15,9 @@ class MessageModel{
     required this.receiverId,
     required this.type,
     required this.message,
-    required this.timestamp
+    required this.timestamp,
+    required this.photoUrl,
+    required this.thumbnailUrl,
 });
 
 //MessageModel.imageMessage is a constructor named imageMessage for a class called MessageModel
@@ -25,6 +29,16 @@ class MessageModel{
     required this.timestamp,
     required this.photoUrl});
 
+  MessageModel.videoMessage({
+    required this.senderId,
+    required this.receiverId,
+    required this.type,
+    required this.message,
+    required this.timestamp,
+    required this.videoUrl,
+    required this.thumbnailUrl,
+  });
+
   Map toMap(){
     var map=<String,dynamic>{};
     map['senderId']=senderId;
@@ -33,6 +47,8 @@ class MessageModel{
     map['message']=message;
     map['timestamp']=timestamp;
     map['photoUrl']=photoUrl;
+    map['videoUrl'] = videoUrl;
+    map['thumbnailUrl'] = thumbnailUrl;
     return map;
   }
 
@@ -42,6 +58,9 @@ class MessageModel{
     type=map['type'];
     message=map['message'];
     timestamp=map['timestamp'];
+    photoUrl = map['photoUrl'];
+    videoUrl = map['videoUrl'];
+    thumbnailUrl = map['thumbnailUrl'];
   }
 
 }

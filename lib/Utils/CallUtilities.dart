@@ -7,7 +7,6 @@ import 'package:echat/Resources/Repository/LogRepository.dart';
 import 'package:echat/Screens/Call/CallScreen.dart';
 import 'package:echat/Screens/Call/VideoCallScreen.dart';
 import 'package:flutter/material.dart';
-import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 
 class CallUtilities {
   static CallMethods callMethods = CallMethods();

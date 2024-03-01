@@ -3,8 +3,11 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Models/MessageModel.dart';
 import 'package:echat/Provider/ImageUploadProvider.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 
 class FirebaseStorageMethod{
 
@@ -56,5 +59,65 @@ class FirebaseStorageMethod{
     }catch(e){
       print(e);
     }
+  }
+
+  void uploadAnyFile(FilePickerResult? result, String receiverId, String senderId, ImageUploadProvider imageUploadProvider) async {
+
+      imageUploadProvider.setToLoading();
+
+      if(result != null){
+        File file = File(result.files.single.path!);
+        String fileName = result.files.single.name;
+        String fileExtension = fileName.split('.').last;
+
+        Reference ref = FirebaseStorage.instance.ref().child(fileName);
+        UploadTask uploadTask = ref.putFile(file);
+
+        TaskSnapshot taskSnapshot = await uploadTask.whenComplete((){});
+        String downloadUrl = await taskSnapshot.ref.getDownloadURL();
+
+
+        imageUploadProvider.setToIdle();
+        String thumbnailUrl = '';
+        if (fileExtension == 'mp4') {
+          thumbnailUrl = await _generateThumbnail(downloadUrl);
+        }
+        MessageModel messageModel = MessageModel(
+            senderId: senderId,
+            receiverId: receiverId,
+            type: fileExtension,
+            message: fileExtension,
+            timestamp: Timestamp.now(),
+            photoUrl: downloadUrl,
+            thumbnailUrl: thumbnailUrl,
+
+
+        );
+
+        Map<String, dynamic> map = messageModel.toMap() as Map<String, dynamic>;
+        // these is to store in the sender side
+        await firestore
+            .collection("messages")
+            .doc(messageModel.senderId)
+            .collection(messageModel.receiverId)
+            .add(map);
+
+        // these is to store in the receiver side
+        await firestore
+            .collection("messages")
+            .doc(messageModel.receiverId)
+            .collection(messageModel.senderId)
+            .add(map);
+      }
+  }
+  Future<String> _generateThumbnail(String videoUrl) async {
+    final thumbnail = await VideoThumbnail.thumbnailFile(
+      video: videoUrl,
+      thumbnailPath: (await getTemporaryDirectory()).path,
+      imageFormat: ImageFormat.JPEG,
+      maxHeight: 200,
+      quality: 100,
+    );
+    return thumbnail ?? '';
   }
 }

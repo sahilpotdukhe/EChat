@@ -1,6 +1,6 @@
-import 'package:echat/ChatScreen/ChatScreen.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
+import 'package:echat/Screens/ChatScreen/ChatScreen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:echat/Models/UserModel.dart';

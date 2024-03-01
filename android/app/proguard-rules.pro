@@ -1,2 +1,1 @@
--keep class **.zego.**  { *; }
--keep class **.**.zego_zpns.** { *; }
+-keep class androidx.lifecycle.DefaultLifecycleObserver

@@ -12,8 +12,15 @@ class ImageUploadProvider with ChangeNotifier{
   // getViewState to retrieve the current state of the view. This setup allows external code to access the view state while keeping the internal _viewState
   // variable private to the class.
   ViewState _viewState = ViewState.IDLE;
+  String _thumbnail = "";
 
   ViewState get getViewState => _viewState;
+  String get thumbnail => _thumbnail;
+
+  void getThumbnail(){
+      _thumbnail = thumbnail;
+      notifyListeners();
+  }
 
   void setToLoading(){
     _viewState = ViewState.LOADING;
