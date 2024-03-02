@@ -8,6 +8,8 @@ import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dar
 import 'package:echat/Utils/CallUtilities.dart';
 import 'package:echat/Widgets/CachedVideoPlayer.dart';
 import 'package:echat/Widgets/FullImageWidget.dart';
+import 'package:echat/Widgets/PdfViewerScreen.dart';
+import 'package:echat/enum/ViewState.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:echat/Models/MessageModel.dart';
@@ -21,7 +23,6 @@ import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter_pdfview/flutter_pdfview.dart';
 
 class ChatScreen extends StatefulWidget {
   final UserModel receiver;
@@ -39,6 +40,7 @@ class _ChatScreenState extends State<ChatScreen> {
   String _currentUserId = '';
   ChatFirebaseMethods chatFirebaseMethods = ChatFirebaseMethods();
   FirebaseStorageMethod firebaseStorageMethod = FirebaseStorageMethod();
+  double uploadProgress = 0.0;
 
   @override
   void initState() {
@@ -176,6 +178,38 @@ class _ChatScreenState extends State<ChatScreen> {
                 );
               },
             )),
+            SizedBox(height: 10,),
+            (imageUploadProvider.getViewState == ViewState.LOADING)?
+            Container(
+              alignment:  Alignment.centerRight,
+              child: Container(
+                margin: EdgeInsets.fromLTRB(0, 12, 12, 0),
+                height: 250,
+                width: 250,
+                constraints:
+                BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.65),
+                decoration: BoxDecoration(
+                    color: UniversalVariables.senderColor,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(10),
+                      topRight: Radius.circular(10),
+                      bottomLeft: Radius.circular(10),
+                    )),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    (imageUploadProvider.getViewState == ViewState.LOADING)?CircularProgressIndicator():Container(),
+                    SizedBox(height: 10,),
+                    if (uploadProgress != null && uploadProgress > 0 && uploadProgress < 1.0)
+
+                      Text(
+                        "${(uploadProgress * 100).toStringAsFixed(2)} %",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                  ],
+                ),
+              ),
+            ): Container(),
             chatControls(imageUploadProvider)
           ],
         ),
@@ -186,8 +220,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget senderLayout(DocumentSnapshot snapshot) {
     Timestamp date = snapshot['timestamp'];
     DateTime datenew = date.toDate();
-    // String formattedDate = DateFormat('yyyy-MM-dd').format(datenew);
-    // print("Bullet ${formattedDate}");
+
     return Container(
       margin: EdgeInsets.fromLTRB(0, 12, 12, 0),
       constraints:
@@ -228,16 +261,13 @@ class _ChatScreenState extends State<ChatScreen> {
                           },
                           child: Stack(
                             children: [
-                              SizedBox(
-                                width: 250,
+                              CachedChatImage(
+                                imageUrl: snapshot['thumbnailUrl'],
                                 height: 250,
-                                child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.file(
-                                      File(snapshot['thumbnailUrl']),
-                                      fit: BoxFit.cover,
-                                    )
-                                    ),
+                                width: 250,
+                                radius: 10,
+                                isRound: false,
+                                fit: BoxFit.cover,
                               ),
                               Container(
                                 width: 250,
@@ -252,27 +282,69 @@ class _ChatScreenState extends State<ChatScreen> {
                             ],
                           ),
                         )
-                      : GestureDetector(
-                          onTap: () {
-                            Navigator.push(context,
-                                MaterialPageRoute(builder: (_) {
-                              return FullImageWidget(
-                                imageUrl: snapshot['photoUrl'],
-                              );
-                            }));
-                          },
-                          child: Hero(
-                            tag: "imageHero_${snapshot['photoUrl']}",
-                            child: CachedChatImage(
-                              imageUrl: snapshot['photoUrl'],
-                              height: 250,
-                              width: 250,
-                              radius: 10,
-                              isRound: false,
-                              fit: BoxFit.cover,
+                      : (snapshot['type'] == 'pdf')
+                          ? GestureDetector(
+                              onTap: () async {
+                                // final url = snapshot['pdfUrl'];
+                                // final file = await Utils.loadPdfFromNetwork(url);
+                                // Navigator.push(
+                                //     context,
+                                //     MaterialPageRoute(
+                                //         builder: (context) => PdfViewerPage(file: file)));
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) => PdfViewerScreen(
+                                            pdfUrl: snapshot['pdfUrl'],
+                                            pdfName: snapshot['pdfName'])));
+                              },
+                              child: Container(
+                                height: 250,
+                                width: 250,
+                                color: Colors.white,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(14.0),
+                                  child: Column(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Icon(
+                                        Icons.picture_as_pdf_outlined,
+                                        size: 150,
+                                        color: Colors.red,
+                                      ),
+                                      Text(
+                                        snapshot['pdfName'],
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 20),
+                                      )
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            )
+                          : GestureDetector(
+                              onTap: () {
+                                Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) {
+                                  return FullImageWidget(
+                                    imageUrl: snapshot['photoUrl'],
+                                  );
+                                }));
+                              },
+                              child: Hero(
+                                tag: "imageHero_${snapshot['photoUrl']}",
+                                child: CachedChatImage(
+                                  imageUrl: snapshot['photoUrl'],
+                                  height: 250,
+                                  width: 250,
+                                  radius: 10,
+                                  isRound: false,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
             ],
           ),
           Row(
@@ -290,7 +362,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -344,13 +416,11 @@ class _ChatScreenState extends State<ChatScreen> {
                                 height: 250,
                                 child: ClipRRect(
                                     borderRadius: BorderRadius.circular(10),
-                                    child: Image.file(
-                                      File(snapshot['thumbnailUrl']),
+                                    child: Image.network(
+                                      snapshot['thumbnailUrl'],
+                                      // URL of the thumbnail image stored in Firestore
                                       fit: BoxFit.cover,
-                                    )
-                                    // snapshot['thumbnailUrl'], // Display thumbnail
-
-                                    ),
+                                    )),
                               ),
                               Container(
                                 width: 250,
@@ -365,27 +435,69 @@ class _ChatScreenState extends State<ChatScreen> {
                             ],
                           ),
                         )
-                      : GestureDetector(
-                          onTap: () {
-                            Navigator.push(context,
-                                MaterialPageRoute(builder: (_) {
-                              return FullImageWidget(
-                                imageUrl: snapshot['photoUrl'],
-                              );
-                            }));
-                          },
-                          child: Hero(
-                            tag: "imageHero_${snapshot['photoUrl']}",
-                            child: CachedChatImage(
-                              imageUrl: snapshot['photoUrl'],
-                              height: 250,
-                              width: 250,
-                              radius: 10,
-                              isRound: false,
-                              fit: BoxFit.cover,
+                      : (snapshot['type'] == 'pdf')
+                          ? GestureDetector(
+                              onTap: () async {
+                                final url = snapshot['pdfUrl'];
+                                // final file = await Utils.loadPdfFromNetwork(url);
+                                // Navigator.push(
+                                //     context,
+                                //     MaterialPageRoute(
+                                //         builder: (context) => PdfViewerPage(file: file)));
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) => PdfViewerScreen(
+                                            pdfUrl: snapshot['pdfUrl'],
+                                            pdfName: snapshot['pdfName'])));
+                              },
+                              child: Container(
+                                height: 250,
+                                width: 250,
+                                color: Colors.white,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(14.0),
+                                  child: Column(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Icon(
+                                        Icons.picture_as_pdf_outlined,
+                                        size: 150,
+                                        color: Colors.red,
+                                      ),
+                                      Text(
+                                        snapshot['pdfName'],
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 20),
+                                      )
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            )
+                          : GestureDetector(
+                              onTap: () {
+                                Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) {
+                                  return FullImageWidget(
+                                    imageUrl: snapshot['photoUrl'],
+                                  );
+                                }));
+                              },
+                              child: Hero(
+                                tag: "imageHero_${snapshot['photoUrl']}",
+                                child: CachedChatImage(
+                                  imageUrl: snapshot['photoUrl'],
+                                  height: 250,
+                                  width: 250,
+                                  radius: 10,
+                                  isRound: false,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
             ],
           ),
           Row(
@@ -404,7 +516,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -464,15 +576,18 @@ class _ChatScreenState extends State<ChatScreen> {
                           title: "Video",
                           subtitle: "Share Videos",
                           icon: Icons.tab,
-                          onTap: () async{
+                          onTap: () async {
                             var status = await Permission.storage.status;
-                            debugPrint("storage permission " + status.toString());
+                            debugPrint(
+                                "storage permission " + status.toString());
                             if (await Permission.storage.isDenied) {
-                              debugPrint("sorage permission ===" + status.toString());
+                              debugPrint(
+                                  "sorage permission ===" + status.toString());
 
                               await Permission.storage.request();
                             } else {
-                              debugPrint("permission storage " + status.toString());
+                              debugPrint(
+                                  "permission storage " + status.toString());
                               // do something with storage like file picker
                             }
                             _selectFile(imageUploadProvider);
@@ -549,9 +664,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   filled: true,
                   fillColor: UniversalVariables.separatorColor,
                   suffixIcon: GestureDetector(
-                    onTap: () async {
-
-                    },
+                    onTap: () async {},
                     child: Icon(Icons.face, color: Colors.white),
                   )),
             ),
@@ -611,7 +724,9 @@ class _ChatScreenState extends State<ChatScreen> {
         message: text,
         timestamp: Timestamp.now(),
         photoUrl: '',
-        thumbnailUrl: '');
+        thumbnailUrl: '',
+        pdfUrl: '',
+        pdfName: '');
     setState(() {
       isWriting = false;
     });
@@ -622,21 +737,11 @@ class _ChatScreenState extends State<ChatScreen> {
   void _selectFile(ImageUploadProvider imageUploadProvider) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles();
     firebaseStorageMethod.uploadAnyFile(
-        result, widget.receiver.uid, _currentUserId, imageUploadProvider);
-  }
-
-  _displayPdf(String pdfUrl) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: AppBar(title: Text('PDF')),
-          body: Center(
-              child: PDFView(
-            filePath: pdfUrl,
-          )),
-        ),
-      ),
-    );
+        result, widget.receiver.uid, _currentUserId, imageUploadProvider,
+        (double progress) {
+      setState(() {
+        uploadProgress = progress;
+      });
+    });
   }
 }

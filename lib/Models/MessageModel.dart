@@ -8,6 +8,8 @@ class MessageModel{
   String photoUrl="";
   String videoUrl = "";
   String thumbnailUrl = "";
+  String pdfUrl = "";
+  String pdfName = "";
   late Timestamp timestamp;
 
   MessageModel({
@@ -18,6 +20,8 @@ class MessageModel{
     required this.timestamp,
     required this.photoUrl,
     required this.thumbnailUrl,
+    required this.pdfUrl,
+    required this.pdfName
 });
 
 //MessageModel.imageMessage is a constructor named imageMessage for a class called MessageModel
@@ -49,6 +53,8 @@ class MessageModel{
     map['photoUrl']=photoUrl;
     map['videoUrl'] = videoUrl;
     map['thumbnailUrl'] = thumbnailUrl;
+    map['pdfUrl'] = pdfUrl;
+    map['pdfName'] = pdfName;
     return map;
   }
 
@@ -61,6 +67,8 @@ class MessageModel{
     photoUrl = map['photoUrl'];
     videoUrl = map['videoUrl'];
     thumbnailUrl = map['thumbnailUrl'];
+    pdfUrl = map['pdfUrl'];
+    pdfName = map['pdfName'];
   }
 
 }

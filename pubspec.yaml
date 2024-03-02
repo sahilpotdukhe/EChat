@@ -53,10 +53,10 @@ dependencies:
   fast_contacts:
   file_picker: ^4.1.6
   url_launcher: ^6.0.10
-  flutter_pdfview:
-  video_player: ^2.4.3
   video_thumbnail:
   cached_video_player:
+  easy_pdf_viewer:
+  flutter_pdfview:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

@@ -61,7 +61,7 @@ class FirebaseStorageMethod{
     }
   }
 
-  void uploadAnyFile(FilePickerResult? result, String receiverId, String senderId, ImageUploadProvider imageUploadProvider) async {
+  void uploadAnyFile(FilePickerResult? result, String receiverId, String senderId, ImageUploadProvider imageUploadProvider, Function(double) onProgress) async {
 
       imageUploadProvider.setToLoading();
 
@@ -73,15 +73,26 @@ class FirebaseStorageMethod{
         Reference ref = FirebaseStorage.instance.ref().child(fileName);
         UploadTask uploadTask = ref.putFile(file);
 
+        uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+           double progress = snapshot.bytesTransferred / snapshot.totalBytes;
+           onProgress(progress);
+        });
+
         TaskSnapshot taskSnapshot = await uploadTask.whenComplete((){});
         String downloadUrl = await taskSnapshot.ref.getDownloadURL();
 
 
-        imageUploadProvider.setToIdle();
+
         String thumbnailUrl = '';
+        String pdfUrl = '';
+        String pdfName = '';
         if (fileExtension == 'mp4') {
-          thumbnailUrl = await _generateThumbnail(downloadUrl);
+          thumbnailUrl = await _generateThumbnailandUpload(downloadUrl);
+        }else if(fileExtension == 'pdf'){
+          pdfUrl = downloadUrl;
+          pdfName = fileName;
         }
+
         MessageModel messageModel = MessageModel(
             senderId: senderId,
             receiverId: receiverId,
@@ -90,8 +101,8 @@ class FirebaseStorageMethod{
             timestamp: Timestamp.now(),
             photoUrl: downloadUrl,
             thumbnailUrl: thumbnailUrl,
-
-
+            pdfUrl: pdfUrl,
+            pdfName: pdfName
         );
 
         Map<String, dynamic> map = messageModel.toMap() as Map<String, dynamic>;
@@ -109,8 +120,10 @@ class FirebaseStorageMethod{
             .collection(messageModel.senderId)
             .add(map);
       }
+      imageUploadProvider.setToIdle();
   }
-  Future<String> _generateThumbnail(String videoUrl) async {
+  Future<String> _generateThumbnailandUpload(String videoUrl) async {
+    final thumbnailPath = (await getTemporaryDirectory()).path;
     final thumbnail = await VideoThumbnail.thumbnailFile(
       video: videoUrl,
       thumbnailPath: (await getTemporaryDirectory()).path,
@@ -118,6 +131,15 @@ class FirebaseStorageMethod{
       maxHeight: 200,
       quality: 100,
     );
-    return thumbnail ?? '';
+
+    final file = File(thumbnail!);
+
+    final Reference storageRef = FirebaseStorage.instance.ref().child('thumbnails/${DateTime.now().microsecondsSinceEpoch}');
+    await storageRef.putFile(file);
+
+    // Get the download URL of the uploaded thumbnail image
+    final String downloadURL = await storageRef.getDownloadURL();
+
+    return downloadURL;
   }
 }
