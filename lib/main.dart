@@ -1,5 +1,6 @@
 import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Resources/AuthMethods.dart';
+import 'package:echat/Screens/OnBoardScreens.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -8,13 +9,16 @@ import 'package:echat/Screens/LoginScreen.dart';
 import 'package:echat/Screens/SearchScreen.dart';
 import 'package:echat/Widgets/BottomNavigationBar.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+int? isViewed;
 
 void main() async {
   //This line ensures that the Flutter framework is initialized before proceeding further. This is necessary to use Flutter widgets and services.
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();// This line initializes Firebase services asynchronously.
-
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  isViewed = prefs.getInt("OnBoard");
     runApp(MyApp());
   //runApp(const MyApp());
 }
@@ -48,7 +52,7 @@ class _MyAppState extends State<MyApp> {
             if (snapshot.hasData) {
               return BotttomNavigationBar();
             } else {
-              return LoginScreen();
+              return isViewed !=0 ? OnBoardScreens() : LoginScreen();
             }
           },
         ),
