@@ -28,9 +28,16 @@ class ContactTileView extends StatelessWidget {
             UserModel userModel = snapshot.data!;
             return ViewLayout(contactUserModel: userModel);
           }
-          return Center(
-            child: CircularProgressIndicator(),
-          );
+          return Container(
+              height: 100,
+              //constraints: BoxConstraints(maxHeight: 68, maxWidth: 60),
+              child: Center(
+                  child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        children: [CircularProgressIndicator(), Divider()],
+                      ),
+                    )));
         });
   }
 }
@@ -50,13 +57,14 @@ class ViewLayout extends StatelessWidget {
           child: Stack(
             children: [
               CachedChatImage(
-                  imageUrl: contactUserModel?.profilePhoto ?? 'https://www.esm.rochester.edu/uploads/NoPhotoAvailable.jpg',
+                  imageUrl: contactUserModel?.profilePhoto ??
+                      'https://www.esm.rochester.edu/uploads/NoPhotoAvailable.jpg',
                   isRound: true,
                   radius: 80,
                   height: 0,
                   width: 0,
                   fit: BoxFit.cover),
-             OnlineDotIndicator(uid: contactUserModel.uid)
+              OnlineDotIndicator(uid: contactUserModel.uid)
             ],
           ),
         ),
@@ -67,16 +75,22 @@ class ViewLayout extends StatelessWidget {
           style:
               TextStyle(color: Colors.white, fontFamily: "Arial", fontSize: 19),
         ),
-        icon: Icon(
-          Icons.person,
-          color: Colors.white,
-        ),
-        subtitle: LastMessageContainer(stream: chatFirebaseMethods.fetchLastMessageBetween(senderId: userProvider.getUser!.uid, receiverId: contactUserModel.uid)),
-        trailing: Icon(Icons.add),
+        icon: Icon(null),
+        subtitle: LastMessageContainer(
+            position: "subtitle",
+            stream: chatFirebaseMethods.fetchLastMessageBetween(
+                senderId: userProvider.getUser!.uid,
+                receiverId: contactUserModel.uid)),
+        trailing: Icon(null),
+        //LastMessageContainer(position: "trailing",stream: chatFirebaseMethods.fetchLastMessageBetween(senderId: userProvider.getUser!.uid, receiverId: contactUserModel.uid)),
         margin: EdgeInsets.all(0),
         mini: false,
         onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (context)=> ChatScreen(receiver:  contactUserModel)));
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      ChatScreen(receiver: contactUserModel)));
         },
         onLongPress: () {});
   }

@@ -4,6 +4,7 @@ import 'package:echat/Resources/Repository/LogRepository.dart';
 import 'package:echat/Screens/Call/PickupLayout.dart';
 import 'package:echat/Screens/CallLogs/CallLogsScreen.dart';
 import 'package:echat/Screens/ChatList/ChatListScreen.dart';
+import 'package:echat/Widgets/UserDetails.dart';
 import 'package:echat/enum/UserState.dart';
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
@@ -87,6 +88,7 @@ class _BotttomNavigationBarState extends State<BotttomNavigationBar>  with Widge
               Icon(Icons.chat),
               Icon(Icons.call),
               Icon(Icons.contacts),
+              Icon(Icons.person)
             ],
             height: 60,
             color: Colors.white,
@@ -115,5 +117,7 @@ getPage(int page) {
       return CallLogsScreen();
     case 2:
       return ContactPage();
+    case 3:
+      return UserDetails();
   }
 }

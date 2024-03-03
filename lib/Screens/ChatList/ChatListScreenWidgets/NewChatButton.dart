@@ -6,15 +6,20 @@ class NewChatButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-          gradient: UniversalVariables.fabGradient,
-          borderRadius: BorderRadius.circular(50)),
-      padding: EdgeInsets.all(16),
-      child: const Icon(
-        Icons.chat,
-        color: Colors.white,
-        size: 26,
+    return InkWell(
+      onTap: (){
+        Navigator.pushNamed(context, '/searchScreen');
+      },
+      child: Container(
+        decoration: BoxDecoration(
+            gradient: UniversalVariables.fabGradient,
+            borderRadius: BorderRadius.circular(50)),
+        padding: EdgeInsets.all(16),
+        child: const Icon(
+          Icons.chat,
+          color: Colors.white,
+          size: 26,
+        ),
       ),
     );
   }

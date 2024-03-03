@@ -138,7 +138,7 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
                         await _storeOnBoardInfo();
                         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=> LoginScreen()));
                       }
-                      _pageController.nextPage(duration: Duration(microseconds: 300), curve: Curves.bounceIn);
+                      _pageController.nextPage(duration: Duration(microseconds: 500), curve: Curves.bounceIn);
                     },
                     child: Container(
                       padding: EdgeInsets.symmetric(horizontal: 30,vertical: 10),
@@ -149,7 +149,7 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children:  [
-                          Text("Next",
+                          Text((index == screens.length -1 )?"Finish":"Next",
                           style: TextStyle(
                             fontSize: 16.0,
                             color: index % 2 == 0 ? Colors.white  : Colors.blue,

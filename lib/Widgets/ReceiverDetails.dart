@@ -11,15 +11,14 @@ import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
 
-class UserDetails extends StatelessWidget {
-  UserDetails({super.key});
+class ReceiverDetails extends StatelessWidget {
+  final UserModel? receiverModel;
+  ReceiverDetails({super.key, this.receiverModel});
 
   AuthMethods authMethods = AuthMethods();
 
   @override
   Widget build(BuildContext context) {
-    UserProvider userProvider = Provider.of<UserProvider>(context);
-    UserModel? userModel = userProvider.getUser;
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
@@ -38,12 +37,11 @@ class UserDetails extends StatelessWidget {
                   radius: 50,
                   backgroundColor: Colors.transparent,
                   backgroundImage: AssetImage('assets/user.jpg'),
-                  foregroundImage: NetworkImage(userModel!.profilePhoto),
+                  foregroundImage: NetworkImage(receiverModel!.profilePhoto),
                 ),
               ),
             ),
           ),
-          Spacer(),
           Container(
             width: 400,
             decoration: BoxDecoration(
@@ -68,7 +66,7 @@ class UserDetails extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                   ),
                   Text(
-                    userModel.name,
+                    receiverModel!.name,
                     style: TextStyle(fontSize: 16),
                   ),
                   Divider(),
@@ -77,7 +75,7 @@ class UserDetails extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                   ),
                   Text(
-                    userModel.username,
+                    receiverModel!.username,
                     style: TextStyle(fontSize: 16),
                   ),
                   Divider(),
@@ -86,47 +84,13 @@ class UserDetails extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                   ),
                   Text(
-                    userModel.email,
+                    receiverModel!.email,
                     style: TextStyle(fontSize: 16),
                   ),
                 ],
               ),
             ),
           ),
-          Spacer(),
-          Container(
-            decoration: BoxDecoration(
-                color: Colors.blue,
-                borderRadius: BorderRadius.only(
-                    topRight: Radius.circular(50),
-                    topLeft: Radius.circular(50))),
-            height: 200,
-            child: Center(
-                child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: Icon(Icons.logout, size: 30),
-                  color: Colors.white,
-                  onPressed: () {
-                    authMethods.googleLogOut();
-                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) {return LoginScreen();}));
-                    showToast("Account Logout Successfully", backgroundColor: Colors.red, context: context);
-                  },
-                ),
-                SizedBox(
-                  height: 10,
-                ),
-                Text(
-                  "LogOut",
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20),
-                ),
-              ],
-            )),
-          )
         ],
       ),
     );

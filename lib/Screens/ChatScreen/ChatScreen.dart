@@ -9,6 +9,7 @@ import 'package:echat/Utils/CallUtilities.dart';
 import 'package:echat/Widgets/CachedVideoPlayer.dart';
 import 'package:echat/Widgets/FullImageWidget.dart';
 import 'package:echat/Widgets/PdfViewerScreen.dart';
+import 'package:echat/Widgets/ReceiverDetails.dart';
 import 'package:echat/enum/ViewState.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -68,7 +69,14 @@ class _ChatScreenState extends State<ChatScreen> {
       scaffold: Scaffold(
         backgroundColor: UniversalVariables.blackColor,
         appBar: CustomAppBar(
-          title: Text(widget.receiver.name),
+          title: InkWell(
+              onTap: (){
+                Navigator.push(context, MaterialPageRoute(builder: (context)=> ReceiverDetails(receiverModel: widget.receiver,)));
+              },
+              child: Text(
+            widget.receiver.name,
+            style: TextStyle(color: Colors.white),
+          )),
           actions: [
             IconButton(
                 onPressed: () {
@@ -80,12 +88,28 @@ class _ChatScreenState extends State<ChatScreen> {
                 icon: Icon(Icons.video_call)),
             IconButton(onPressed: () {}, icon: Icon(Icons.phone)),
           ],
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pop(context);
+          leading: InkWell(
+            onTap: () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => ReceiverDetails(
+                            receiverModel: widget.receiver,
+                          )));
             },
+            child: CircleAvatar(
+              radius: 50,
+              backgroundColor: Colors.transparent,
+              backgroundImage: AssetImage('assets/user.jpg'),
+              foregroundImage: NetworkImage(widget.receiver.profilePhoto),
+            ),
           ),
+          // IconButton(
+          //   icon: Icon(Icons.arrow_back),
+          //   onPressed: () {
+          //     Navigator.pop(context);
+          //   },
+          // ),
           centerTitle: false,
         ),
         body: Column(
@@ -178,38 +202,47 @@ class _ChatScreenState extends State<ChatScreen> {
                 );
               },
             )),
-            SizedBox(height: 10,),
-            (imageUploadProvider.getViewState == ViewState.LOADING)?
-            Container(
-              alignment:  Alignment.centerRight,
-              child: Container(
-                margin: EdgeInsets.fromLTRB(0, 12, 12, 0),
-                height: 250,
-                width: 250,
-                constraints:
-                BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.65),
-                decoration: BoxDecoration(
-                    color: UniversalVariables.senderColor,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(10),
-                      topRight: Radius.circular(10),
-                      bottomLeft: Radius.circular(10),
-                    )),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    (imageUploadProvider.getViewState == ViewState.LOADING)?CircularProgressIndicator():Container(),
-                    SizedBox(height: 10,),
-                    if (uploadProgress != null && uploadProgress > 0 && uploadProgress < 1.0)
-
-                      Text(
-                        "${(uploadProgress * 100).toStringAsFixed(2)} %",
-                        style: TextStyle(color: Colors.white),
+            SizedBox(
+              height: 10,
+            ),
+            (imageUploadProvider.getViewState == ViewState.LOADING)
+                ? Container(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      margin: EdgeInsets.fromLTRB(0, 12, 12, 0),
+                      height: 250,
+                      width: 250,
+                      constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.65),
+                      decoration: BoxDecoration(
+                          color: UniversalVariables.senderColor,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(10),
+                            topRight: Radius.circular(10),
+                            bottomLeft: Radius.circular(10),
+                          )),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          (imageUploadProvider.getViewState ==
+                                  ViewState.LOADING)
+                              ? CircularProgressIndicator()
+                              : Container(),
+                          SizedBox(
+                            height: 10,
+                          ),
+                          if (uploadProgress != null &&
+                              uploadProgress > 0 &&
+                              uploadProgress < 1.0)
+                            Text(
+                              "${(uploadProgress * 100).toStringAsFixed(2)} %",
+                              style: TextStyle(color: Colors.white),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
-              ),
-            ): Container(),
+                    ),
+                  )
+                : Container(),
             chatControls(imageUploadProvider)
           ],
         ),

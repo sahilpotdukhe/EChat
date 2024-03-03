@@ -69,7 +69,7 @@ class _LogListContainerState extends State<LogListContainer> {
                   }
               );
             }
-            return QuietBox();
+            return QuietBox(screen: "LogListContainer",);
           }
           return Text("No call logs");
         });
