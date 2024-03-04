@@ -95,7 +95,10 @@ class _SearchScreenState extends State<SearchScreen> {
             username: suggestionList[index].username,
             status: suggestionList[index].status,
             state: suggestionList[index].state,
-            profilePhoto: suggestionList[index].profilePhoto);
+            profilePhoto: suggestionList[index].profilePhoto,
+            gender: suggestionList[index].gender,
+            phoneNumber: suggestionList[index].phoneNumber
+        );
 
         return ChatCustomTile(
             leading: CircleAvatar(

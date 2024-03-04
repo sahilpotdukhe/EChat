@@ -4,6 +4,8 @@ class UserModel{
   String email="";
   String username="";
   String status="";
+  String phoneNumber="";
+  String gender = "";
   int state=0;
   String profilePhoto="";
 
@@ -14,6 +16,8 @@ class UserModel{
     required this.username,
     required this.status,
     required this.state,
+    required this.gender,
+    required this.phoneNumber,
     required this.profilePhoto,
 });
 
@@ -26,6 +30,8 @@ class UserModel{
     data["status"] = user.status;
     data["state"] = user.state;
     data["profile_photo"] = user.profilePhoto;
+    data["phone_Number"]= user.phoneNumber;
+    data["gender"] = user.gender;
     return data;
   }
 
@@ -37,6 +43,8 @@ class UserModel{
     status = mapData['status'];
     state = mapData['state'];
     profilePhoto = mapData['profile_photo'];
+    gender= mapData['gender'];
+    phoneNumber = mapData['phone_Number'];
   }
 
 }

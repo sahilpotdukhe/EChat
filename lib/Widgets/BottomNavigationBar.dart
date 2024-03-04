@@ -4,7 +4,7 @@ import 'package:echat/Resources/Repository/LogRepository.dart';
 import 'package:echat/Screens/Call/PickupLayout.dart';
 import 'package:echat/Screens/CallLogs/CallLogsScreen.dart';
 import 'package:echat/Screens/ChatList/ChatListScreen.dart';
-import 'package:echat/Widgets/UserDetails.dart';
+import 'package:echat/Widgets/NewUserDetails.dart';
 import 'package:echat/enum/UserState.dart';
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
@@ -118,6 +118,6 @@ getPage(int page) {
     case 2:
       return ContactPage();
     case 3:
-      return UserDetails();
+      return NewUserDetails();
   }
 }

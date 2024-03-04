@@ -1,3 +1,4 @@
+import 'package:echat/Provider/AppLoadingProvider.dart';
 import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Screens/OnBoardScreens.dart';
@@ -39,7 +40,8 @@ class _MyAppState extends State<MyApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ImageUploadProvider()),
-        ChangeNotifierProvider(create: (_) => UserProvider())
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => AppProvider())
       ],
       child: MaterialApp(
         title: 'ECHAT',

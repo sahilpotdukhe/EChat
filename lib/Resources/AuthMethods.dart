@@ -69,7 +69,9 @@ class AuthMethods {
           "profile_photo": _auth.currentUser!.photoURL,
           "status": "",
           "state": 0,
-          "username": username
+          "username": username,
+          "gender":'',
+          "phone_Number":''
         });
       }
     } catch (e) {

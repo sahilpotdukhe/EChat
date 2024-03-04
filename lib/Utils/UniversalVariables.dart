@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hexcolor/hexcolor.dart';
 
 class UniversalVariables{
   static final Color blueColor = Color(0xff2b9ed4);
@@ -17,6 +18,16 @@ class UniversalVariables{
 
   static final Gradient fabGradient = LinearGradient(
       colors: [gradientColorStart, gradientColorEnd],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight);
+
+
+  static final Color colour1 = HexColor("7EC9F5");
+  static final Color color2 = HexColor("3957ED");
+  static final Color appThemeColor = HexColor('3957ED');
+
+  static final Gradient appGradient = LinearGradient(
+      colors: [colour1, color2],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight);
 }

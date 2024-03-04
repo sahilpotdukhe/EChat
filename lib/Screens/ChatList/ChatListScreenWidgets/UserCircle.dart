@@ -1,7 +1,7 @@
 import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:echat/Utils/utilities.dart';
-import 'package:echat/Widgets/UserDetails.dart';
+import 'package:echat/Widgets/NewUserDetails.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,12 +13,7 @@ class UserCircle extends StatelessWidget {
     UserProvider userProvider = Provider.of<UserProvider>(context);
     return GestureDetector(
       onTap: () {
-         showModalBottomSheet(
-            context: context,
-             builder: (context) => UserDetails(),
-             backgroundColor: UniversalVariables.blackColor,
-              isScrollControlled: true,
-         );
+         Navigator.push(context, MaterialPageRoute(builder: (context)=> NewUserDetails()));
       },
       child: Container(
         height: 40,
