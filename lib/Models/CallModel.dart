@@ -6,6 +6,7 @@ class CallModel{
   String receiverName="";
   String receiverPic="";
   String channelId="";
+  String callType ="";
   bool hasDialled=false;
 
   CallModel({
@@ -16,6 +17,7 @@ class CallModel{
     required this.receiverName,
     required this.receiverPic,
     required this.channelId,
+    required this.callType
   });
 
   Map toMap(CallModel call) {
@@ -28,6 +30,7 @@ class CallModel{
     callMap["receiver_pic"] = call.receiverPic;
     callMap["channel_id"] = call.channelId;
     callMap["has_dialled"] = call.hasDialled;
+    callMap["callType"] = call.callType;
     return callMap;
   }
 
@@ -40,5 +43,6 @@ class CallModel{
     receiverPic = callMap["receiver_pic"];
     channelId = callMap["channel_id"];
     hasDialled = callMap["has_dialled"];
+    callType = callMap["callType"];
   }
 }

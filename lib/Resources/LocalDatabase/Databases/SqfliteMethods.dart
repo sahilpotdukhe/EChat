@@ -21,6 +21,7 @@ class SqfliteMethods implements CallLogInterface{
   String receiverPic = "receiver_pic";
   String callStatus = "call_status";
   String timestamp = "timestamp";
+  String callType = "callType";
 
   //This is the constructor for the SqfliteMethods class. It initializes _db to null.
   SqfliteMethods() {
@@ -78,7 +79,7 @@ class SqfliteMethods implements CallLogInterface{
     var dbClient = await db;
     //List<Map> tabledataMap = await dbClient.rawQuery("SELECT * FROM $tableName");
     //It will hold the result of the query, where each element in the list represents a row from the database, and each row is represented as a map where the keys are column names and the values are the corresponding column values.
-    List<Map> tableDataMap = await dbClient.query(tableName,columns: [callLogId,callerName,callerPic,receiverName,receiverPic,callStatus,timestamp]); //The columns list specify which columns to return.
+    List<Map> tableDataMap = await dbClient.query(tableName,columns: [callLogId,callerName,callerPic,receiverName,receiverPic,callStatus,timestamp,callType]); //The columns list specify which columns to return.
     List<CallLogModel> callLogModelList = [];
     if(tableDataMap.isNotEmpty){
       for(Map map in tableDataMap){

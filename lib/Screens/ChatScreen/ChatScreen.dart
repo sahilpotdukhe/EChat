@@ -83,10 +83,15 @@ class _ChatScreenState extends State<ChatScreen> {
                   CallUtilities.dial(
                       from_Caller: sender,
                       to_receiver: widget.receiver,
-                      context: context);
+                      context: context, callType: 'videoCall');
                 },
                 icon: Icon(Icons.video_call)),
-            IconButton(onPressed: () {}, icon: Icon(Icons.phone)),
+            IconButton(onPressed: () {
+              CallUtilities.dial(
+                  from_Caller: sender,
+                  to_receiver: widget.receiver,
+                  context: context, callType: 'audioCall');
+            }, icon: Icon(Icons.phone)),
           ],
           leading: InkWell(
             onTap: () {

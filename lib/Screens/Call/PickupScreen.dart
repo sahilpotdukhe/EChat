@@ -4,7 +4,7 @@ import 'package:echat/Models/CallModel.dart';
 import 'package:echat/Resources/Repository/LogRepository.dart';
 import 'package:echat/Screens/Call/CallScreen.dart';
 import 'package:echat/Screens/Call/PickupLayout.dart';
-import 'package:echat/Screens/Call/VideoCallScreen.dart';
+import 'package:echat/Screens/Call/AudioCallScreen.dart';
 import 'package:echat/Widgets/CachedChatImage.dart';
 import 'package:flutter/material.dart';
 
@@ -28,7 +28,9 @@ class _PickupScreenState extends State<PickupScreen> {
         receiverName: widget.callModel.receiverName,
         receiverPic: widget.callModel.receiverPic,
         callStatus: callStatus,
-        timestamp: DateTime.now().toString());
+        timestamp: DateTime.now().toString(),
+        callType: widget.callModel.callType
+    );
     LogRepository.addLogs(callLogModel); // adds the data to database
   }
 
@@ -91,8 +93,13 @@ class _PickupScreenState extends State<PickupScreen> {
                         onPressed: () {
                             isCallMissed = false;
                           addToLocalStorage(callStatus: "received");
-                            Navigator.push(context, MaterialPageRoute(
+                            if(widget.callModel.callType=="videoCall"){
+                              Navigator.push(context, MaterialPageRoute(
                                 builder: (context) => CallScreen(callModel: widget.callModel,),),);
+                            }else if(widget.callModel.callType=="audioCall"){
+                            Navigator.push(context, MaterialPageRoute(
+                            builder: (context) => AudioCallScreen(callModel: widget.callModel,),),);
+                            }
                         }),
                   ),
                 ],

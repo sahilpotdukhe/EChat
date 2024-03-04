@@ -57,7 +57,12 @@ class ChatCustomTile extends StatelessWidget {
                                       SizedBox(
                                         height: 5,
                                       ),
-                                     subtitle
+                                     Row(
+                                       children: [
+                                         icon,
+                                         subtitle
+                                       ],
+                                     )
                                     ],
                                   ),
                                 ),

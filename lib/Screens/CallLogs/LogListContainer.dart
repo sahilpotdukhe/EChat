@@ -38,7 +38,7 @@ class _LogListContainerState extends State<LogListContainer> {
                             maxLines: 1,style: TextStyle(fontWeight: FontWeight.bold,fontSize: 20,color: Colors.white)),
                         icon: getIcon(callLogModel.callStatus),
                         subtitle: Text(Utils.formatDateString(callLogModel.timestamp),style: TextStyle(color: Colors.white),),
-                        trailing: Container(),
+                        trailing: (callLogModel.callType=="videoCall")?Icon(Icons.video_call,color: Colors.white,):Icon(Icons.call,color: Colors.white,),
                         margin: EdgeInsets.all(0),
                         mini: false,
                         onTap: (){},

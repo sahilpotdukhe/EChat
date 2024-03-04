@@ -7,6 +7,7 @@ class CallLogModel{
   String receiverPic = "";
   String callStatus = "";
   String timestamp = "";
+  String callType = "";
 
   CallLogModel({
     this.callLogId,
@@ -15,7 +16,8 @@ class CallLogModel{
     required this.receiverName,
     required this.receiverPic,
     required this.callStatus,
-    required this.timestamp
+    required this.timestamp,
+    required this.callType
 });
 
   Map<String,dynamic> toMap(CallLogModel callLogModel){
@@ -27,6 +29,7 @@ class CallLogModel{
     logMap['receiver_pic'] = callLogModel.receiverPic;
     logMap['call_status'] = callLogModel.callStatus;
     logMap['timestamp'] = callLogModel.timestamp;
+    logMap['callType'] = callLogModel.callType;
     return logMap;
   }
 
@@ -38,6 +41,7 @@ class CallLogModel{
     receiverPic = logMap['receiver_pic'];
     callStatus = logMap['call_status'];
     timestamp = logMap['timestamp'];
+    callType = logMap['callType'];
   }
 
 }
