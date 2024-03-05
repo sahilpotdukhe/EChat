@@ -20,7 +20,7 @@ class UserCircle extends StatelessWidget {
         width: 40,
         decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(50),
-            color: UniversalVariables.separatorColor),
+            color: Colors.white),
         child: Stack(
           children: [
             Align(
@@ -30,7 +30,7 @@ class UserCircle extends StatelessWidget {
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: UniversalVariables.lightBlueColor,
-                    fontSize: 13),
+                    fontSize: 16),
               ),
             ),
             Align(

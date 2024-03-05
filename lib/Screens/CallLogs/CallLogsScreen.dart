@@ -44,7 +44,8 @@ class CallLogsScreen extends StatelessWidget {
               padding: EdgeInsets.all(15),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: UniversalVariables.fabGradient
+                //gradient: UniversalVariables.appGradient
+                color: UniversalVariables.appThemeColor
               ),
               child:Icon(
                 Icons.dialpad,
@@ -58,11 +59,11 @@ class CallLogsScreen extends StatelessWidget {
               decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: UniversalVariables.blackColor,
-                  border: Border.all(width: 2,color: UniversalVariables.gradientColorEnd)
+                  border: Border.all(width: 2,color: UniversalVariables.appThemeColor)
               ),
               child:Icon(
                 Icons.add_call,
-                color: UniversalVariables.gradientColorEnd,
+                color: UniversalVariables.appThemeColor,
                 size: 25,
               ),
             )

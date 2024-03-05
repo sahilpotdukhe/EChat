@@ -12,7 +12,7 @@ class NewChatButton extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-            gradient: UniversalVariables.fabGradient,
+            gradient: UniversalVariables.appGradient,
             borderRadius: BorderRadius.circular(50)),
         padding: EdgeInsets.all(16),
         child: const Icon(

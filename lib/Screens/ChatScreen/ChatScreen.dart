@@ -5,6 +5,7 @@ import 'package:echat/Resources/ChatFirebaseMethods.dart';
 import 'package:echat/Resources/FirebaseStorageMethod.dart';
 import 'package:echat/Screens/Call/PickupLayout.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
+import 'package:echat/Screens/ChatScreen/ChatQuietBox.dart';
 import 'package:echat/Utils/CallUtilities.dart';
 import 'package:echat/Widgets/CachedVideoPlayer.dart';
 import 'package:echat/Widgets/FullImageWidget.dart';
@@ -59,8 +60,7 @@ class _ChatScreenState extends State<ChatScreen> {
           state: 0,
           profilePhoto: currentUser.photoURL ?? '',
           gender: '',
-          phoneNumber: ''
-      );
+          phoneNumber: '');
     });
   }
 
@@ -70,31 +70,47 @@ class _ChatScreenState extends State<ChatScreen> {
         Provider.of<ImageUploadProvider>(context);
     return PickupLayout(
       scaffold: Scaffold(
-        backgroundColor: UniversalVariables.blackColor,
+        backgroundColor: Colors.black,
         appBar: CustomAppBar(
           title: InkWell(
-              onTap: (){
-                Navigator.push(context, MaterialPageRoute(builder: (context)=> ReceiverDetails(receiverModel: widget.receiver,)));
+              onTap: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => ReceiverDetails(
+                              receiverModel: widget.receiver,
+                              senderModel: sender,
+                            )));
               },
               child: Text(
-            widget.receiver.name,
-            style: TextStyle(color: Colors.white),
-          )),
+                widget.receiver.name,
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              )),
           actions: [
             IconButton(
                 onPressed: () {
                   CallUtilities.dial(
                       from_Caller: sender,
                       to_receiver: widget.receiver,
-                      context: context, callType: 'videoCall');
+                      context: context,
+                      callType: 'audioCall');
                 },
-                icon: Icon(Icons.video_call)),
-            IconButton(onPressed: () {
-              CallUtilities.dial(
-                  from_Caller: sender,
-                  to_receiver: widget.receiver,
-                  context: context, callType: 'audioCall');
-            }, icon: Icon(Icons.phone)),
+                icon: Icon(
+                  Icons.phone,
+                  color: Colors.white,
+                )),
+            IconButton(
+                onPressed: () {
+                  CallUtilities.dial(
+                      from_Caller: sender,
+                      to_receiver: widget.receiver,
+                      context: context,
+                      callType: 'videoCall');
+                },
+                icon: Icon(
+                  Icons.video_call,
+                  color: Colors.white,
+                )),
           ],
           leading: InkWell(
             onTap: () {
@@ -103,21 +119,25 @@ class _ChatScreenState extends State<ChatScreen> {
                   MaterialPageRoute(
                       builder: (context) => ReceiverDetails(
                             receiverModel: widget.receiver,
+                            senderModel: sender
                           )));
             },
-            child: CircleAvatar(
-              radius: 50,
-              backgroundColor: Colors.transparent,
-              backgroundImage: AssetImage('assets/user.jpg'),
-              foregroundImage: NetworkImage(widget.receiver.profilePhoto),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 8,
+                ),
+                Container(
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.transparent,
+                    backgroundImage: AssetImage('assets/user.jpg'),
+                    foregroundImage: NetworkImage(widget.receiver.profilePhoto),
+                  ),
+                ),
+              ],
             ),
           ),
-          // IconButton(
-          //   icon: Icon(Icons.arrow_back),
-          //   onPressed: () {
-          //     Navigator.pop(context);
-          //   },
-          // ),
           centerTitle: false,
         ),
         body: Column(
@@ -133,6 +153,9 @@ class _ChatScreenState extends State<ChatScreen> {
               builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
                 if (snapshot.data == null) {
                   return Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.data!.docs.length == 0) {
+                  return ChatQuietBox(screen: "ChatScreen",);
                 }
                 return ListView.builder(
                   itemCount: snapshot.data!.docs.length,
@@ -218,8 +241,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     alignment: Alignment.centerRight,
                     child: Container(
                       margin: EdgeInsets.fromLTRB(0, 12, 12, 0),
-                      height: 250,
-                      width: 250,
+                      height: 270,
+                      width: 268,
                       constraints: BoxConstraints(
                           maxWidth: MediaQuery.of(context).size.width * 0.65),
                       decoration: BoxDecoration(
@@ -234,7 +257,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         children: [
                           (imageUploadProvider.getViewState ==
                                   ViewState.LOADING)
-                              ? CircularProgressIndicator()
+                              ? CircularProgressIndicator(color: Colors.white,)
                               : Container(),
                           SizedBox(
                             height: 10,
@@ -267,7 +290,7 @@ class _ChatScreenState extends State<ChatScreen> {
       constraints:
           BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.65),
       decoration: BoxDecoration(
-          color: UniversalVariables.senderColor,
+          gradient: UniversalVariables.appGradient,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(10),
             topRight: Radius.circular(10),
@@ -300,89 +323,92 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                             );
                           },
-                          child: Stack(
-                            children: [
-                              CachedChatImage(
-                                imageUrl: snapshot['thumbnailUrl'],
-                                height: 250,
-                                width: 250,
-                                radius: 10,
-                                isRound: false,
-                                fit: BoxFit.cover,
-                              ),
-                              Container(
-                                width: 250,
-                                height: 250,
-                                child: Center(
-                                  child: Icon(
-                                    Icons.play_circle,
-                                    size: 70,
-                                  ),
-                                ),
-                              )
-                            ],
-                          ),
-                        )
-                      : (snapshot['type'] == 'pdf')
-                          ? GestureDetector(
-                              onTap: () async {
-                                // final url = snapshot['pdfUrl'];
-                                // final file = await Utils.loadPdfFromNetwork(url);
-                                // Navigator.push(
-                                //     context,
-                                //     MaterialPageRoute(
-                                //         builder: (context) => PdfViewerPage(file: file)));
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) => PdfViewerScreen(
-                                            pdfUrl: snapshot['pdfUrl'],
-                                            pdfName: snapshot['pdfName'])));
-                              },
-                              child: Container(
-                                height: 250,
-                                width: 250,
-                                color: Colors.white,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(14.0),
-                                  child: Column(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Icon(
-                                        Icons.picture_as_pdf_outlined,
-                                        size: 150,
-                                        color: Colors.red,
-                                      ),
-                                      Text(
-                                        snapshot['pdfName'],
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20),
-                                      )
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            )
-                          : GestureDetector(
-                              onTap: () {
-                                Navigator.push(context,
-                                    MaterialPageRoute(builder: (_) {
-                                  return FullImageWidget(
-                                    imageUrl: snapshot['photoUrl'],
-                                  );
-                                }));
-                              },
-                              child: Hero(
-                                tag: "imageHero_${snapshot['photoUrl']}",
-                                child: CachedChatImage(
-                                  imageUrl: snapshot['photoUrl'],
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(8.0, 8, 8, 0),
+                            child: Stack(
+                              children: [
+                                CachedChatImage(
+                                  imageUrl: snapshot['thumbnailUrl'],
                                   height: 250,
                                   width: 250,
                                   radius: 10,
                                   isRound: false,
                                   fit: BoxFit.cover,
+                                ),
+                                Container(
+                                  width: 250,
+                                  height: 250,
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.play_circle,
+                                      size: 70,
+                                    ),
+                                  ),
+                                )
+                              ],
+                            ),
+                          ),
+                        )
+                      : (snapshot['type'] == 'pdf')
+                          ? Padding(
+                            padding: const EdgeInsets.fromLTRB(8.0, 8, 8, 0),
+                            child: GestureDetector(
+                                onTap: () async {
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) => PdfViewerScreen(
+                                              pdfUrl: snapshot['pdfUrl'],
+                                              pdfName: snapshot['pdfName'])));
+                                },
+                                child: Container(
+                                  height: 250,
+                                  width: 250,
+                                  color: Colors.white,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(14.0),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Icon(
+                                          Icons.picture_as_pdf_outlined,
+                                          size: 150,
+                                          color: Colors.red,
+                                        ),
+                                        Text(
+                                          snapshot['pdfName'],
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 20),
+                                        )
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          )
+                          : Padding(
+                              padding: const EdgeInsets.fromLTRB(8.0, 8, 8, 0),
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(context,
+                                      MaterialPageRoute(builder: (_) {
+                                    return FullImageWidget(
+                                      imageUrl: snapshot['photoUrl'],
+                                    );
+                                  }));
+                                },
+                                child: Hero(
+                                  tag: "imageHero_${snapshot['photoUrl']}",
+                                  child: CachedChatImage(
+                                    imageUrl: snapshot['photoUrl'],
+                                    height: 250,
+                                    width: 250,
+                                    radius: 10,
+                                    isRound: false,
+                                    fit: BoxFit.cover,
+                                  ),
                                 ),
                               ),
                             ),
@@ -397,7 +423,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   DateFormat.jm().format(datenew),
                   textAlign: TextAlign.end,
                   style: TextStyle(
-                    color: Colors.grey[400],
+                    color: Colors.white,
                     fontSize: 12,
                   ),
                 ),
@@ -417,7 +443,7 @@ class _ChatScreenState extends State<ChatScreen> {
       constraints:
           BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.65),
       decoration: BoxDecoration(
-          color: UniversalVariables.senderColor,
+          color: Colors.white,
           borderRadius: BorderRadius.only(
             bottomRight: Radius.circular(10),
             topRight: Radius.circular(10),
@@ -450,95 +476,99 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                             );
                           },
-                          child: Stack(
-                            children: [
-                              SizedBox(
-                                width: 250,
-                                height: 250,
-                                child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.network(
-                                      snapshot['thumbnailUrl'],
-                                      // URL of the thumbnail image stored in Firestore
-                                      fit: BoxFit.cover,
-                                    )),
-                              ),
-                              Container(
-                                width: 250,
-                                height: 250,
-                                child: Center(
-                                  child: Icon(
-                                    Icons.play_circle,
-                                    size: 70,
-                                  ),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(8.0, 8, 8, 0),
+                            child: Stack(
+                              children: [
+                                SizedBox(
+                                  width: 250,
+                                  height: 250,
+                                  child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Image.network(
+                                        snapshot['thumbnailUrl'],
+                                        // URL of the thumbnail image stored in Firestore
+                                        fit: BoxFit.cover,
+                                      )),
                                 ),
-                              )
-                            ],
+                                Container(
+                                  width: 250,
+                                  height: 250,
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.play_circle,
+                                      size: 70,
+                                    ),
+                                  ),
+                                )
+                              ],
+                            ),
                           ),
                         )
                       : (snapshot['type'] == 'pdf')
-                          ? GestureDetector(
-                              onTap: () async {
-                                final url = snapshot['pdfUrl'];
-                                // final file = await Utils.loadPdfFromNetwork(url);
-                                // Navigator.push(
-                                //     context,
-                                //     MaterialPageRoute(
-                                //         builder: (context) => PdfViewerPage(file: file)));
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) => PdfViewerScreen(
-                                            pdfUrl: snapshot['pdfUrl'],
-                                            pdfName: snapshot['pdfName'])));
-                              },
-                              child: Container(
-                                height: 250,
-                                width: 250,
-                                color: Colors.white,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(14.0),
-                                  child: Column(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Icon(
-                                        Icons.picture_as_pdf_outlined,
-                                        size: 150,
-                                        color: Colors.red,
-                                      ),
-                                      Text(
-                                        snapshot['pdfName'],
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20),
-                                      )
-                                    ],
+                          ? Padding(
+                            padding: const EdgeInsets.fromLTRB(8.0, 8, 8, 0),
+                            child: GestureDetector(
+                                onTap: () async {
+                                  final url = snapshot['pdfUrl'];
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) => PdfViewerScreen(
+                                              pdfUrl: snapshot['pdfUrl'],
+                                              pdfName: snapshot['pdfName'])));
+                                },
+                                child: Container(
+                                  height: 250,
+                                  width: 250,
+                                  color: Colors.white,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(14.0),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Icon(
+                                          Icons.picture_as_pdf_outlined,
+                                          size: 150,
+                                          color: Colors.red,
+                                        ),
+                                        Text(
+                                          snapshot['pdfName'],
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 20),
+                                        )
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            )
-                          : GestureDetector(
-                              onTap: () {
-                                Navigator.push(context,
-                                    MaterialPageRoute(builder: (_) {
-                                  return FullImageWidget(
+                          )
+                          : Padding(
+                              padding: const EdgeInsets.fromLTRB(8.0, 8, 8, 0),
+                            child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(context,
+                                      MaterialPageRoute(builder: (_) {
+                                    return FullImageWidget(
+                                      imageUrl: snapshot['photoUrl'],
+                                    );
+                                  }));
+                                },
+                                child: Hero(
+                                  tag: "imageHero_${snapshot['photoUrl']}",
+                                  child: CachedChatImage(
                                     imageUrl: snapshot['photoUrl'],
-                                  );
-                                }));
-                              },
-                              child: Hero(
-                                tag: "imageHero_${snapshot['photoUrl']}",
-                                child: CachedChatImage(
-                                  imageUrl: snapshot['photoUrl'],
-                                  height: 250,
-                                  width: 250,
-                                  radius: 10,
-                                  isRound: false,
-                                  fit: BoxFit.cover,
+                                    height: 250,
+                                    width: 250,
+                                    radius: 10,
+                                    isRound: false,
+                                    fit: BoxFit.cover,
+                                  ),
                                 ),
                               ),
-                            ),
+                          ),
             ],
           ),
           Row(
@@ -551,7 +581,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   DateFormat.jm().format(datenew),
                   textAlign: TextAlign.end,
                   style: TextStyle(
-                    color: Colors.grey[400],
+                    color: Colors.black,
                     fontSize: 12,
                   ),
                 ),
@@ -567,7 +597,11 @@ class _ChatScreenState extends State<ChatScreen> {
     void pickImageMethod({required ImageSource source}) async {
       XFile? selectedImage = (await ImagePicker().pickImage(source: source));
       firebaseStorageMethod.uploadImage(selectedImage, widget.receiver.uid,
-          _currentUserId, imageUploadProvider);
+          _currentUserId, imageUploadProvider,(double progress) {
+            setState(() {
+              uploadProgress = progress;
+            });
+          });
     }
 
     addMediaModel(BuildContext context) {
@@ -583,22 +617,22 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: Row(
                     children: [
                       TextButton(
-                        child: Icon(Icons.close),
+                        child: Icon(Icons.close,color: Colors.white,),
                         onPressed: () {
                           Navigator.maybePop(context);
                         },
                       ),
-                      Expanded(
-                          child: Align(
-                        alignment: Alignment.center,
-                        child: Text(
-                          "Content and tools",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ))
+                      SizedBox(width: 75,),
+                      Align(
+                          alignment: Alignment.center,
+                          child: Text(
+                            "Content and tools",
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        )
                     ],
                   ),
                 ),
@@ -607,7 +641,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     children: [
                       ModalTile(
                           title: "Media",
-                          subtitle: "Share Photos and Videos",
+                          subtitle: "Share Photos from gallery",
                           icon: Icons.image,
                           onTap: () {
                             pickImageMethod(source: ImageSource.gallery);
@@ -616,21 +650,24 @@ class _ChatScreenState extends State<ChatScreen> {
                       ModalTile(
                           title: "Video",
                           subtitle: "Share Videos",
-                          icon: Icons.tab,
+                          icon: Icons.play_circle,
                           onTap: () async {
                             var status = await Permission.storage.status;
-                            debugPrint(
-                                "storage permission " + status.toString());
                             if (await Permission.storage.isDenied) {
-                              debugPrint(
-                                  "sorage permission ===" + status.toString());
-
                               await Permission.storage.request();
-                            } else {
-                              debugPrint(
-                                  "permission storage " + status.toString());
-                              // do something with storage like file picker
-                            }
+                            } else {}
+                            _selectFile(imageUploadProvider);
+                            Navigator.maybePop(context);
+                          }),
+                      ModalTile(
+                          title: "PDF",
+                          subtitle: "Share Pdf",
+                          icon: Icons.picture_as_pdf_outlined,
+                          onTap: () async {
+                            var status = await Permission.storage.status;
+                            if (await Permission.storage.isDenied) {
+                              await Permission.storage.request();
+                            } else {}
                             _selectFile(imageUploadProvider);
                             Navigator.maybePop(context);
                           }),
@@ -643,16 +680,6 @@ class _ChatScreenState extends State<ChatScreen> {
                           title: "Location",
                           subtitle: "Share a location",
                           icon: Icons.add_location,
-                          onTap: () {}),
-                      ModalTile(
-                          title: "Schedule Call",
-                          subtitle: "Arrange a skype call and get reminders",
-                          icon: Icons.schedule,
-                          onTap: () {}),
-                      ModalTile(
-                          title: "Create Poll",
-                          subtitle: "Share polls",
-                          icon: Icons.poll,
                           onTap: () {}),
                     ],
                   ),
@@ -670,7 +697,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Container(
               padding: EdgeInsets.all(5),
               decoration: BoxDecoration(
-                  gradient: UniversalVariables.fabGradient,
+                  gradient: UniversalVariables.appGradient,
                   shape: BoxShape.circle),
               child: Icon(
                 Icons.add,

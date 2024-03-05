@@ -3,16 +3,12 @@ import 'package:echat/Models/ContactModel.dart';
 import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Resources/ChatFirebaseMethods.dart';
-import 'package:echat/Screens/Call/PickupLayout.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ContactTileView.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/NewChatButton.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/QuietBox.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/UserCircle.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_styled_toast/flutter_styled_toast.dart';
-import 'package:echat/Screens/LoginScreen.dart';
-import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:provider/provider.dart';
 
 class ChatListScreen extends StatelessWidget {
@@ -23,7 +19,7 @@ class ChatListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     UserProvider userProvider = Provider.of<UserProvider>(context);
     return Scaffold(
-      backgroundColor: UniversalVariables.blackColor,
+      backgroundColor: Colors.black,
       appBar: CustomAppBar(
           title: UserCircle(),
           actions: <Widget>[

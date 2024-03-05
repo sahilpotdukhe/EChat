@@ -30,11 +30,11 @@ class ModalTile extends StatelessWidget {
             fontSize: 18
           ),
         ),
-        icon: Icon(null),
+        icon: Container(),
         subtitle: Text(subtitle,
           style: TextStyle(
               color: UniversalVariables.greyColor,
-              fontSize: 14
+              fontSize: 16
           ),
         ),
           trailing: Icon(null),

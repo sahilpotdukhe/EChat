@@ -40,7 +40,8 @@ class _ContactPageState extends State<ContactPage> {
                 color: Colors.white,
                 onPressed: () {},
               ),
-              centerTitle: true),
+              centerTitle: true
+          ),
           body: FutureBuilder(
             future: getContacts(),
             builder: (context, AsyncSnapshot snapshot) {

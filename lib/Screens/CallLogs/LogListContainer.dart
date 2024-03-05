@@ -33,43 +33,71 @@ class _LogListContainerState extends State<LogListContainer> {
                     CallLogModel callLogModel = logList[index];
                     bool hasDialled = callLogModel.callStatus == "Dialled";
                     return ChatCustomTile(
-                        leading: CachedChatImage(imageUrl: (hasDialled)? callLogModel.receiverPic:callLogModel.callerPic, isRound: true, radius: 50, height: 0, width: 0, fit: BoxFit.cover),
-                        title: Text((hasDialled)?callLogModel.receiverName:callLogModel.callerName,overflow: TextOverflow.ellipsis,
-                            maxLines: 1,style: TextStyle(fontWeight: FontWeight.bold,fontSize: 20,color: Colors.white)),
+                        leading: CachedChatImage(
+                            imageUrl: (hasDialled)
+                                ? callLogModel.receiverPic
+                                : callLogModel.callerPic,
+                            isRound: true,
+                            radius: 50,
+                            height: 0,
+                            width: 0,
+                            fit: BoxFit.cover),
+                        title: Text(
+                            (hasDialled)
+                                ? callLogModel.receiverName
+                                : callLogModel.callerName,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                                color: Colors.white)),
                         icon: getIcon(callLogModel.callStatus),
-                        subtitle: Text(Utils.formatDateString(callLogModel.timestamp),style: TextStyle(color: Colors.white),),
-                        trailing: (callLogModel.callType=="videoCall")?Icon(Icons.video_call,color: Colors.white,):Icon(Icons.call,color: Colors.white,),
+                        subtitle: Text(
+                          Utils.formatDateString(callLogModel.timestamp),
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        trailing: (callLogModel.callType == "videoCall")
+                            ? Icon(
+                                Icons.video_call,
+                                color: Colors.white,
+                              )
+                            : Icon(
+                                Icons.call,
+                                color: Colors.white,
+                              ),
                         margin: EdgeInsets.all(0),
                         mini: false,
-                        onTap: (){},
+                        onTap: () {},
                         onLongPress: () => showDialog(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: Text("Delete this log"),
-                              content: Text("Are you sure to delete this log?"),
-                              actions: [
-                                MaterialButton(
-                                    child: Text("Yes"),
-                                    onPressed:() async{
-                                      Navigator.maybePop(context);
-                                      await LogRepository.deleteLogs(index);
-                                      //It  checks if the widget is mounted before triggering a state update and rebuild.
-                                      if(mounted){
-                                        setState((){});
-                                      }
-                                    }),
-                                MaterialButton(
-                                    child: Text("No"),
-                                    onPressed:() {
-                                      Navigator.maybePop(context);
-                                    })
-                              ],
-                            )
-                        ));
-                  }
-              );
+                                  title: Text("Delete this log"),
+                                  content:
+                                      Text("Are you sure to delete this log?"),
+                                  actions: [
+                                    MaterialButton(
+                                        child: Text("Yes"),
+                                        onPressed: () async {
+                                          Navigator.maybePop(context);
+                                          await LogRepository.deleteLogs(index);
+                                          //It  checks if the widget is mounted before triggering a state update and rebuild.
+                                          if (mounted) {
+                                            setState(() {});
+                                          }
+                                        }),
+                                    MaterialButton(
+                                        child: Text("No"),
+                                        onPressed: () {
+                                          Navigator.maybePop(context);
+                                        })
+                                  ],
+                                )));
+                  });
             }
-            return QuietBox(screen: "LogListContainer",);
+            return QuietBox(
+              screen: "LogListContainer",
+            );
           }
           return Text("No call logs");
         });
@@ -79,27 +107,27 @@ class _LogListContainerState extends State<LogListContainer> {
     Icon _icon;
     double _iconSize = 15;
 
-    switch(callStatus){
+    switch (callStatus) {
       case "Dialled":
-                _icon = Icon(
-                  Icons.call_made,
-                  size: _iconSize,
-                  color: Colors.green,
-                );
-                break;
+        _icon = Icon(
+          Icons.call_made,
+          size: _iconSize,
+          color: Colors.green,
+        );
+        break;
       case "received":
-                  _icon = Icon(
-                    Icons.call_received,
-                    size: _iconSize,
-                    color: Colors.grey,
-                  );
-                break;
-      default :
-                  _icon = Icon(
-                    Icons.call_missed,
-                    size: _iconSize,
-                    color: Colors.red,
-                  );
+        _icon = Icon(
+          Icons.call_received,
+          size: _iconSize,
+          color: Colors.grey,
+        );
+        break;
+      default:
+        _icon = Icon(
+          Icons.call_missed,
+          size: _iconSize,
+          color: Colors.red,
+        );
     }
     return Container(
       margin: EdgeInsets.only(right: 5),

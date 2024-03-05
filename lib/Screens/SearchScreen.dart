@@ -1,5 +1,6 @@
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
+import 'package:echat/Screens/ChatScreen/ChatQuietBox.dart';
 import 'package:echat/Screens/ChatScreen/ChatScreen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -37,15 +38,21 @@ class _SearchScreenState extends State<SearchScreen> {
     return Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(
-          backgroundColor: UniversalVariables.blueColor,
+          backgroundColor: UniversalVariables.appThemeColor,
+          iconTheme: IconThemeData(
+            color: Colors.white, //change your color here
+          ),
           title: TextField(
             style: TextStyle(color: Colors.white),
             controller: searchController,
             textInputAction: TextInputAction.search,
+
             decoration: InputDecoration(
                 hintText: 'Search',
                 border: InputBorder.none,
-                hintStyle: TextStyle(fontSize: 18.0, color: Colors.white)),
+                hintStyle: TextStyle(fontSize: 18.0, color: Colors.white),
+
+            ),
             onChanged: (val) {
               setState(() {
                 query = val;
@@ -61,11 +68,14 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
                 onPressed: () {
                   WidgetsBinding.instance.addPostFrameCallback((_) => searchController.clear());
+                  setState(() {
+                    query="";
+                  });
                 },
                )
           ],
         ),
-        body: Container(
+        body:(query=="")?ChatQuietBox(screen: "search",) :Container(
           padding: EdgeInsets.symmetric(horizontal: 20),
           child: buildSuggestions(query),
         ));
@@ -105,16 +115,17 @@ class _SearchScreenState extends State<SearchScreen> {
               backgroundColor: Colors.grey,
               backgroundImage: NetworkImage(searchedUser.profilePhoto),
             ),
-            title: Text(
-              searchedUser.username,
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-            icon: Icon(null),
-            subtitle: Text(
+            title:Text(
               searchedUser.name,
-              style: TextStyle(color: UniversalVariables.greyColor),
+              style: TextStyle(color: Colors.white,fontSize: 16),
             ),
-            trailing: Icon(Icons.add),
+
+            icon: Container(),
+            subtitle:   Text(
+              searchedUser.username,
+              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+            ),
+            trailing: Icon(Icons.message,color: Colors.white,),
             margin: EdgeInsets.all(0),
             mini: false,
             onTap: () {

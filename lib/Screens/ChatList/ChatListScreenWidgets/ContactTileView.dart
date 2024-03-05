@@ -29,15 +29,24 @@ class ContactTileView extends StatelessWidget {
             return ViewLayout(contactUserModel: userModel);
           }
           return Container(
-              height: 100,
+              height: 150,
               //constraints: BoxConstraints(maxHeight: 68, maxWidth: 60),
               child: Center(
                   child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        children: [CircularProgressIndicator(), Divider()],
-                      ),
-                    )));
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(18.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                        Divider(
+                          color: Colors.white,
+                          thickness: 0.2,
+                        )
+                      ],
+                    ),
+              )));
         });
   }
 }
@@ -75,7 +84,7 @@ class ViewLayout extends StatelessWidget {
           style:
               TextStyle(color: Colors.white, fontFamily: "Arial", fontSize: 19),
         ),
-        icon: Icon(null),
+        icon: Container(),
         subtitle: LastMessageContainer(
             position: "subtitle",
             stream: chatFirebaseMethods.fetchLastMessageBetween(
@@ -86,12 +95,9 @@ class ViewLayout extends StatelessWidget {
         margin: EdgeInsets.all(0),
         mini: false,
         onTap: () {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) =>
-                      ChatScreen(receiver: contactUserModel)));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(receiver: contactUserModel)));
         },
-        onLongPress: () {});
+        onLongPress: () {}
+    );
   }
 }

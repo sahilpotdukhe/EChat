@@ -10,7 +10,7 @@ class Utils{
   // Example email = sahilpotdukhe.ssp@gmail.com
   // email.split('@') => [sahilpotdukhe.ssp, gmail.com] we want first one so [0]
   static String getUsername(String email){
-    return "gotalk:${email.split('@')[0]}";
+    return "echat:${email.split('@')[0]}";
   }
 
   static String getInitials(String? displayName) {
@@ -54,6 +54,7 @@ class Utils{
     var formatter = DateFormat('dd/MM/yy');
     return formatter.format(dateTime);
   }
+
 
   // static Future<File> loadPdfFromNetwork(String pdfUrl) async{
   //   final response =await http.get(Uri.parse(pdfUrl));

@@ -12,7 +12,7 @@ import 'package:video_thumbnail/video_thumbnail.dart';
 class FirebaseStorageMethod{
 
   FirebaseFirestore firestore = FirebaseFirestore.instance;
-  void uploadImage(XFile? image, String receiverId, String senderId, ImageUploadProvider imageUploadProvider) async {
+  void uploadImage(XFile? image, String receiverId, String senderId, ImageUploadProvider imageUploadProvider, Function(double) onProgress) async {
     try{
       imageUploadProvider.setToLoading();
 
@@ -25,13 +25,16 @@ class FirebaseStorageMethod{
 
       UploadTask task = storage.ref().child('Media/$picture').putFile(imagep); //ref(): This method retrieves a reference to the root location of your Firebase Storage.
       // putFile(imagep): This method is used to upload a file (imagep in this case) to the specified location in Firebase Storage.
-
+      task.snapshotEvents.listen((TaskSnapshot snapshot) {
+        double progress = snapshot.bytesTransferred / snapshot.totalBytes;
+        onProgress(progress);
+      });
       TaskSnapshot snapshot = (await task.whenComplete(() => task.snapshot)); //it returns task.snapshot, which represents the final status of the upload task.
       await task.whenComplete(() async {
         imageUrl = await snapshot.ref.getDownloadURL();}
       ); //snapshot.ref refers to the reference of the uploaded file in Firebase Storage, and getDownloadURL() retrieves the URL that can be used to download the file.
 
-      imageUploadProvider.setToIdle();
+
 
       MessageModel messageModel = MessageModel.imageMessage(
           senderId: senderId,
@@ -43,6 +46,7 @@ class FirebaseStorageMethod{
       );
 
       Map<String, dynamic> map = messageModel.toMap() as Map<String, dynamic>;
+      imageUploadProvider.setToIdle();
       // these is to store in the sender side
       await firestore
           .collection("messages")
@@ -56,6 +60,8 @@ class FirebaseStorageMethod{
           .doc(messageModel.receiverId)
           .collection(messageModel.senderId)
           .add(map);
+
+
     }catch(e){
       print(e);
     }
@@ -105,6 +111,8 @@ class FirebaseStorageMethod{
             pdfName: pdfName
         );
 
+        imageUploadProvider.setToIdle();
+
         Map<String, dynamic> map = messageModel.toMap() as Map<String, dynamic>;
         // these is to store in the sender side
         await firestore
@@ -120,7 +128,6 @@ class FirebaseStorageMethod{
             .collection(messageModel.senderId)
             .add(map);
       }
-      imageUploadProvider.setToIdle();
   }
   Future<String> _generateThumbnailandUpload(String videoUrl) async {
     final thumbnailPath = (await getTemporaryDirectory()).path;

@@ -93,7 +93,7 @@ class _BotttomNavigationBarState extends State<BotttomNavigationBar>  with Widge
             height: 60,
             color: Colors.white,
             buttonBackgroundColor: Colors.white,
-            backgroundColor: UniversalVariables.blueColor,
+            backgroundColor: UniversalVariables.appThemeColor,
             animationCurve: Curves.easeInOut,
             animationDuration: Duration(milliseconds: 300),
             onTap: (index) {

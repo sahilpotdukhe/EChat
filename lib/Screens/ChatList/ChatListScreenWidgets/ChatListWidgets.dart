@@ -45,8 +45,8 @@ class ChatCustomTile extends StatelessWidget {
                             decoration: BoxDecoration(
                                 border: Border(
                                     bottom: BorderSide(
-                                        width: 1,
-                                        color: UniversalVariables.separatorColor))),
+                                       width: 0.2,
+                                        color: Colors.white))),
                             child: Row(
                               children: [
                                 Expanded(
@@ -91,27 +91,17 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   // these is to set the new height of appbar 10 more than the standard height of the appbar
   @override
-  final Size preferredSize = const Size.fromHeight(kToolbarHeight + 10);
+  final Size preferredSize = const Size.fromHeight(kToolbarHeight + 0);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(10),
-      decoration: BoxDecoration(
-          color: UniversalVariables.blackColor,
-          border: Border(
-              bottom: BorderSide(
-                  color: UniversalVariables.separatorColor,
-                  width: 1.4,
-                  style: BorderStyle.solid))),
-      child: AppBar(
-        backgroundColor: UniversalVariables.blueColor,
-        elevation: 0,
-        leading: leading,
-        actions: actions,
-        centerTitle: centerTitle,
-        title: title,
-      ),
+    return AppBar(
+      backgroundColor: UniversalVariables.appThemeColor,
+      elevation: 0,
+      leading: leading,
+      actions: actions,
+      centerTitle: centerTitle,
+      title: title,
     );
   }
 }
