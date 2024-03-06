@@ -60,7 +60,9 @@ class _ChatScreenState extends State<ChatScreen> {
           state: 0,
           profilePhoto: currentUser.photoURL ?? '',
           gender: '',
-          phoneNumber: '');
+          phoneNumber: '',
+          authType: ''
+      );
     });
   }
 

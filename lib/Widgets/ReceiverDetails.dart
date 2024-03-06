@@ -1,20 +1,11 @@
 import 'package:echat/Models/UserModel.dart';
-import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Resources/AuthMethods.dart';
-import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
-import 'package:echat/Screens/ChatList/ChatListScreenWidgets/UserCircle.dart';
-import 'package:echat/Screens/LoginScreen.dart';
 import 'package:echat/Utils/CallUtilities.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
-import 'package:echat/Utils/utilities.dart';
-import 'package:echat/Widgets/CachedChatImage.dart';
-import 'package:echat/Widgets/EditProfile.dart';
 import 'package:echat/Widgets/FullImageWidget.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 import 'package:hexcolor/hexcolor.dart';
-import 'package:hive/hive.dart';
-import 'package:provider/provider.dart';
+
 
 class ReceiverDetails extends StatelessWidget {
   final UserModel receiverModel;

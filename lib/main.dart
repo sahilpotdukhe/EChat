@@ -6,7 +6,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:echat/Provider/ImageUploadProvider.dart';
-import 'package:echat/Screens/LoginScreen.dart';
 import 'package:echat/Screens/SearchScreen.dart';
 import 'package:echat/Widgets/BottomNavigationBar.dart';
 import 'package:provider/provider.dart';
@@ -41,7 +40,8 @@ class _MyAppState extends State<MyApp> {
       providers: [
         ChangeNotifierProvider(create: (_) => ImageUploadProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => AppProvider())
+        ChangeNotifierProvider(create: (_) => AppProvider()),
+        ChangeNotifierProvider(create: (_) => GoogleSignInProvider())
       ],
       child: MaterialApp(
         title: 'ECHAT',
@@ -54,7 +54,7 @@ class _MyAppState extends State<MyApp> {
             if (snapshot.hasData) {
               return BotttomNavigationBar();
             } else {
-              return isViewed !=0 ? OnBoardScreens() : LoginScreen();
+              return isViewed !=0 ? OnBoardScreens() : Authenticate();
             }
           },
         ),

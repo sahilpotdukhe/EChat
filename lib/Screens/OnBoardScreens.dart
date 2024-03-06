@@ -1,5 +1,6 @@
 import 'package:echat/Models/OnBoardModel.dart';
 import 'package:echat/Screens/LoginScreen.dart';
+import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -52,9 +53,9 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: (currentIndex%2 ==0 )?Colors.white: Colors.blue,
+      backgroundColor: (currentIndex%2 ==0 )?Colors.white: UniversalVariables.appThemeColor,
       appBar: AppBar(
-        backgroundColor:(currentIndex%2 ==0 )?Colors.white: Colors.blue,
+        backgroundColor:(currentIndex%2 ==0 )?Colors.white: UniversalVariables.appThemeColor,
         elevation: 0,
         actions: [
           TextButton(
@@ -67,7 +68,7 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
                   fontSize: 20.0,
                   fontWeight: FontWeight.bold,
                   fontFamily: 'Poppins',
-                  color: currentIndex % 2 == 0 ? Colors.blue  : Colors.white,
+                  color: currentIndex % 2 == 0 ? UniversalVariables.appThemeColor  : Colors.white,
                 ),
               )),
         ],
@@ -123,7 +124,7 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
                               width: currentIndex == index ?25 : 8,
                               height: 8,
                               decoration: BoxDecoration(
-                                  color: currentIndex == index && currentIndex %2 ==0 ? Colors.blue:Colors.blue[100],
+                                  color: currentIndex == index && currentIndex %2 ==0 ? UniversalVariables.appThemeColor:Colors.blue[200],
                                   borderRadius: BorderRadius.circular(10)
                               ),
                             )
@@ -143,7 +144,7 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
                     child: Container(
                       padding: EdgeInsets.symmetric(horizontal: 30,vertical: 10),
                       decoration: BoxDecoration(
-                        color: index % 2 == 0 ? Colors.blue  : Colors.white,
+                        color: index % 2 == 0 ? UniversalVariables.appThemeColor  : Colors.white,
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Row(
@@ -152,11 +153,11 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
                           Text((index == screens.length -1 )?"Finish":"Next",
                           style: TextStyle(
                             fontSize: 16.0,
-                            color: index % 2 == 0 ? Colors.white  : Colors.blue,
+                            color: index % 2 == 0 ? Colors.white  : UniversalVariables.appThemeColor,
                           ),
                           ),
                           SizedBox(width: 15,),
-                          Icon(Icons.arrow_forward_sharp,color: index % 2 == 0 ? Colors.white  : Colors.blue,),
+                          Icon(Icons.arrow_forward_sharp,color: index % 2 == 0 ? Colors.white  : UniversalVariables.appThemeColor,),
                         ],
                       ),
                     ),

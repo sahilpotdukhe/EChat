@@ -1,11 +1,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Models/UserModel.dart';
+import 'package:echat/Screens/LoginScreen.dart';
 import 'package:echat/Utils/utilities.dart';
+import 'package:echat/Widgets/BottomNavigationBar.dart';
 import 'package:echat/enum/UserState.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:provider/provider.dart';
+
+final FirebaseAuth _auth = FirebaseAuth.instance;
+class Authenticate extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    if (_auth.currentUser != null) {
+      return BotttomNavigationBar();
+    } else {
+      return LoginScreen();
+    }
+  }
+}
 
 class AuthMethods {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -30,54 +44,74 @@ class AuthMethods {
 
   }
 
-  Future<User?> googleSignIn(BuildContext context) async {
+  Future<User?> createAccountbyEmail(String email, String password, BuildContext context) async{
+    try{
+      User? user = (await _auth.createUserWithEmailAndPassword(email: email, password: password)).user;
+      if(user != null){
+        print("User Created Successfully");
+        return user;
+      }else{
+        print("Account creation failed");
+        return user;
+      }
+    }catch(e){
+      print(e);
+      return null;
+    }
+  }
+
+  Future<User?> logInByEmail(String email, String password) async{
+    try{
+      User? user = (await _auth.signInWithEmailAndPassword(email: email, password: password)).user;
+      if(user != null){
+        print("Login Successful");
+        return user;
+      }else{
+        print("Login failed");
+        return user;
+      }
+    }catch(e){
+      print(e);
+      return null;
+    }
+  }
+
+  Future logOut(BuildContext context) async {
+    FirebaseAuth _auth = FirebaseAuth.instance;
+
     try {
-      GoogleSignInAccount? signInAccount = await _googleSignIn.signIn();
-
-      GoogleSignInAuthentication? signInAuthentication = await signInAccount!.authentication;
-
-      final AuthCredential credential = GoogleAuthProvider.credential(
-          accessToken: signInAuthentication.accessToken,
-          idToken: signInAuthentication.idToken
-      );
-
-      await _auth.signInWithCredential(credential);
-      String? email = _auth.currentUser?.email;
-      checkAlreadyRegistered(email!).then((isNewUser) {
-        if (isNewUser) {
-          showToast(
-              "Account LoggedIn Successfully", backgroundColor: Colors.green,
-              context: context);
-        } else {
-          showToast(
-              "Account Created Successfully", backgroundColor: Colors.green,
-              context: context);
-        }
-      });
-
-      DocumentSnapshot userdocs = await firestore
-          .collection("Users")
-          .doc(_auth.currentUser!.uid)
-          .get();
-      if (userdocs.data() == null) {
-        String username = Utils.getUsername(signInAccount.email);
-        await firestore.collection("Users").doc(_auth.currentUser!.uid)
-            .set({
-          "name": _auth.currentUser!.displayName,
-          "email": _auth.currentUser!.email,
-          "uid": _auth.currentUser!.uid,
-          "profile_photo": _auth.currentUser!.photoURL,
-          "status": "",
-          "state": 0,
-          "username": username,
-          "gender":'',
-          "phone_Number":''
+      try {
+        final provider =
+        Provider.of<GoogleSignInProvider>(context, listen: false);
+        provider.googlelogout(context);
+      } catch (e) {
+        await _auth.signOut().then((value) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+          );
         });
       }
     } catch (e) {
-      print(e.toString());
+      print("error");
     }
-    return null;
+  }
+
+  void setUserProfile({String? name,String? email, var mobilenumber, var profilePic,String? authType}) async {
+    String username = Utils.getUsername(email!);
+    await firestore.collection("Users").doc(_auth.currentUser!.uid)
+        .set({
+      "name": name,
+      "email": email,
+      "uid": _auth.currentUser!.uid,
+      "profile_photo": profilePic,
+      "status": "",
+      "state": 0,
+      "username": username,
+      "gender": '',
+      "phone_Number": mobilenumber,
+      "auth_type": authType
+    });
   }
 
   Future<bool> checkAlreadyRegistered(String email) async {
@@ -89,15 +123,15 @@ class AuthMethods {
     return docs.isNotEmpty ? true : false;
   }
 
-  Future googleLogOut() async {
-    try {
-      await _googleSignIn.disconnect();
-      await _googleSignIn.signOut();
-    } catch (e) {
-      print(e);
-    }
-    _auth.signOut();
-  }
+  // Future googleLogOut() async {
+  //   try {
+  //     await _googleSignIn.disconnect();
+  //     await _googleSignIn.signOut();
+  //   } catch (e) {
+  //     print(e);
+  //   }
+  //   _auth.signOut();
+  // }
   // Loop through each document or User and store it in userlist as UserModel
 // So that the userlist contains all the user except the current user
   Future<List<UserModel>> fetchAllUsers(User currentUser) async {
@@ -119,4 +153,56 @@ class AuthMethods {
 
   Stream<DocumentSnapshot> getUserStream({required String uid}) =>
       firestore.collection("Users").doc(uid).snapshots();
+}
+
+
+
+
+
+class GoogleSignInProvider extends ChangeNotifier {
+  AuthMethods authMethods = AuthMethods();
+  final googleSignIn = GoogleSignIn();
+  GoogleSignInAccount? _user;
+  GoogleSignInAccount get user => _user!;
+
+  Future googleLogin(context) async {
+    try {
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) return;
+      _user = googleUser;
+      print('user...');
+      print(_user);
+      final googleAuth = await googleUser.authentication;
+      print("this is goooogle-- $googleAuth");
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      DocumentSnapshot userDocs = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(FirebaseAuth.instance.currentUser!.uid)
+          .get();
+      if (userDocs.data() == null) {
+        authMethods.setUserProfile(name: _user?.displayName, email: _user?.email,mobilenumber: '',profilePic:_user?.photoUrl,authType: "googleAuth");
+      }
+
+
+      return true;
+    } catch (e) {
+      print(e.toString());
+      return false;
+    }
+  }
+
+  Future googlelogout(context) async {
+    try {
+      await googleSignIn.disconnect();
+    } catch (e) {
+      print(e);
+    }
+    FirebaseAuth.instance.signOut();
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>LoginScreen()));
+
+  }
 }

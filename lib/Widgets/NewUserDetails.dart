@@ -1,7 +1,6 @@
 import 'package:echat/Models/UserModel.dart';
 import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Resources/AuthMethods.dart';
-import 'package:echat/Screens/LoginScreen.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:echat/Widgets/EditProfile.dart';
 import 'package:echat/Widgets/FullImageWidget.dart';
@@ -220,9 +219,9 @@ class _NewUserDetailsState extends State<NewUserDetails> {
                       Spacer(),
                       InkWell(
                         onTap: () {
-                          authMethods.googleLogOut();
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) {return LoginScreen();}));
-                          showToast("Account Logout Successfully", backgroundColor: Colors.red, context: context);
+                          authMethods.logOut(context);
+                          // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) {return NewLoginScreen();}));
+                          showToast("Account Logging Out....", backgroundColor: Colors.red, context: context);
                         },
                         child: Container(
                           decoration: BoxDecoration(

@@ -107,7 +107,8 @@ class _SearchScreenState extends State<SearchScreen> {
             state: suggestionList[index].state,
             profilePhoto: suggestionList[index].profilePhoto,
             gender: suggestionList[index].gender,
-            phoneNumber: suggestionList[index].phoneNumber
+            phoneNumber: suggestionList[index].phoneNumber,
+            authType: suggestionList[index].authType
         );
 
         return ChatCustomTile(

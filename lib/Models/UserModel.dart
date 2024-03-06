@@ -8,6 +8,7 @@ class UserModel{
   String gender = "";
   int state=0;
   String profilePhoto="";
+  String authType="";
 
   UserModel({
     required this.uid,
@@ -19,6 +20,7 @@ class UserModel{
     required this.gender,
     required this.phoneNumber,
     required this.profilePhoto,
+    required this.authType
 });
 
   Map toMap(UserModel user) {
@@ -32,6 +34,7 @@ class UserModel{
     data["profile_photo"] = user.profilePhoto;
     data["phone_Number"]= user.phoneNumber;
     data["gender"] = user.gender;
+    data['auth_type'] = user.authType;
     return data;
   }
 
@@ -45,6 +48,7 @@ class UserModel{
     profilePhoto = mapData['profile_photo'];
     gender= mapData['gender'];
     phoneNumber = mapData['phone_Number'];
+    authType = mapData['auth_type'];
   }
 
 }
