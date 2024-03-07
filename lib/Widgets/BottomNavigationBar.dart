@@ -4,6 +4,7 @@ import 'package:echat/Resources/Repository/LogRepository.dart';
 import 'package:echat/Screens/Call/PickupLayout.dart';
 import 'package:echat/Screens/CallLogs/CallLogsScreen.dart';
 import 'package:echat/Screens/ChatList/ChatListScreen.dart';
+import 'package:echat/Screens/AvailableUsers.dart';
 import 'package:echat/Widgets/NewUserDetails.dart';
 import 'package:echat/enum/UserState.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +24,7 @@ class BotttomNavigationBar extends StatefulWidget {
 class _BotttomNavigationBarState extends State<BotttomNavigationBar>  with WidgetsBindingObserver{
   late UserProvider userProvider;
   AuthMethods authMethods = AuthMethods();
+  bool _disposed = false;
   @override
   void initState() {
     // TODO: implement initState
@@ -32,8 +34,10 @@ class _BotttomNavigationBarState extends State<BotttomNavigationBar>  with Widge
 
   Future<void> initializeUser() async {
     await Future.delayed(Duration.zero); // This ensures that the context is available
+    if (_disposed) return;
     userProvider = Provider.of<UserProvider>(context, listen: false);
     await userProvider.refreshUser();
+    if (_disposed) return;
     if (userProvider.getUser != null) {
       authMethods.setUserState(userId: userProvider.getUser!.uid, userState: UserState.Online);
       LogRepository.initialize(isHive: true,dbName: userProvider.getUser!.uid);
@@ -48,11 +52,16 @@ class _BotttomNavigationBarState extends State<BotttomNavigationBar>  with Widge
   void dispose() {
     // TODO: implement dispose
     super.dispose();
+    _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_disposed) {
+      // Re-initialize user when app is resumed, if the state is not disposed
+      initializeUser();
+    }
     String currentUserid = (userProvider.getUser != null)?userProvider.getUser!.uid : "";
     // TODO: implement didChangeAppLifecycleState
     super.didChangeAppLifecycleState(state);
@@ -87,6 +96,7 @@ class _BotttomNavigationBarState extends State<BotttomNavigationBar>  with Widge
             items: const [
               Icon(Icons.chat),
               Icon(Icons.call),
+              Icon(Icons.person_search),
               Icon(Icons.contacts),
               Icon(Icons.person)
             ],
@@ -116,8 +126,10 @@ getPage(int page) {
     case 1:
       return CallLogsScreen();
     case 2:
-      return ContactPage();
+      return AvailableUsers();
     case 3:
+      return ContactPage();
+    case 4:
       return NewUserDetails();
   }
 }

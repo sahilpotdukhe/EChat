@@ -132,9 +132,10 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Container(
+                    Container( 
                       width: 120,
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           CircleAvatar(
                             radius: 30,
@@ -143,7 +144,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
                             foregroundImage: NetworkImage(widget.callModel.callerPic),
                           ),
                           SizedBox(height: 5,),
-                          Text(widget.callModel.callerName,overflow:TextOverflow.ellipsis,maxLines:2,style: TextStyle(fontSize: 20,fontWeight: FontWeight.bold),)
+                          Text(widget.callModel.callerName,textAlign:TextAlign.center,overflow:TextOverflow.ellipsis,maxLines:2,style: TextStyle(fontSize: 20,fontWeight: FontWeight.bold),)
                         ],
                       ),
                     ),
@@ -151,6 +152,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
                     Container(
                       width: 120,
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           CircleAvatar(
                             radius: 30,
@@ -159,7 +161,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
                             foregroundImage: NetworkImage(widget.callModel.receiverPic),
                           ),
                           SizedBox(height: 5,),
-                          Text(widget.callModel.receiverName,overflow:TextOverflow.ellipsis,maxLines:2,style: TextStyle(fontSize: 20,fontWeight: FontWeight.bold),)
+                          Text(widget.callModel.receiverName,textAlign:TextAlign.center,overflow:TextOverflow.ellipsis,maxLines:2,style: TextStyle(fontSize: 20,fontWeight: FontWeight.bold),)
                         ],
                       ),
                     )

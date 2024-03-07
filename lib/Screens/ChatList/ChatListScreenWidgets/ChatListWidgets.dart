@@ -42,11 +42,6 @@ class ChatCustomTile extends StatelessWidget {
                   child: Container(
                             margin: EdgeInsets.only(left: mini ? 10 : 15),
                             padding: EdgeInsets.symmetric(vertical: mini ? 3 : 20),
-                            decoration: BoxDecoration(
-                                border: Border(
-                                    bottom: BorderSide(
-                                       width: 0.2,
-                                        color: Colors.white))),
                             child: Row(
                               children: [
                                 Expanded(
@@ -66,10 +61,11 @@ class ChatCustomTile extends StatelessWidget {
                                     ],
                                   ),
                                 ),
-                                trailing
+
                               ],
                             ),
-              ))
+              )),
+              trailing
             ],
           )),
     );

@@ -20,6 +20,7 @@ import 'package:echat/Provider/ImageUploadProvider.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:echat/Widgets/CachedChatImage.dart';
 import 'package:echat/Widgets/ModalTile.dart';
+import 'package:hexcolor/hexcolor.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -68,8 +69,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ImageUploadProvider imageUploadProvider =
-        Provider.of<ImageUploadProvider>(context);
+    ImageUploadProvider imageUploadProvider = Provider.of<ImageUploadProvider>(context);
     return PickupLayout(
       scaffold: Scaffold(
         backgroundColor: Colors.black,
@@ -163,10 +163,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemCount: snapshot.data!.docs.length,
                   reverse: true,
                   itemBuilder: (context, index) {
-                    Timestamp currentMessageDate = snapshot.data!.docs[index][
-                        'timestamp']; //This line extracts the timestamp of the current message from the docs list in the snapshot.
-                    DateTime currentMessageDateTime =
-                        currentMessageDate.toDate();
+                    Timestamp currentMessageDate = snapshot.data!.docs[index]['timestamp']; //This line extracts the timestamp of the current message from the docs list in the snapshot.
+                    DateTime currentMessageDateTime = currentMessageDate.toDate();
                     String messageDate = '';
 
                     // Get the current message's date
@@ -174,8 +172,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     //This block prepares to get the timestamp of the next message.
                     if (index < snapshot.data!.docs.length - 1) {
                       //It checks if the current message is not the last one in the list to avoid an index out of bounds error.
-                      Timestamp nextDate =
-                          snapshot.data!.docs[index + 1]['timestamp'];
+                      Timestamp nextDate = snapshot.data!.docs[index + 1]['timestamp'];
                       nextDateTime = nextDate.toDate();
                     }
 
@@ -445,7 +442,7 @@ class _ChatScreenState extends State<ChatScreen> {
       constraints:
           BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.65),
       decoration: BoxDecoration(
-          color: Colors.white,
+          color: HexColor('aeb9cc'),
           borderRadius: BorderRadius.only(
             bottomRight: Radius.circular(10),
             topRight: Radius.circular(10),
@@ -463,7 +460,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         padding: const EdgeInsets.fromLTRB(12, 8, 20, 0),
                         child: Text(
                           snapshot['message'],
-                          style: TextStyle(color: Colors.white, fontSize: 16),
+                          style: TextStyle(color: Colors.black, fontSize: 16),
                         ),
                       ),
                     )

@@ -23,7 +23,7 @@ class LastMessageContainer extends StatelessWidget {
               DateTime datenew = date.toDate();
               String time = DateFormat.jm().format(datenew);
               return SizedBox(
-                width: MediaQuery.of(context).size.width * 0.6,
+                width:  (position == "subtitle")?MediaQuery.of(context).size.width * 0.6:76,
                 child: Text(
                   (position == "subtitle")? messageModel.message: time ,
                   maxLines: 1,

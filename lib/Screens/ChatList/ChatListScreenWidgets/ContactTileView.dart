@@ -29,15 +29,15 @@ class ContactTileView extends StatelessWidget {
             return ViewLayout(contactUserModel: userModel);
           }
           return Container(
-              height: 150,
+              height: 80,
               //constraints: BoxConstraints(maxHeight: 68, maxWidth: 60),
               child: Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding:  EdgeInsets.fromLTRB(8,8,8,0),
                     child: Column(
-                      children: [
+                      children:const [
                         Padding(
-                          padding: const EdgeInsets.all(18.0),
+                          padding:  EdgeInsets.fromLTRB(8,8,8,0),
                           child: CircularProgressIndicator(),
                         ),
                         Divider(
@@ -90,8 +90,7 @@ class ViewLayout extends StatelessWidget {
             stream: chatFirebaseMethods.fetchLastMessageBetween(
                 senderId: userProvider.getUser!.uid,
                 receiverId: contactUserModel.uid)),
-        trailing: Icon(null),
-        //LastMessageContainer(position: "trailing",stream: chatFirebaseMethods.fetchLastMessageBetween(senderId: userProvider.getUser!.uid, receiverId: contactUserModel.uid)),
+        trailing: LastMessageContainer(position: "trailing",stream: chatFirebaseMethods.fetchLastMessageBetween(senderId: userProvider.getUser!.uid, receiverId: contactUserModel.uid)),
         margin: EdgeInsets.all(0),
         mini: false,
         onTap: () {

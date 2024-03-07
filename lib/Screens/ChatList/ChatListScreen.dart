@@ -8,6 +8,7 @@ import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ContactTileView.dar
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/NewChatButton.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/QuietBox.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/UserCircle.dart';
+import 'package:echat/Screens/AvailableUsers.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 

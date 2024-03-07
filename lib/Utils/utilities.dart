@@ -1,10 +1,5 @@
-import 'dart:io';
-
 import 'package:echat/enum/UserState.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 class Utils{
 
   // Example email = sahilpotdukhe.ssp@gmail.com
@@ -51,17 +46,8 @@ class Utils{
   
   static String formatDateString(String dateString){
     DateTime dateTime = DateTime.parse(dateString);
-    var formatter = DateFormat('dd/MM/yy');
+    var formatter = DateFormat('dd/MM/yy   ....  hh:mm a');
     return formatter.format(dateTime);
   }
 
-
-  // static Future<File> loadPdfFromNetwork(String pdfUrl) async{
-  //   final response =await http.get(Uri.parse(pdfUrl));
-  //   final bytes = response.bodyBytes;
-  //   final dir = await getApplicationDocumentsDirectory();
-  //   final file = File('${dir.path}/${DateTime.now().microsecondsSinceEpoch}');
-  //   await file.writeAsBytes(bytes,flush: true);
-  //   return file;
-  // }
 }
