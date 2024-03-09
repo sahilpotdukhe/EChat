@@ -42,7 +42,6 @@ class AuthMethods {
   Future<UserModel> getUserDetailsById(id) async{
       DocumentSnapshot documentSnapshot = await firestore.collection("Users").doc(id).get();
       return UserModel.fromMap(documentSnapshot.data() as Map<String,dynamic>);
-
   }
 
   Future<User?> createAccountbyEmail(String email, String password, BuildContext context) async{
