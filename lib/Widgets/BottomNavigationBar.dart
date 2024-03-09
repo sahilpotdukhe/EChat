@@ -1,3 +1,4 @@
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Resources/Repository/LogRepository.dart';
@@ -7,6 +8,7 @@ import 'package:echat/Screens/ChatList/ChatListScreen.dart';
 import 'package:echat/Screens/AvailableUsers.dart';
 import 'package:echat/Widgets/NewUserDetails.dart';
 import 'package:echat/enum/UserState.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:echat/Screens/ContactPage.dart';
@@ -30,6 +32,68 @@ class _BotttomNavigationBarState extends State<BotttomNavigationBar>  with Widge
     // TODO: implement initState
     super.initState();
     initializeUser();
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      String? title= message.notification!.title;
+      String? body = message.notification!.body;
+      if(title == 'Incoming Call'){
+        AwesomeNotifications().createNotification(
+            content: NotificationContent(
+              id: 123,
+              channelKey: "call_channel",
+              title: title,
+              body: body,
+              category: NotificationCategory.Call,
+              wakeUpScreen: true,
+              fullScreenIntent: true,
+              autoDismissible: false,
+              backgroundColor: UniversalVariables.appThemeColor,
+              notificationLayout: NotificationLayout.BigPicture,
+              largeIcon: 'asset://assets/login.png',
+              displayOnForeground: true,
+              displayOnBackground: true,
+            ),
+            actionButtons: [
+              NotificationActionButton(key: "Accept", label: "Accept Call",color: Colors.green,autoDismissible: true),
+              NotificationActionButton(key: "Reject", label: "Reject Call",color: Colors.red,autoDismissible: true),
+            ]
+        );
+      }else{
+        AwesomeNotifications().createNotification(
+            content: NotificationContent(
+              id: 456,
+              channelKey: "message_channel",
+              title: title,
+              body: body,
+              category: NotificationCategory.Message,
+              wakeUpScreen: true,
+              fullScreenIntent: true,
+              autoDismissible: false,
+              backgroundColor: UniversalVariables.appThemeColor,
+              notificationLayout: NotificationLayout.BigPicture,
+              largeIcon: 'asset://assets/login.png',
+              displayOnForeground: true,
+              displayOnBackground: true,
+            ),
+            actionButtons: [
+              NotificationActionButton(key: "Reply", label: "Reply",color: Colors.grey,autoDismissible: true),
+              NotificationActionButton(key: "Mark as read", label: "Mark as read",color: Colors.grey,actionType: ActionType.DismissAction),
+            ]
+        );
+      }
+      AwesomeNotifications().setListeners(
+          onActionReceivedMethod: (receivedAction) async{
+            if(receivedAction.buttonKeyPressed == "Accept"){
+              print("Call Accepted");
+            }else if(receivedAction.buttonKeyPressed == "Reject"){
+              print("Call Rejected");
+            }else if(receivedAction.buttonKeyPressed == "Reply"){
+              print("Message replied");
+            }else{
+              await AwesomeNotifications().dismiss(receivedAction.id!);
+              print("Clicked on notification");
+            }
+          });
+    });
   }
 
   Future<void> initializeUser() async {
@@ -42,6 +106,7 @@ class _BotttomNavigationBarState extends State<BotttomNavigationBar>  with Widge
       authMethods.setUserState(userId: userProvider.getUser!.uid, userState: UserState.Online);
       LogRepository.initialize(isHive: true,dbName: userProvider.getUser!.uid);
       print(userProvider.getUser!.state);
+
     } else {
       print('User is null');
     }

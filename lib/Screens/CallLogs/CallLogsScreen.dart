@@ -1,10 +1,10 @@
-import 'package:echat/Resources/Repository/LogRepository.dart';
-import 'package:echat/Screens/Call/PickupLayout.dart';
+import 'dart:convert';
 import 'package:echat/Screens/CallLogs/LogListContainer.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/UserCircle.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:flutter/material.dart';
+
 
 class CallLogsScreen extends StatelessWidget {
   const CallLogsScreen({super.key});
@@ -29,7 +29,8 @@ class CallLogsScreen extends StatelessWidget {
             leading: IconButton(
               icon: Icon(Icons.notifications),
               color: Colors.white,
-              onPressed: () {},
+              onPressed: () {
+              },
             ),
             centerTitle: true
         ),
@@ -71,4 +72,6 @@ class CallLogsScreen extends StatelessWidget {
         ),
       );
   }
+
+
 }

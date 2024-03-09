@@ -5,6 +5,7 @@ import 'package:echat/Utils/utilities.dart';
 import 'package:echat/Widgets/BottomNavigationBar.dart';
 import 'package:echat/enum/UserState.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
@@ -99,6 +100,12 @@ class AuthMethods {
 
   void setUserProfile({String? name,String? email, var mobilenumber, var profilePic,String? authType}) async {
     String username = Utils.getUsername(email!);
+    String? initialToken = await FirebaseMessaging.instance.getToken();
+    print("Initial Token Sign up screen ${initialToken}");
+
+    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async{
+      print("New Token Sign up screen ${newToken}");
+    });
     await firestore.collection("Users").doc(_auth.currentUser!.uid)
         .set({
       "name": name,
@@ -110,8 +117,10 @@ class AuthMethods {
       "username": username,
       "gender": '',
       "phone_Number": mobilenumber,
-      "auth_type": authType
+      "auth_type": authType,
+      "notification_token": initialToken
     });
+    await updateToken(_auth.currentUser!.uid, initialToken!);
   }
 
   Future<bool> checkAlreadyRegistered(String email) async {
@@ -121,6 +130,12 @@ class AuthMethods {
     final List<DocumentSnapshot> docs = result.docs;
     // If user is already registered means it has entry in the firestore database so the doc length will be equal to or greater than 1
     return docs.isNotEmpty ? true : false;
+  }
+
+  Future<void> updateToken(String userId, String token) async {
+    await firestore.collection('Users').doc(userId).update({
+      'notification_token': token,
+    });
   }
 
   // Future googleLogOut() async {
@@ -185,6 +200,11 @@ class GoogleSignInProvider extends ChangeNotifier {
           .get();
       if (userDocs.data() == null) {
         authMethods.setUserProfile(name: _user?.displayName, email: _user?.email,mobilenumber: '',profilePic:_user?.photoUrl,authType: "googleAuth");
+      }else{
+        User? currentUser = await FirebaseAuth.instance.currentUser;
+        String? alreadyInitialToken = await FirebaseMessaging.instance.getToken();
+        print("Initial Token else already exists ${alreadyInitialToken}");
+        authMethods.updateToken(currentUser!.uid, alreadyInitialToken!);
       }
 
 

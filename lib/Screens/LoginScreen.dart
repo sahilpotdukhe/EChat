@@ -1,9 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Screens/SignUpScreen.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:echat/Widgets/BottomNavigationBar.dart';
 import 'package:echat/Widgets/loading.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_signin_button/button_list.dart';
 import 'package:flutter_signin_button/button_view.dart';
@@ -113,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         // mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           SizedBox(
-                            width: 30,
+                            width: 20,
                           ),
                           Padding(
                             padding: const EdgeInsets.all(8.0),
@@ -128,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Spacer(),
                           Image.asset(
                             'assets/login.png',
-                            width: 290,
+                            width: 280,
                           )
                         ],
                       ),
@@ -387,6 +389,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 .then((user) async {
                                               if (user != null) {
                                                 print(user);
+                                                String? initialToken = await FirebaseMessaging.instance.getToken();
+                                                print("Initial Token sign in ${initialToken}");
+
+                                                FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async{
+                                                  print("New Token sign in  ${newToken}");
+
+                                                });
+                                                await FirebaseFirestore.instance.collection("Users").doc(user!.uid).update({
+                                                  "notification_token": initialToken,
+                                                });
+
+
+                                                authMethods.updateToken(user.uid, initialToken!);
                                                 Navigator.pushAndRemoveUntil(
                                                     context,
                                                     MaterialPageRoute(
@@ -444,7 +459,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         },
                                         child: Padding(
                                           padding: const EdgeInsets.fromLTRB(
-                                              100, 8, 100, 8),
+                                              80, 8, 80, 8),
                                           child: Text(
                                             'SIGN IN',
                                             style: TextStyle(
@@ -479,6 +494,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                   final googleProvider =
                                       Provider.of<GoogleSignInProvider>(context, listen: false);
                                   await googleProvider.googleLogin(context);
+
+
+                                  // String? initialToken = await FirebaseMessaging.instance.getToken();
+                                  // print("Initial Token  Sign in screen ${initialToken}");
+                                  // FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async{
+                                  //   print("New Token  Sign in screen ${newToken}");
+                                  //
+                                  // });
+                                  // final user = FirebaseAuth.instance.currentUser;
+                                  // await FirebaseFirestore.instance.collection("Users").doc(user!.uid).update({
+                                  //   "notification_token": initialToken,
+                                  // });
+                                  // authMethods.updateToken(user.uid, initialToken!);
                                   Navigator.pushReplacement(context,
                                       MaterialPageRoute(builder: (context) {
                                     return BotttomNavigationBar();

@@ -1,18 +1,22 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Models/MessageModel.dart';
+import 'package:echat/Models/UserModel.dart';
 import 'package:echat/Provider/ImageUploadProvider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:http/http.dart' as http;
+
 
 class FirebaseStorageMethod{
 
   FirebaseFirestore firestore = FirebaseFirestore.instance;
-  void uploadImage(XFile? image, String receiverId, String senderId, ImageUploadProvider imageUploadProvider, Function(double) onProgress) async {
+  void uploadImage(XFile? image, String receiverId, String senderId, ImageUploadProvider imageUploadProvider, Function(double) onProgress, String receiverToken, UserModel sender) async {
     try{
       imageUploadProvider.setToLoading();
 
@@ -39,7 +43,7 @@ class FirebaseStorageMethod{
       MessageModel messageModel = MessageModel.imageMessage(
           senderId: senderId,
           receiverId: receiverId,
-          type: 'image',
+          type: 'Image',
           message: 'IMAGE',
           timestamp: Timestamp.now(),
           photoUrl: imageUrl
@@ -60,14 +64,13 @@ class FirebaseStorageMethod{
           .doc(messageModel.receiverId)
           .collection(messageModel.senderId)
           .add(map);
-
-
+      fileNotification(sender.name, messageModel.type, messageModel.photoUrl, receiverToken);
     }catch(e){
       print(e);
     }
   }
 
-  void uploadAnyFile(FilePickerResult? result, String receiverId, String senderId, ImageUploadProvider imageUploadProvider, Function(double) onProgress) async {
+  void uploadAnyFile(FilePickerResult? result, String receiverId, String senderId, ImageUploadProvider imageUploadProvider, Function(double) onProgress,String receiverToken, UserModel sender) async {
 
       imageUploadProvider.setToLoading();
 
@@ -111,6 +114,41 @@ class FirebaseStorageMethod{
             pdfName: pdfName
         );
 
+        if(fileExtension == 'mp4'){
+          fileNotification(sender.name, "Video", messageModel.thumbnailUrl, receiverToken);
+        }else if(fileExtension == 'jpg' || fileExtension == 'png' || fileExtension == 'jpeg'){
+          fileNotification(sender.name, "Image", messageModel.photoUrl, receiverToken);
+        }else if(fileExtension == 'pdf'){
+          try {
+            http.Response response = await http.post(
+              Uri.parse('https://fcm.googleapis.com/fcm/send'),
+              headers: <String, String>{
+                'Content-Type': 'application/json; charset=UTF-8',
+                'Authorization': 'key=AAAAq0ydI38:APA91bHE76HpjMV9xq6zd66mJyzmGoAte7AWwAMFbhVsXKMdVvDkTLs1oUrAqBLp1OdH7k8d2Lqkmp0FIDD1_r4PImOsVwZwQlWDaRrjyDTkggVaVKiCYijXLB46w-wHhqjgLiQEcaXe',
+              },
+              body: jsonEncode(
+                <String, dynamic>{
+                  'notification': <String, dynamic>{
+                    'title': sender.name,
+                    'body': "Pdf",
+                    'channel_id': 'call_channel'
+                  },
+                  'priority': 'high',
+                  'data': <String, dynamic>{
+                    'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+                    'id': '1',
+                    'status': 'done',
+
+                  },
+                  'to': receiverToken,
+                },
+              ),
+            );
+            response;
+          } catch (e) {
+            e;
+          }
+        }
         imageUploadProvider.setToIdle();
 
         Map<String, dynamic> map = messageModel.toMap() as Map<String, dynamic>;
@@ -129,6 +167,7 @@ class FirebaseStorageMethod{
             .add(map);
       }
   }
+
   Future<String> _generateThumbnailandUpload(String videoUrl) async {
     final thumbnailPath = (await getTemporaryDirectory()).path;
     final thumbnail = await VideoThumbnail.thumbnailFile(
@@ -148,5 +187,38 @@ class FirebaseStorageMethod{
     final String downloadURL = await storageRef.getDownloadURL();
 
     return downloadURL;
+  }
+
+  fileNotification(String senderName,String message,String imageUrl,String receiverToken) async{
+    try {
+      http.Response response = await http.post(
+        Uri.parse('https://fcm.googleapis.com/fcm/send'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'key=AAAAq0ydI38:APA91bHE76HpjMV9xq6zd66mJyzmGoAte7AWwAMFbhVsXKMdVvDkTLs1oUrAqBLp1OdH7k8d2Lqkmp0FIDD1_r4PImOsVwZwQlWDaRrjyDTkggVaVKiCYijXLB46w-wHhqjgLiQEcaXe',
+        },
+        body: jsonEncode(
+          <String, dynamic>{
+            'notification': <String, dynamic>{
+              'title': senderName,
+              'body': message,
+              'image': imageUrl,
+              'channel_id': 'call_channel'
+            },
+            'priority': 'high',
+            'data': <String, dynamic>{
+              'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+              'id': '1',
+              'status': 'done',
+
+            },
+            'to': receiverToken,
+          },
+        ),
+      );
+      response;
+    } catch (e) {
+      e;
+    }
   }
 }

@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:awesome_dialog/awesome_dialog.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:echat/Widgets/BottomNavigationBar.dart';
 import 'package:echat/Widgets/loading.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_signin_button/button_list.dart';
 import 'package:flutter_signin_button/button_view.dart';
@@ -52,7 +54,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       authMethods.setUserProfile(
           name: name.text,
           email: email.text,
-          profilePic: 'https://firebasestorage.googleapis.com/v0/b/echat-888ef.appspot.com/o/Users%2Fuser.jpg?alt=media&token=4cc59083-cb16-4830-83e7-352b4b6bc496',
+          profilePic: 'https://firebasestorage.googleapis.com/v0/b/echat-888ef.appspot.com/o/user.jpg?alt=media&token=6f598b3e-9c10-49ee-8a68-49468b32bddf',
           authType: 'emailAuth',
           mobilenumber: mobile.text);
       AwesomeDialog(
@@ -157,7 +159,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 child: Row(
                   children: [
                     SizedBox(
-                      width: 24,
+                      width: 20,
                     ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
@@ -172,7 +174,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     Spacer(),
                     Image.asset(
                       'assets/login.png',
-                      width: 290,
+                      width: 270,
                     )
                   ],
                 ),
@@ -531,7 +533,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     }
                                   },
                                   child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(100,8,100,8),
+                                    padding: const EdgeInsets.fromLTRB(80,8,80,8),
                                     child: Text(
                                       'SIGN UP',
                                       style: TextStyle(
@@ -556,6 +558,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 });
                                 final googleProvider = Provider.of<GoogleSignInProvider>(context,listen:false);
                                 await googleProvider.googleLogin(context);
+
+
+                                // String? initialToken = await FirebaseMessaging.instance.getToken();
+                                // print("Initial Token Google sign up ${initialToken}");
+                                // FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async{
+                                //   print("New Token Google sign up ${newToken}");
+                                //
+                                // });
+                                // final user = FirebaseAuth.instance.currentUser;
+                                // await FirebaseFirestore.instance.collection("Users").doc(user!.uid).update({
+                                //   "notification_token": initialToken,
+                                // });
+                                // authMethods.updateToken(user.uid , initialToken!);
                                 Navigator.pushReplacement(context,
                                     MaterialPageRoute(builder: (context) {
                                       return BotttomNavigationBar();

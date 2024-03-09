@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Resources/ChatFirebaseMethods.dart';
 import 'package:echat/Resources/FirebaseStorageMethod.dart';
 import 'package:echat/Screens/Call/PickupLayout.dart';
@@ -13,6 +15,7 @@ import 'package:echat/Widgets/PdfViewerScreen.dart';
 import 'package:echat/Widgets/ReceiverDetails.dart';
 import 'package:echat/enum/ViewState.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:echat/Models/MessageModel.dart';
 import 'package:echat/Models/UserModel.dart';
@@ -26,6 +29,8 @@ import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
+
 
 class ChatScreen extends StatefulWidget {
   final UserModel receiver;
@@ -38,6 +43,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   TextEditingController messageController = TextEditingController();
+  late UserProvider userProvider;
   bool isWriting = false;
   late UserModel sender;
   String _currentUserId = '';
@@ -51,20 +57,21 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     User? currentUser = FirebaseAuth.instance.currentUser;
     _currentUserId = currentUser!.uid;
-    setState(() {
-      sender = UserModel(
-          uid: currentUser.uid,
-          name: currentUser.displayName ?? '',
-          email: currentUser.email ?? '',
-          username: '',
-          status: '',
-          state: 0,
-          profilePhoto: currentUser.photoURL ?? '',
-          gender: '',
-          phoneNumber: '',
-          authType: ''
-      );
-    });
+    initializeSender();
+  }
+
+  Future<void> initializeSender() async{
+    await Future.delayed(Duration.zero);
+    userProvider = Provider.of<UserProvider>(context, listen: false);
+    await userProvider.refreshUser();
+    if (userProvider.getUser != null) {
+      UserModel? currentUser = userProvider.getUser;
+      setState(() {
+        sender = currentUser!;
+      });
+    } else {
+      print('User is null');
+    }
   }
 
   @override
@@ -594,13 +601,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget chatControls(ImageUploadProvider imageUploadProvider) {
     void pickImageMethod({required ImageSource source}) async {
+      String receiverToken = widget.receiver.notificationToken;
       XFile? selectedImage = (await ImagePicker().pickImage(source: source));
       firebaseStorageMethod.uploadImage(selectedImage, widget.receiver.uid,
           _currentUserId, imageUploadProvider,(double progress) {
             setState(() {
               uploadProgress = progress;
             });
-          });
+          },receiverToken,sender);
     }
 
     addMediaModel(BuildContext context) {
@@ -782,7 +790,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  void sendMessage() {
+  void sendMessage() async{
     var text = messageController.text;
     MessageModel message = MessageModel(
         senderId: sender.uid,
@@ -799,16 +807,49 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     messageController.text = "";
     chatFirebaseMethods.addMessagetoDb(message, sender, widget.receiver);
+
+    String receiverToken = widget.receiver.notificationToken;
+    try {
+      http.Response response = await http.post(
+        Uri.parse('https://fcm.googleapis.com/fcm/send'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'key=AAAAq0ydI38:APA91bHE76HpjMV9xq6zd66mJyzmGoAte7AWwAMFbhVsXKMdVvDkTLs1oUrAqBLp1OdH7k8d2Lqkmp0FIDD1_r4PImOsVwZwQlWDaRrjyDTkggVaVKiCYijXLB46w-wHhqjgLiQEcaXe',
+        },
+        body: jsonEncode(
+          <String, dynamic>{
+            'notification': <String, dynamic>{
+              'title': sender.name,
+              'body': message.message,
+              'channel_id':  'message_channel'
+            },
+            'priority': 'high',
+            'data': <String, dynamic>{
+              'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+              'id': '1',
+              'status': 'done',
+
+            },
+            'to': receiverToken,
+          },
+        ),
+      );
+      response;
+    } catch (e) {
+      e;
+    }
+
   }
 
   void _selectFile(ImageUploadProvider imageUploadProvider) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles();
+    String receiverToken = widget.receiver.notificationToken;
     firebaseStorageMethod.uploadAnyFile(
         result, widget.receiver.uid, _currentUserId, imageUploadProvider,
         (double progress) {
       setState(() {
         uploadProgress = progress;
       });
-    });
+    },receiverToken,sender);
   }
 }

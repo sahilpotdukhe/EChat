@@ -9,6 +9,8 @@ import 'package:echat/Screens/ChatList/ChatListScreenWidgets/NewChatButton.dart'
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/QuietBox.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/UserCircle.dart';
 import 'package:echat/Screens/AvailableUsers.dart';
+import 'package:echat/Screens/SplashScreen.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -37,7 +39,9 @@ class ChatListScreen extends StatelessWidget {
           leading: IconButton(
             icon: Icon(Icons.notifications),
             color: Colors.white,
-            onPressed: () {},
+            onPressed: () async{
+              // Navigator.push(context, MaterialPageRoute(builder: (context)=>SplashScreen()));
+            },
           ),
           centerTitle: true),
       body: Container(
