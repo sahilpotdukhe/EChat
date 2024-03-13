@@ -1,5 +1,6 @@
-import 'package:cached_video_player/cached_video_player.dart';
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
+
 
 class CachedVideoPlayerScreen extends StatefulWidget {
   final String videoUrl;
@@ -12,11 +13,11 @@ class CachedVideoPlayerScreen extends StatefulWidget {
 }
 
 class _CachedVideoPlayerScreenState extends State<CachedVideoPlayerScreen> {
-  late CachedVideoPlayerController _controller;
+  late VideoPlayerController _controller;
 
   @override
   void initState() {
-    _controller = CachedVideoPlayerController.network(widget.videoUrl)
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
       ..initialize().then((_) {
         _controller.play();
         setState(() {});
@@ -46,7 +47,7 @@ class _CachedVideoPlayerScreenState extends State<CachedVideoPlayerScreen> {
                 child: Stack(
                   alignment: Alignment.bottomCenter,
                   children: [
-                    CachedVideoPlayer(_controller),
+                    VideoPlayer(_controller),
                     Container(
                       child: VideoProgressIndicator(
                         _controller,

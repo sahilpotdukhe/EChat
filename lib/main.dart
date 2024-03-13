@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:echat/Provider/ImageUploadProvider.dart';
 import 'package:echat/Screens/SearchScreen.dart';
 import 'package:echat/Widgets/BottomNavigationBar.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -116,7 +117,10 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(backgroundHandler);
 
   //This line ensures that the Flutter framework is initialized before proceeding further. This is necessary to use Flutter widgets and services.
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  await Future.delayed(Duration(seconds: 3));
+  FlutterNativeSplash.remove();
   await Firebase
       .initializeApp(); // This line initializes Firebase services asynchronously.
   SharedPreferences prefs = await SharedPreferences.getInstance();

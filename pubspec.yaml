@@ -52,11 +52,9 @@ dependencies:
   hive:
   fast_contacts:
   file_picker: ^4.1.6
-  url_launcher: ^6.0.10
   video_thumbnail:
-  cached_video_player:
+  video_player:
   easy_pdf_viewer:
-  flutter_pdfview:
   shared_preferences:
   hexcolor:
   lottie:
