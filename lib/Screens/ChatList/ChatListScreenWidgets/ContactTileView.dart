@@ -6,6 +6,7 @@ import 'package:echat/Resources/ChatFirebaseMethods.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/LastMessageContainer.dart';
 import 'package:echat/Screens/ChatScreen/ChatScreen.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:echat/Widgets/CachedChatImage.dart';
 import 'package:echat/Widgets/OnlineDotIndicator.dart';
@@ -82,7 +83,7 @@ class ViewLayout extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           maxLines: 1,
           style:
-              TextStyle(color: Colors.white, fontFamily: "Arial", fontSize: 19),
+              TextStyle(color: Colors.white, fontFamily: "Arial", fontSize: 16*ScaleUtils.scaleFactor),
         ),
         icon: Container(),
         subtitle: LastMessageContainer(

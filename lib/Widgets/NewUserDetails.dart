@@ -1,6 +1,7 @@
 import 'package:echat/Models/UserModel.dart';
 import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Resources/AuthMethods.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:echat/Widgets/EditProfile.dart';
 import 'package:echat/Widgets/FullImageWidget.dart';
@@ -21,124 +22,123 @@ class _NewUserDetailsState extends State<NewUserDetails> {
 
   @override
   Widget build(BuildContext context) {
+    ScaleUtils.init(context);
     UserProvider userProvider = Provider.of<UserProvider>(context);
     UserModel? userModel = userProvider.getUser;
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        // shrinkWrap: true,
-        child:
-          Container(
-            height: MediaQuery.of(context).size.height,
-            child: Stack(
-              children: [
-                Container(
-                  height: 230,
-                  decoration: BoxDecoration(
-                    gradient: UniversalVariables.appGradient,
-                    borderRadius: BorderRadius.only(
-                        bottomRight: Radius.circular(100),
-                        bottomLeft: Radius.circular(100)),
-                  ),
+        child: Container(
+          child: Stack(
+            children: [
+              Container(
+                height: 200*ScaleUtils.verticalScale,
+                decoration: BoxDecoration(
+                  gradient: UniversalVariables.appGradient,
+                  borderRadius: BorderRadius.only(
+                      bottomRight: Radius.circular(80*ScaleUtils.scaleFactor),
+                      bottomLeft: Radius.circular(80*ScaleUtils.scaleFactor)),
                 ),
-                Center(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      SizedBox(height: 150),
-                      GestureDetector(
-                        onTap: (){
-                          Navigator.push(context,
-                              MaterialPageRoute(builder: (_) {
-                                return FullImageWidget(
-                                  imageUrl: userModel!.profilePhoto,
-                                );
-                              }));
-                        },
+              ),
+              Center(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(height: 110*ScaleUtils.verticalScale),
+                    GestureDetector(
+                      onTap: (){
+                        Navigator.push(context,
+                            MaterialPageRoute(builder: (_) {
+                              return FullImageWidget(
+                                imageUrl: userModel!.profilePhoto,
+                              );
+                            }));
+                      },
+                      child: CircleAvatar(
+                        radius: 75*ScaleUtils.scaleFactor,
                         child: CircleAvatar(
-                          radius: 75,
-                          child: CircleAvatar(
-                            radius: 70,
-                            backgroundColor: Colors.transparent,
-                            backgroundImage: AssetImage('assets/user.jpg'),
-                            foregroundImage: NetworkImage(userModel!.profilePhoto),
+                          radius: 70*ScaleUtils.scaleFactor,
+                          backgroundColor: Colors.transparent,
+                          backgroundImage: AssetImage('assets/user.jpg'),
+                          foregroundImage: NetworkImage(userModel!.profilePhoto),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 10*ScaleUtils.verticalScale,
+                    ),
+                    Text(
+                      userModel.name,
+                      style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 25*ScaleUtils.scaleFactor,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    Padding(
+                      padding:  EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              Navigator.pushNamed(context, '/searchScreen');
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
+                                color: HexColor("3957ED"),
+                              ),
+                              child: Padding(
+                                padding:  EdgeInsets.all(12.0*ScaleUtils.scaleFactor),
+                                child: Row(
+                                  children:  [
+                                    Text(
+                                      "Message Friend",
+                                      style: TextStyle(fontSize:14*ScaleUtils.scaleFactor,color: Colors.white),
+                                    ),
+                                    SizedBox(width: 8*ScaleUtils.horizontalScale,),
+                                    Icon(Icons.message,color: Colors.white,)
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      SizedBox(
-                        height: 10,
-                      ),
-                      Text(
-                        userModel.name,
-                        style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 25,
-                            fontWeight: FontWeight.bold),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            InkWell(
-                              onTap: () {
-                                Navigator.pushNamed(context, '/searchScreen');
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
-                                  color: HexColor("3957ED"),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: Row(
-                                    children: const [
-                                      Text(
-                                        "Message Friend",
-                                        style: TextStyle(fontSize:16,color: Colors.white),
-                                      ),
-                                      SizedBox(width: 8,),
-                                      Icon(Icons.message,color: Colors.white,)
-                                    ],
-                                  ),
+                          InkWell(
+                            onTap: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (context)=>EditProfile()));
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
+                                color: HexColor("3957ED"),
+                              ),
+                              child: Padding(
+                                padding:  EdgeInsets.all(12.0*ScaleUtils.scaleFactor),
+                                child:  Row(
+                                  children:  [
+                                    Text(
+                                      "Edit Profile",
+                                      style: TextStyle(fontSize:14*ScaleUtils.scaleFactor,color: Colors.white),
+                                    ),
+                                    SizedBox(width: 8*ScaleUtils.verticalScale,),
+                                    Icon(Icons.edit,color: Colors.white,)
+                                  ],
                                 ),
                               ),
                             ),
-                            InkWell(
-                              onTap: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (context)=>EditProfile()));
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
-                                  color: HexColor("3957ED"),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child:  Row(
-                                    children:const  [
-                                      Text(
-                                        "Edit Profile",
-                                        style: TextStyle(fontSize:16,color: Colors.white),
-                                      ),
-                                      SizedBox(width: 8,),
-                                      Icon(Icons.edit,color: Colors.white,)
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      SizedBox(
-                        height: 20,
-                      ),
-                      Container(
-                        width: 400,
+                    ),
+                    // SizedBox(
+                    //   height: 20*ScaleUtils.verticalScale,
+                    // ),
+                    Padding(
+                      padding:  EdgeInsets.symmetric(horizontal: 10*ScaleUtils.horizontalScale,vertical: 20*ScaleUtils.verticalScale),
+                      child: Container(
                         decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(30),
+                            borderRadius: BorderRadius.circular(30*ScaleUtils.scaleFactor),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.grey.withOpacity(0.5),
@@ -148,7 +148,7 @@ class _NewUserDetailsState extends State<NewUserDetails> {
                               ),
                             ]),
                         child: Padding(
-                          padding: const EdgeInsets.all(18.0),
+                          padding:  EdgeInsets.all(18.0*ScaleUtils.scaleFactor),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -156,31 +156,31 @@ class _NewUserDetailsState extends State<NewUserDetails> {
                               Text(
                                 "Name",
                                 style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 20),
+                                    fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
                               ),
                               Text(
                                 userModel.name,
-                                style: TextStyle(fontSize: 16),
+                                style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
                               ),
                               Divider(),
                               Text(
                                 "Username",
                                 style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 20),
+                                    fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
                               ),
                               Text(
                                 userModel.username,
-                                style: TextStyle(fontSize: 16),
+                                style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
                               ),
                               Divider(),
                               Text(
                                 "Email",
                                 style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 20),
+                                    fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
                               ),
                               Text(
                                 userModel.email,
-                                style: TextStyle(fontSize: 16),
+                                style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
                               ),
                               (userModel.phoneNumber=='')?Container()
                                   :Column(
@@ -189,11 +189,11 @@ class _NewUserDetailsState extends State<NewUserDetails> {
                                   Text(
                                     "Phone number",
                                     style: TextStyle(
-                                        fontWeight: FontWeight.bold, fontSize: 20),
+                                        fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
                                   ),
                                   Text(
                                     userModel.phoneNumber,
-                                    style: TextStyle(fontSize: 16),
+                                    style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
                                   ),
                                 ],
                               ),
@@ -204,11 +204,11 @@ class _NewUserDetailsState extends State<NewUserDetails> {
                                   Text(
                                     "Gender",
                                     style: TextStyle(
-                                        fontWeight: FontWeight.bold, fontSize: 20),
+                                        fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
                                   ),
                                   Text(
                                     userModel.gender,
-                                    style: TextStyle(fontSize: 16),
+                                    style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
                                   ),
                                 ],
                               )
@@ -216,42 +216,43 @@ class _NewUserDetailsState extends State<NewUserDetails> {
                           ),
                         ),
                       ),
-                      Spacer(),
-                      InkWell(
-                        onTap: () {
-                          authMethods.logOut(context);
-                          // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) {return NewLoginScreen();}));
-                          showToast("Account Logging Out....", backgroundColor: Colors.red, context: context);
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            color: HexColor("EE3427"),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child:  Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children:const  [
-                                Text(
-                                  "Logout",
-                                  style: TextStyle(fontSize:16,color: Colors.white),
-                                ),
-                                SizedBox(width: 8,),
-                                Icon(Icons.logout,color: Colors.white,)
-                              ],
-                            ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        authMethods.logOut(context);
+                        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) {return NewLoginScreen();}));
+                        showToast("Account Logging Out....", backgroundColor: Colors.red, context: context);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
+                          color: HexColor("EE3427"),
+                        ),
+                        child: Padding(
+                          padding:  EdgeInsets.all(12.0*ScaleUtils.scaleFactor),
+                          child:  Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children:  [
+                              Text(
+                                "Logout",
+                                style: TextStyle(fontSize:16*ScaleUtils.scaleFactor,color: Colors.white),
+                              ),
+                              SizedBox(width: 8*ScaleUtils.horizontalScale,),
+                              Icon(Icons.logout,color: Colors.white,)
+                            ],
                           ),
                         ),
                       ),
-                      SizedBox(height: 70,)
-                    ],
-                  ),
-                )
-              ],
-            ),
+                    ),
+                    // SizedBox(height: 70,)
+                    //Spacer()
+                  ],
+                ),
+              )
+            ],
           ),
+        ),
       ),
     );
   }

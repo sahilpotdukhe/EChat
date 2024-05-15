@@ -1,4 +1,5 @@
 import 'package:echat/Provider/UserProvider.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:echat/Utils/utilities.dart';
 import 'package:echat/Widgets/NewUserDetails.dart';
@@ -10,16 +11,18 @@ class UserCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    ScaleUtils.init(context);
     UserProvider userProvider = Provider.of<UserProvider>(context);
     return GestureDetector(
       onTap: () {
          Navigator.push(context, MaterialPageRoute(builder: (context)=> NewUserDetails()));
       },
       child: Container(
-        height: 40,
-        width: 40,
+        height: 40*ScaleUtils.verticalScale,
+        width: 40*ScaleUtils.horizontalScale,
         decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(50),
+          shape: BoxShape.circle,
+            // borderRadius: BorderRadius.circular(50*ScaleUtils.scaleFactor),
             color: Colors.white),
         child: Stack(
           children: [
@@ -30,14 +33,14 @@ class UserCircle extends StatelessWidget {
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: UniversalVariables.lightBlueColor,
-                    fontSize: 16),
+                    fontSize: 16*ScaleUtils.scaleFactor),
               ),
             ),
             Align(
               alignment: Alignment.bottomRight,
               child: Container(
-                height: 12,
-                width: 12,
+                height: 12*ScaleUtils.verticalScale,
+                width: 12*ScaleUtils.horizontalScale,
                 decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(

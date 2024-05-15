@@ -1,6 +1,7 @@
 import 'package:echat/Models/UserModel.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Utils/CallUtilities.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:echat/Widgets/FullImageWidget.dart';
 import 'package:flutter/material.dart';
@@ -16,29 +17,27 @@ class ReceiverDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    ScaleUtils.init(context);
     return  Scaffold(
         backgroundColor: Colors.white,
         body: SingleChildScrollView(
-          // shrinkWrap: true,
-          child:
-          Container(
-            height: MediaQuery.of(context).size.height,
+          child: Container(
             child: Stack(
               children: [
                 Container(
-                  height: 230,
+                  height: 200*ScaleUtils.verticalScale,
                   decoration: BoxDecoration(
                     gradient: UniversalVariables.appGradient,
                     borderRadius: BorderRadius.only(
-                        bottomRight: Radius.circular(100),
-                        bottomLeft: Radius.circular(100)),
+                        bottomRight: Radius.circular(80*ScaleUtils.scaleFactor),
+                        bottomLeft: Radius.circular(80*ScaleUtils.scaleFactor)),
                   ),
                 ),
                 Center(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      SizedBox(height: 150),
+                      SizedBox(height: 110*ScaleUtils.verticalScale),
                       GestureDetector(
                         onTap: (){
                           Navigator.push(context,
@@ -49,9 +48,9 @@ class ReceiverDetails extends StatelessWidget {
                               }));
                         },
                         child: CircleAvatar(
-                          radius: 75,
+                          radius: 75*ScaleUtils.scaleFactor,
                           child: CircleAvatar(
-                            radius: 70,
+                            radius: 70*ScaleUtils.scaleFactor,
                             backgroundColor: Colors.transparent,
                             backgroundImage: AssetImage('assets/user.jpg'),
                             foregroundImage: NetworkImage(receiverModel.profilePhoto),
@@ -59,17 +58,17 @@ class ReceiverDetails extends StatelessWidget {
                         ),
                       ),
                       SizedBox(
-                        height: 10,
+                        height: 10*ScaleUtils.verticalScale,
                       ),
                       Text(
                         receiverModel.name,
                         style: TextStyle(
                             color: Colors.black,
-                            fontSize: 25,
+                            fontSize: 25*ScaleUtils.scaleFactor,
                             fontWeight: FontWeight.bold),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(8.0),
+                        padding: EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
@@ -83,18 +82,18 @@ class ReceiverDetails extends StatelessWidget {
                               },
                               child: Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
+                                  borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
                                   color: HexColor("3957ED"),
                                 ),
                                 child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
+                                  padding:  EdgeInsets.all(12.0*ScaleUtils.scaleFactor),
                                   child: Row(
-                                    children: const [
+                                    children:  [
                                       Text(
                                         "Voice Call",
-                                        style: TextStyle(fontSize:16,color: Colors.white),
+                                        style: TextStyle(fontSize:16*ScaleUtils.scaleFactor,color: Colors.white),
                                       ),
-                                      SizedBox(width: 8,),
+                                      SizedBox(width: 8*ScaleUtils.horizontalScale,),
                                       Icon(Icons.call,color: Colors.white,)
                                     ],
                                   ),
@@ -111,18 +110,18 @@ class ReceiverDetails extends StatelessWidget {
                               },
                               child: Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
+                                  borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
                                   color: HexColor("3957ED"),
                                 ),
                                 child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
+                                  padding:  EdgeInsets.all(12.0*ScaleUtils.scaleFactor),
                                   child:  Row(
-                                    children:const  [
+                                    children:  [
                                       Text(
                                         "Video Call",
-                                        style: TextStyle(fontSize:16,color: Colors.white),
+                                        style: TextStyle(fontSize:16*ScaleUtils.scaleFactor,color: Colors.white),
                                       ),
-                                      SizedBox(width: 8,),
+                                      SizedBox(width: 8*ScaleUtils.horizontalScale,),
                                       Icon(Icons.video_call,color: Colors.white,)
                                     ],
                                   ),
@@ -132,88 +131,87 @@ class ReceiverDetails extends StatelessWidget {
                           ],
                         ),
                       ),
-                      SizedBox(
-                        height: 20,
-                      ),
-                      Container(
-                        width: 400,
-                        decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(30),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withOpacity(0.5),
-                                spreadRadius: 5,
-                                blurRadius: 7,
-                                offset: Offset(0, 3), // changes position of shadow
-                              ),
-                            ]),
-                        child: Padding(
-                          padding: const EdgeInsets.all(18.0),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                "Name",
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 20),
-                              ),
-                              Text(
-                                receiverModel.name,
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Divider(),
-                              Text(
-                                "Username",
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 20),
-                              ),
-                              Text(
-                                receiverModel.username,
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Divider(),
-                              Text(
-                                "Email",
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 20),
-                              ),
-                              Text(
-                                receiverModel.email,
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              (receiverModel.phoneNumber=='')?Container()
-                                  :Column(
-                                children: [
-                                  Divider(),
-                                  Text(
-                                    "Phone number",
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold, fontSize: 20),
-                                  ),
-                                  Text(
-                                    receiverModel.phoneNumber,
-                                    style: TextStyle(fontSize: 16),
-                                  ),
-                                ],
-                              ),
-                              (receiverModel.gender == "")?Container()
-                                  :Column(
-                                children: [
-                                  Divider(),
-                                  Text(
-                                    "Gender",
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold, fontSize: 20),
-                                  ),
-                                  Text(
-                                    receiverModel.gender,
-                                    style: TextStyle(fontSize: 16),
-                                  ),
-                                ],
-                              )
-                            ],
+                      Padding(
+                        padding:  EdgeInsets.symmetric(horizontal: 10*ScaleUtils.horizontalScale,vertical: 20*ScaleUtils.verticalScale),
+                        child: Container(
+                          decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(30*ScaleUtils.scaleFactor),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.5),
+                                  spreadRadius: 5,
+                                  blurRadius: 7,
+                                  offset: Offset(0, 3), // changes position of shadow
+                                ),
+                              ]),
+                          child: Padding(
+                            padding:  EdgeInsets.all(18.0*ScaleUtils.scaleFactor),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "Name",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
+                                ),
+                                Text(
+                                  receiverModel.name,
+                                  style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
+                                ),
+                                Divider(),
+                                Text(
+                                  "Username",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
+                                ),
+                                Text(
+                                  receiverModel.username,
+                                  style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
+                                ),
+                                Divider(),
+                                Text(
+                                  "Email",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
+                                ),
+                                Text(
+                                  receiverModel.email,
+                                  style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
+                                ),
+                                (receiverModel.phoneNumber=='')?Container()
+                                    :Column(
+                                  children: [
+                                    Divider(),
+                                    Text(
+                                      "Phone number",
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
+                                    ),
+                                    Text(
+                                      receiverModel.phoneNumber,
+                                      style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
+                                    ),
+                                  ],
+                                ),
+                                (receiverModel.gender == "")?Container()
+                                    :Column(
+                                  children: [
+                                    Divider(),
+                                    Text(
+                                      "Gender",
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
+                                    ),
+                                    Text(
+                                      receiverModel.gender,
+                                      style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
+                                    ),
+                                  ],
+                                )
+                              ],
+                            ),
                           ),
                         ),
                       ),

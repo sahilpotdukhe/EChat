@@ -3,6 +3,7 @@ import 'package:echat/Resources/CallMethods.dart';
 import 'package:echat/Models/CallModel.dart';
 import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Screens/Call/PickupScreen.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:flutter/material.dart';
 import 'package:hexcolor/hexcolor.dart';
@@ -17,6 +18,7 @@ class PickupLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    ScaleUtils.init(context);
     final UserProvider userProvider = Provider.of<UserProvider>(context);
     return (userProvider != null && userProvider.getUser != null)
         ? StreamBuilder<DocumentSnapshot>(
@@ -41,7 +43,7 @@ class PickupLayout extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       color: Colors.white,
-                      fontSize: 32,
+                      fontSize: 32*ScaleUtils.scaleFactor,
                       fontWeight: FontWeight.bold,
                     fontFamily: 'Poppins'
                   ),
@@ -51,14 +53,14 @@ class PickupLayout extends StatelessWidget {
                 ),
                 Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
                     color: HexColor("3957ED"),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18.0, 8, 18, 8),
+                    padding:  EdgeInsets.fromLTRB(18.0*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 18*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale),
                     child: Text(
                       "Get Started",
-                      style: TextStyle(fontSize: 18, color: Colors.white),
+                      style: TextStyle(fontSize: 18*ScaleUtils.scaleFactor, color: Colors.white),
                     ),
                   ),
                 ),

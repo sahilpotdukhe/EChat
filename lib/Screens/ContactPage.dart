@@ -4,6 +4,7 @@ import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Screens/Call/PickupLayout.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/UserCircle.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:fast_contacts/fast_contacts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -47,13 +48,14 @@ class _ContactPageState extends State<ContactPage> {
 
   @override
   Widget build(BuildContext context) {
+    ScaleUtils.init(context);
     return Scaffold(
       backgroundColor: UniversalVariables.blackColor,
       appBar: CustomAppBar(
           title: Text(
             "Contact List",
             style: TextStyle(
-                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                color: Colors.white, fontSize: 20*ScaleUtils.scaleFactor, fontWeight: FontWeight.bold),
           ),
           actions: <Widget>[
             IconButton(
@@ -99,8 +101,8 @@ class _ContactPageState extends State<ContactPage> {
                             contact.displayName,
                             style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold),
+                                fontSize: 18*ScaleUtils.scaleFactor,
+                                fontWeight: FontWeight.w500),
                           ),
                           subtitle: Text(firstPhoneNumber),
                           trailing: InkWell(
@@ -112,7 +114,7 @@ class _ContactPageState extends State<ContactPage> {
                               "Invite",
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 14,
+                                fontSize: 14*ScaleUtils.scaleFactor,
                               ),
                             ),
                           ),

@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Resources/AuthMethods.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
+import 'package:echat/Utils/globals.dart';
 import 'package:echat/Widgets/BottomNavigationBar.dart';
 import 'package:echat/Widgets/loading.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -93,14 +96,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ScaleUtils.init(context);
     return Scaffold(
       backgroundColor: UniversalVariables.appThemeColor,
       body: Stack(
         children: [
           (isPressed)
           ?Container(
-              height: MediaQuery.of(context).size.height,
-              width: MediaQuery.of(context).size.width,
+              height: ScaleUtils.height,
+              width: ScaleUtils.width,
               color: Colors.white,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -116,7 +120,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           style: TextStyle(
                             color: Colors.blue,
                             // Set the color for the word "Signing"
-                            fontSize: 24,
+                            fontSize: 24*ScaleUtils.scaleFactor,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -125,7 +129,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           style: TextStyle(
                             color: Colors.yellow.shade700,
                             // Set the color for the word "in"
-                            fontSize: 24,
+                            fontSize: 24*ScaleUtils.scaleFactor,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -134,7 +138,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           style: TextStyle(
                             color: Colors.red,
                             // Set the color for the word "Please"
-                            fontSize: 24,
+                            fontSize: 24*ScaleUtils.scaleFactor,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -143,7 +147,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           style: TextStyle(
                             color: Colors.green,
                             // Set the color for the word "wait"
-                            fontSize: 24,
+                            fontSize: 24*ScaleUtils.scaleFactor,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -153,20 +157,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ],
               ))
           :ListView(
+            shrinkWrap: true,
             children: [
               Container(
-                height: 300,
+                height: 267*ScaleUtils.verticalScale,
                 child: Row(
                   children: [
                     SizedBox(
-                      width: 20,
+                      width: 30*ScaleUtils.horizontalScale,
                     ),
                     Padding(
-                      padding: const EdgeInsets.all(8.0),
+                      padding: EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
                       child: Text(
                         "Create\nYour\nAccount",
                         style: TextStyle(
-                            fontSize: 26,
+                            fontSize: 26*ScaleUtils.scaleFactor,
                             color: Colors.white,
                             fontWeight: FontWeight.bold),
                       ),
@@ -174,27 +179,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     Spacer(),
                     Image.asset(
                       'assets/login.png',
-                      width: 270,
+                      width: 240*ScaleUtils.horizontalScale,
                     )
                   ],
                 ),
               ),
               Container(
-                height: MediaQuery.of(context).size.height - 300,
+                height: ScaleUtils.height - 267*ScaleUtils.verticalScale,
                 decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(50),
-                        topRight: Radius.circular(50))),
+                        topLeft: Radius.circular(50*ScaleUtils.scaleFactor),
+                        topRight: Radius.circular(50*ScaleUtils.scaleFactor))),
                 child: Form(
                   key: _signupkey,
                   child: Container(
-                    margin: EdgeInsets.fromLTRB(24,24,24,0),
+                    margin: EdgeInsets.fromLTRB(24*ScaleUtils.horizontalScale,24*ScaleUtils.verticalScale,24*ScaleUtils.horizontalScale,0),
                     decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(25)),
+                        borderRadius: BorderRadius.circular(25*ScaleUtils.scaleFactor)),
                     child: ListView(
-                      padding: EdgeInsets.fromLTRB(25, 10, 24, 10),
+                      padding: EdgeInsets.fromLTRB(25*ScaleUtils.horizontalScale, 10*ScaleUtils.verticalScale, 24*ScaleUtils.horizontalScale, 10*ScaleUtils.verticalScale),
                       shrinkWrap: true,
                       children: [
                         TextFormField(
@@ -202,15 +207,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           decoration: InputDecoration(
                               hintText: 'Enter Your Name',
                               hintStyle: TextStyle(
-                                fontSize: 16,
+                                fontSize: 16*ScaleUtils.scaleFactor,
                               ),
                               labelText: 'Name',
                               floatingLabelStyle: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 18*ScaleUtils.scaleFactor,
                                   fontWeight: FontWeight.w500,
                                   color: UniversalVariables.appThemeColor),
                               labelStyle: TextStyle(
-                                fontSize: 18,
+                                fontSize: 18*ScaleUtils.scaleFactor,
                               ),
                               focusedBorder: OutlineInputBorder(
                                   borderSide: BorderSide(
@@ -235,22 +240,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           },
                         ),
                         SizedBox(
-                          height: 12,
+                          height: 12*ScaleUtils.verticalScale,
                         ),
                         TextFormField(
                           controller: email,
                           decoration: InputDecoration(
                               hintText: 'Enter Your Email',
                               hintStyle: TextStyle(
-                                fontSize: 16,
+                                fontSize: 16*ScaleUtils.scaleFactor,
                               ),
                               labelText: 'Email',
                               floatingLabelStyle: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 16*ScaleUtils.scaleFactor,
                                   fontWeight: FontWeight.w500,
                                   color: UniversalVariables.appThemeColor),
                               labelStyle: TextStyle(
-                                fontSize: 18,
+                                fontSize: 16*ScaleUtils.scaleFactor,
                               ),
                               focusedBorder: OutlineInputBorder(
                                   borderSide: BorderSide(
@@ -277,21 +282,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           },
                         ),
                         SizedBox(
-                          height: 12,
+                          height: 12*ScaleUtils.verticalScale,
                         ),
                         TextFormField(
                           controller: password,
                           decoration: InputDecoration(
                               hintText: 'Set Password',
                               hintStyle: TextStyle(
-                                fontSize: 16,
+                                fontSize: 16*ScaleUtils.scaleFactor,
                               ),
                               labelStyle: TextStyle(
-                                fontSize: 18,
+                                fontSize: 16*ScaleUtils.scaleFactor,
                               ),
                               labelText: 'Password',
                               floatingLabelStyle: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 16*ScaleUtils.scaleFactor,
                                   fontWeight: FontWeight.w500,
                                   color: UniversalVariables.appThemeColor),
                               focusedBorder: OutlineInputBorder(
@@ -324,22 +329,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           },
                         ),
                         SizedBox(
-                          height: 12,
+                          height: 12*ScaleUtils.verticalScale,
                         ),
                         TextFormField(
                           controller: mobile,
                           decoration: InputDecoration(
                               hintText: 'Enter Your Number',
                               hintStyle: TextStyle(
-                                fontSize: 16,
+                                fontSize: 16*ScaleUtils.scaleFactor,
                               ),
                               labelText: 'Phone Number',
                               floatingLabelStyle: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 16*ScaleUtils.scaleFactor,
                                   fontWeight: FontWeight.w500,
                                   color: UniversalVariables.appThemeColor),
                               labelStyle: TextStyle(
-                                fontSize: 18,
+                                fontSize: 16*ScaleUtils.scaleFactor,
                               ),
                               focusedBorder: OutlineInputBorder(
                                   borderSide: BorderSide(
@@ -370,7 +375,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           },
                         ),
                         SizedBox(
-                          height: 18,
+                          height: 18*ScaleUtils.verticalScale,
                         ),
                         Center(
                           child: (_isLoading)
@@ -398,14 +403,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                                         children: [
                                                           Lottie.asset(
                                                               'assets/email.json',
-                                                              height: 0.15,
-                                                              width: 0.5),
+                                                              height: 0.15*ScaleUtils.verticalScale,
+                                                              width: 0.5*ScaleUtils.scaleFactor),
                                                           Text(
                                                             'Verify Your Email',
                                                             style: TextStyle(
                                                                 color:
                                                                     Colors.red,
-                                                                fontSize: 22,
+                                                                fontSize: 22*ScaleUtils.scaleFactor,
                                                                 fontWeight:
                                                                     FontWeight
                                                                         .bold),
@@ -436,7 +441,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                                               TextAlign.center,
                                                         ),
                                                         SizedBox(
-                                                          height: 10,
+                                                          height: 10*ScaleUtils.verticalScale,
                                                         ),
                                                         Text(
                                                           'Didn\'t get the email?',
@@ -479,7 +484,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                                         'Account Creation Failed!',
                                                         style: TextStyle(
                                                             color: Colors.red,
-                                                            fontSize: 22,
+                                                            fontSize: 22*ScaleUtils.scaleFactor,
                                                             fontWeight:
                                                                 FontWeight
                                                                     .bold),
@@ -533,19 +538,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     }
                                   },
                                   child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(80,8,80,8),
+                                    padding: EdgeInsets.fromLTRB(80*ScaleUtils.horizontalScale,8*ScaleUtils.verticalScale,80*ScaleUtils.horizontalScale,8*ScaleUtils.verticalScale),
                                     child: Text(
                                       'SIGN UP',
                                       style: TextStyle(
                                           color: Colors.white,
-                                          fontSize: 20,
+                                          fontSize: 18*ScaleUtils.scaleFactor,
                                           fontWeight: FontWeight.w600),
                                     ),
                                   ),
                                 ),
                         ),
                         SizedBox(
-                          height: 20,
+                          height: 20*ScaleUtils.verticalScale,
                         ),
                         SignInButton(
                             Buttons.GoogleDark,
@@ -583,12 +588,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               }
                             }
                         ),
-                        SizedBox(height: 10,),
+                        SizedBox(height: 10*ScaleUtils.verticalScale,),
                         Column(
                           children: [
-                            Text("Already have a account?",style: TextStyle(fontSize: 15,color: Colors.grey,fontWeight: FontWeight.w500),),
+                            Text("Already have a account?",style: TextStyle(fontSize: 15*ScaleUtils.scaleFactor,color: Colors.grey,fontWeight: FontWeight.w500),),
                             MaterialButton(
-                                child: Text("Sign in",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 18),),
+                                child: Text("Sign in",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 18*ScaleUtils.scaleFactor),),
                                 onPressed: () {
                                   Navigator.pop(context);
                                 }),

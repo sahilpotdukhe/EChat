@@ -2,6 +2,7 @@ import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
 import 'package:echat/Screens/ChatScreen/ChatQuietBox.dart';
 import 'package:echat/Screens/ChatScreen/ChatScreen.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:echat/Models/UserModel.dart';
@@ -35,6 +36,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ScaleUtils.init(context);
     return Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(
@@ -50,7 +52,7 @@ class _SearchScreenState extends State<SearchScreen> {
             decoration: InputDecoration(
                 hintText: 'Search',
                 border: InputBorder.none,
-                hintStyle: TextStyle(fontSize: 18.0, color: Colors.white),
+                hintStyle: TextStyle(fontSize: 18.0*ScaleUtils.scaleFactor, color: Colors.white),
 
             ),
             onChanged: (val) {
@@ -76,7 +78,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ],
         ),
         body:(query=="")?ChatQuietBox(screen: "search",) :Container(
-          padding: EdgeInsets.symmetric(horizontal: 20),
+          padding: EdgeInsets.symmetric(horizontal: 10*ScaleUtils.horizontalScale),
           child: buildSuggestions(query),
         ));
   }
@@ -119,7 +121,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             title:Text(
               searchedUser.name,
-              style: TextStyle(color: Colors.white,fontSize: 16),
+              style: TextStyle(color: Colors.white,fontSize: 16*ScaleUtils.scaleFactor),
             ),
 
             icon: Container(),

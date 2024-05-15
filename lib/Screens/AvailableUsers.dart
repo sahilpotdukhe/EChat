@@ -1,10 +1,15 @@
+import 'dart:math';
+
 import 'package:echat/Models/UserModel.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
 import 'package:echat/Screens/ChatScreen/ChatScreen.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
+import 'package:echat/Utils/globals.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../Utils/ScreenDimensions.dart';
 
 class AvailableUsers extends StatefulWidget {
   const AvailableUsers({super.key});
@@ -30,6 +35,7 @@ class _AvailableUsersState extends State<AvailableUsers> {
   }
   @override
   Widget build(BuildContext context) {
+    ScaleUtils.init(context);
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -46,7 +52,7 @@ class _AvailableUsersState extends State<AvailableUsers> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(color: Colors.white,),
-              SizedBox(height: 20,),
+              SizedBox(height: 20*ScaleUtils.verticalScale,),
               Text("Users Loading ......",style: TextStyle(color: Colors.green,fontSize: 18,fontWeight: FontWeight.w500),)
             ],
           )
@@ -61,7 +67,7 @@ class _AvailableUsersState extends State<AvailableUsers> {
               ),
               title: Text(
                 userList[index].name,
-                style: TextStyle(color: Colors.white,fontSize: 16),
+                style: TextStyle(color: Colors.white,fontSize: 16*ScaleUtils.scaleFactor,),
               ),
               icon: Container(),
               subtitle: Text(

@@ -13,6 +13,7 @@ class CallMethods{
   Future<bool> makeCall({required CallModel callModel}) async{
     try{
       // These is for the caller...it's hasDialled value will be set to true because it is dialing the call
+
       callModel.hasDialled = true;
       Map<String,dynamic> hasDialledMap = callModel.toMap(callModel) as Map<String,dynamic>;
       await firestore.collection("Call").doc(callModel.callerId).set(hasDialledMap);
@@ -24,7 +25,7 @@ class CallMethods{
 
       return true;
     }catch(e){
-      print(e);
+      print("Error: $e");
       return false;
     }
   }

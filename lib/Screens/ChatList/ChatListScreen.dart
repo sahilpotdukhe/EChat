@@ -10,6 +10,7 @@ import 'package:echat/Screens/ChatList/ChatListScreenWidgets/QuietBox.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/UserCircle.dart';
 import 'package:echat/Screens/AvailableUsers.dart';
 import 'package:echat/Screens/SplashScreen.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +21,7 @@ class ChatListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    ScaleUtils.init(context);
     UserProvider userProvider = Provider.of<UserProvider>(context);
     return Scaffold(
       backgroundColor: Colors.black,

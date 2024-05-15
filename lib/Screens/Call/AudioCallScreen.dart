@@ -8,6 +8,7 @@ import 'package:echat/Resources/CallMethods.dart';
 import 'package:echat/Models/CallModel.dart';
 import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Screens/ChatList/ChatListScreen.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:http/http.dart';
@@ -116,6 +117,7 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ScaleUtils.init(context);
     return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
@@ -133,35 +135,35 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container( 
-                      width: 120,
+                      width: 120*ScaleUtils.horizontalScale,
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           CircleAvatar(
-                            radius: 30,
+                            radius: 30*ScaleUtils.scaleFactor,
                             backgroundColor: Colors.transparent,
                             backgroundImage: AssetImage('assets/user.jpg'),
                             foregroundImage: NetworkImage(widget.callModel.callerPic),
                           ),
-                          SizedBox(height: 5,),
-                          Text(widget.callModel.callerName,textAlign:TextAlign.center,overflow:TextOverflow.ellipsis,maxLines:2,style: TextStyle(fontSize: 20,fontWeight: FontWeight.bold),)
+                          SizedBox(height: 5*ScaleUtils.verticalScale,),
+                          Text(widget.callModel.callerName,textAlign:TextAlign.center,overflow:TextOverflow.ellipsis,maxLines:2,style: TextStyle(fontSize: 20*ScaleUtils.scaleFactor,fontWeight: FontWeight.bold),)
                         ],
                       ),
                     ),
-                    SizedBox(width: 20,),
+                    SizedBox(width: 20*ScaleUtils.horizontalScale,),
                     Container(
-                      width: 120,
+                      width: 120*ScaleUtils.horizontalScale,
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           CircleAvatar(
-                            radius: 30,
+                            radius: 30*ScaleUtils.scaleFactor,
                             backgroundColor: Colors.transparent,
                             backgroundImage: AssetImage('assets/user.jpg'),
                             foregroundImage: NetworkImage(widget.callModel.receiverPic),
                           ),
-                          SizedBox(height: 5,),
-                          Text(widget.callModel.receiverName,textAlign:TextAlign.center,overflow:TextOverflow.ellipsis,maxLines:2,style: TextStyle(fontSize: 20,fontWeight: FontWeight.bold),)
+                          SizedBox(height: 5*ScaleUtils.verticalScale,),
+                          Text(widget.callModel.receiverName,textAlign:TextAlign.center,overflow:TextOverflow.ellipsis,maxLines:2,style: TextStyle(fontSize: 20*ScaleUtils.scaleFactor,fontWeight: FontWeight.bold),)
                         ],
                       ),
                     )

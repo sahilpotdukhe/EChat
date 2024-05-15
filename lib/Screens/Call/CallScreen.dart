@@ -43,7 +43,7 @@ class _CallScreenState extends State<CallScreen> {
   Future<void> getToken() async{
     String channelId = widget.callModel.channelId;
     //String tokenUrlLink= "https://a0966c8a-6017-4dda-a316-dd97ae4e2dc7-00-2br8taujkm5yo.pike.replit.dev/access_token?channelName=test";
-    String tokenUrlLink= "https://agoratokenserver-ny1v.onrender.com/access_token?channelName=${channelId}";
+    String tokenUrlLink= "https://agora-node-tokenserver-new.onrender.com/access_token?channelName=${channelId}";
     Response _response = await get(Uri.parse(tokenUrlLink));
     if(_response.statusCode == 200){
       final data = json.decode(_response.body);

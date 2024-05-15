@@ -1,7 +1,11 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Screens/SignUpScreen.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
+import 'package:echat/Utils/globals.dart';
 import 'package:echat/Widgets/BottomNavigationBar.dart';
 import 'package:echat/Widgets/loading.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -43,18 +47,17 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-
-
   @override
   Widget build(BuildContext context) {
+   ScaleUtils.init(context);
     return Scaffold(
       backgroundColor: UniversalVariables.appThemeColor,
       body: Stack(
         children: [
           (isPressed)
               ? Container(
-                  height: MediaQuery.of(context).size.height,
-                  width: MediaQuery.of(context).size.width,
+                  height: ScaleUtils.height,
+                  width: ScaleUtils.width,
                   color: Colors.white,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -70,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(
                                 color: Colors.blue,
                                 // Set the color for the word "Signing"
-                                fontSize: 24,
+                                fontSize: 24 * ScaleUtils.scaleFactor,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -79,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(
                                 color: Colors.yellow.shade700,
                                 // Set the color for the word "in"
-                                fontSize: 24,
+                                fontSize: 24 * ScaleUtils.scaleFactor,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -88,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(
                                 color: Colors.red,
                                 // Set the color for the word "Please"
-                                fontSize: 24,
+                                fontSize: 24 * ScaleUtils.scaleFactor,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -97,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(
                                 color: Colors.green,
                                 // Set the color for the word "wait"
-                                fontSize: 24,
+                                fontSize: 24 * ScaleUtils.scaleFactor,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -110,19 +113,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   shrinkWrap: true,
                   children: [
                     Container(
-                      height: 300,
+                      height: 267 * ScaleUtils.verticalScale,
                       child: Row(
                         // mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           SizedBox(
-                            width: 20,
+                            width: 30 * ScaleUtils.horizontalScale,
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: EdgeInsets.all(8.0 * ScaleUtils.scaleFactor),
                             child: Text(
                               "Hello\nSign in!",
                               style: TextStyle(
-                                  fontSize: 26,
+                                  fontSize: 26 * ScaleUtils.scaleFactor,
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold),
                             ),
@@ -130,27 +133,29 @@ class _LoginScreenState extends State<LoginScreen> {
                           Spacer(),
                           Image.asset(
                             'assets/login.png',
-                            width: 280,
+                            width: 240 * ScaleUtils.horizontalScale,
                           )
                         ],
                       ),
                     ),
                     Container(
-                      height: MediaQuery.of(context).size.height - 300,
+                      height: ScaleUtils.height - 267 * ScaleUtils.verticalScale,
                       decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(50),
-                              topRight: Radius.circular(50))),
+                              topLeft: Radius.circular(50 * ScaleUtils.scaleFactor),
+                              topRight: Radius.circular(50 * ScaleUtils.scaleFactor))),
                       child: Form(
                         key: _loginkey,
                         child: Container(
-                          margin: EdgeInsets.all(24),
+                          margin: EdgeInsets.fromLTRB(38*ScaleUtils.horizontalScale,38*ScaleUtils.verticalScale,38*ScaleUtils.horizontalScale,0),
                           decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(25)),
+                              borderRadius:
+                                  BorderRadius.circular(25 * ScaleUtils.scaleFactor)),
                           child: ListView(
-                            padding: EdgeInsets.fromLTRB(25, 36, 24, 36),
+                            padding: EdgeInsets.fromLTRB(
+                                0, 32 * ScaleUtils.verticalScale, 0, 32 * ScaleUtils.verticalScale),
                             shrinkWrap: true,
                             children: [
                               TextFormField(
@@ -159,24 +164,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                     hintText: 'Enter Your Email',
                                     labelText: 'Email',
                                     floatingLabelStyle: TextStyle(
-                                        fontSize: 18,
+                                        fontSize: 16 * ScaleUtils.scaleFactor,
                                         fontWeight: FontWeight.w500,
                                         color:
                                             UniversalVariables.appThemeColor),
                                     labelStyle: TextStyle(
-                                      fontSize: 18,
+                                      fontSize: 16 * ScaleUtils.scaleFactor,
                                     ),
                                     border: OutlineInputBorder(),
                                     focusedBorder: OutlineInputBorder(
                                         borderSide: BorderSide(
                                             color: UniversalVariables
                                                 .appThemeColor,
-                                            width: 2)),
+                                            width: 2 * ScaleUtils.horizontalScale)),
                                     enabledBorder: OutlineInputBorder(
                                       borderSide: BorderSide(
                                           color:
                                               UniversalVariables.appThemeColor,
-                                          width: 2),
+                                          width: 2 * ScaleUtils.horizontalScale),
                                     ),
                                     suffixIcon: Icon(
                                       Icons.email,
@@ -196,7 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 },
                               ),
                               SizedBox(
-                                height: 16,
+                                height: 16 * ScaleUtils.verticalScale,
                               ),
                               TextFormField(
                                 controller: pass,
@@ -204,22 +209,23 @@ class _LoginScreenState extends State<LoginScreen> {
                                     hintText: 'Enter Password',
                                     labelText: 'Password',
                                     floatingLabelStyle: TextStyle(
-                                        fontSize: 18,
+                                        fontSize: 16 * ScaleUtils.scaleFactor,
                                         fontWeight: FontWeight.w500,
                                         color:
                                             UniversalVariables.appThemeColor),
-                                    labelStyle: TextStyle(fontSize: 18),
+                                    labelStyle:
+                                        TextStyle(fontSize: 16 * ScaleUtils.scaleFactor),
                                     border: OutlineInputBorder(),
                                     focusedBorder: OutlineInputBorder(
                                         borderSide: BorderSide(
                                             color: UniversalVariables
                                                 .appThemeColor,
-                                            width: 2)),
+                                            width: 2 * ScaleUtils.horizontalScale)),
                                     enabledBorder: OutlineInputBorder(
                                       borderSide: BorderSide(
                                           color:
                                               UniversalVariables.appThemeColor,
-                                          width: 2),
+                                          width: 2 * ScaleUtils.horizontalScale),
                                     ),
                                     suffix: InkWell(
                                       onTap: _togglepasswordview,
@@ -244,7 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 },
                               ),
                               SizedBox(
-                                height: 9,
+                                height: 9 * ScaleUtils.verticalScale,
                               ),
                               InkWell(
                                 onTap: () {
@@ -264,13 +270,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 children: [
                                                   Lottie.asset(
                                                       'assets/email.json',
-                                                      height: 0.15,
-                                                      width: 0.5),
+                                                      height:
+                                                          0.15 * ScaleUtils.verticalScale,
+                                                      width: 0.5 *
+                                                          ScaleUtils.horizontalScale),
                                                   Text(
                                                     'Password Reset',
                                                     style: TextStyle(
                                                         color: Colors.red,
-                                                        fontSize: 22,
+                                                        fontSize:
+                                                            22 * ScaleUtils.scaleFactor,
                                                         fontWeight:
                                                             FontWeight.bold),
                                                   ),
@@ -296,7 +305,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                   textAlign: TextAlign.center,
                                                 ),
                                                 SizedBox(
-                                                  height: 10,
+                                                  height: 10 * ScaleUtils.verticalScale,
                                                 ),
                                                 Text(
                                                   'Didn\'t get the email?',
@@ -314,7 +323,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                                     child: Text(
                                                       'Retry',
                                                       style: TextStyle(
-                                                        fontSize: 20,
+                                                        fontSize:
+                                                            20 * ScaleUtils.scaleFactor,
                                                       ),
                                                     ),
                                                     onPressed: () {
@@ -335,7 +345,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                                   'Error',
                                                   style: TextStyle(
                                                       color: Colors.red,
-                                                      fontSize: 24,
+                                                      fontSize:
+                                                          24 * ScaleUtils.scaleFactor,
                                                       fontWeight:
                                                           FontWeight.bold),
                                                 ),
@@ -343,7 +354,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                               content: Text(
                                                 'Enter email in the email field or check if the email is valid.',
                                                 textAlign: TextAlign.center,
-                                                style: TextStyle(fontSize: 16),
+                                                style: TextStyle(
+                                                    fontSize: 16 * ScaleUtils.scaleFactor),
                                               ),
                                               actions: [
                                                 TextButton(
@@ -361,12 +373,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   textAlign: TextAlign.end,
                                   style: TextStyle(
                                       color: UniversalVariables.appThemeColor,
-                                      fontSize: 16,
+                                      fontSize: 16 * ScaleUtils.scaleFactor,
                                       fontWeight: FontWeight.w500),
                                 ),
                               ),
                               SizedBox(
-                                height: 26,
+                                height: 29 * ScaleUtils.verticalScale,
                               ),
                               Center(
                                 child: (_isLoading)
@@ -377,7 +389,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                               UniversalVariables.appThemeColor,
                                         ),
                                         onPressed: () {
-                                          //Navigator.push(context, MaterialPageRoute(builder: (context)=>Bottt()));
                                           if (_loginkey.currentState!
                                               .validate()) {
                                             setState(() {
@@ -389,19 +400,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 .then((user) async {
                                               if (user != null) {
                                                 print(user);
-                                                String? initialToken = await FirebaseMessaging.instance.getToken();
-                                                print("Initial Token sign in ${initialToken}");
+                                                String? initialToken =
+                                                    await FirebaseMessaging
+                                                        .instance
+                                                        .getToken();
+                                                print(
+                                                    "Initial Token sign in ${initialToken}");
 
-                                                FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async{
-                                                  print("New Token sign in  ${newToken}");
-
+                                                FirebaseMessaging
+                                                    .instance.onTokenRefresh
+                                                    .listen((newToken) async {
+                                                  print(
+                                                      "New Token sign in  ${newToken}");
                                                 });
-                                                await FirebaseFirestore.instance.collection("Users").doc(user!.uid).update({
-                                                  "notification_token": initialToken,
+                                                await FirebaseFirestore.instance
+                                                    .collection("Users")
+                                                    .doc(user!.uid)
+                                                    .update({
+                                                  "notification_token":
+                                                      initialToken,
                                                 });
 
-
-                                                authMethods.updateToken(user.uid, initialToken!);
+                                                authMethods.updateToken(
+                                                    user.uid, initialToken!);
                                                 Navigator.pushAndRemoveUntil(
                                                     context,
                                                     MaterialPageRoute(
@@ -427,8 +448,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                                                 style: TextStyle(
                                                                     color: Colors
                                                                         .red,
-                                                                    fontSize:
-                                                                        24,
+                                                                    fontSize: 24 *
+                                                                        ScaleUtils.scaleFactor,
                                                                     fontWeight:
                                                                         FontWeight
                                                                             .bold),
@@ -437,7 +458,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                             content: Text(
                                                               '       There is no user record \n corresponding to the identifier.',
                                                               style: TextStyle(
-                                                                  fontSize: 16),
+                                                                  fontSize: 16*ScaleUtils.scaleFactor),
                                                             ),
                                                             actions: [
                                                               TextButton(
@@ -458,43 +479,43 @@ class _LoginScreenState extends State<LoginScreen> {
                                           }
                                         },
                                         child: Padding(
-                                          padding: const EdgeInsets.fromLTRB(
-                                              80, 8, 80, 8),
+                                          padding:  EdgeInsets.fromLTRB(
+                                              80*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 80*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale),
                                           child: Text(
                                             'SIGN IN',
                                             style: TextStyle(
                                                 color: Colors.white,
-                                                fontSize: 20,
+                                                fontSize: 18*ScaleUtils.scaleFactor,
                                                 fontWeight: FontWeight.w600),
                                           ),
                                         ),
                                       ),
                               ),
                               SizedBox(
-                                height: 20,
+                                height: 20*ScaleUtils.verticalScale,
                               ),
                               Center(
                                 child: Text(
                                   'OR',
                                   style: TextStyle(
-                                      fontSize: 20,
+                                      fontSize: 20*ScaleUtils.scaleFactor,
                                       fontWeight: FontWeight.bold),
                                 ),
                               ),
                               SizedBox(
-                                height: 20,
+                                height: 20*ScaleUtils.verticalScale,
                               ),
                               SignInButton(Buttons.GoogleDark,
-                                  padding: EdgeInsets.all(4),
+                                  padding: EdgeInsets.all(4*ScaleUtils.scaleFactor),
                                   elevation: 10, onPressed: () async {
                                 try {
                                   setState(() {
                                     isPressed = true;
                                   });
                                   final googleProvider =
-                                      Provider.of<GoogleSignInProvider>(context, listen: false);
+                                      Provider.of<GoogleSignInProvider>(context,
+                                          listen: false);
                                   await googleProvider.googleLogin(context);
-
 
                                   // String? initialToken = await FirebaseMessaging.instance.getToken();
                                   // print("Initial Token  Sign in screen ${initialToken}");
@@ -518,13 +539,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   print(e);
                                 }
                               }),
-                              SizedBox(height: 20),
+                              SizedBox(height: 20*ScaleUtils.verticalScale),
                               Column(
                                 children: [
                                   Text(
                                     "Don't have account?",
                                     style: TextStyle(
-                                        fontSize: 15,
+                                        fontSize: 15*ScaleUtils.scaleFactor,
                                         color: Colors.grey,
                                         fontWeight: FontWeight.w500),
                                   ),
@@ -533,7 +554,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         "Sign up",
                                         style: TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 18),
+                                            fontSize: 18*ScaleUtils.scaleFactor),
                                       ),
                                       onPressed: () {
                                         Navigator.push(

@@ -7,6 +7,7 @@ import 'package:echat/Resources/Repository/LogRepository.dart';
 import 'package:echat/Screens/Call/CallScreen.dart';
 import 'package:echat/Screens/Call/AudioCallScreen.dart';
 import 'package:echat/Screens/ChatScreen/ChatScreen.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:flutter/material.dart';
 import 'package:hexcolor/hexcolor.dart';
@@ -65,6 +66,7 @@ class _PickupScreenState extends State<PickupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ScaleUtils.init(context);
     CallMethods callMethods = CallMethods();
     return  Scaffold(
       backgroundColor: UniversalVariables.blackColor,
@@ -73,33 +75,33 @@ class _PickupScreenState extends State<PickupScreen> {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding:  EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
               child: Text("Incoming call",
                 style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18
+                    fontSize: 18*ScaleUtils.scaleFactor
                 ),
               ),
             ),
-            SizedBox(height: 60,),
+            SizedBox(height: 60*ScaleUtils.verticalScale,),
             Text(widget.callModel.callerName,
               style: TextStyle(
                   color: UniversalVariables.appThemeColor,
-                  fontSize: 30,
+                  fontSize: 30*ScaleUtils.scaleFactor,
                   fontWeight: FontWeight.bold
               ),
             ),
             Text(callerEmail,
               style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16
+                  fontSize: 16*ScaleUtils.scaleFactor
               ),
             ),
-            SizedBox(height: 30,),
+            SizedBox(height: 30*ScaleUtils.verticalScale,),
             CircleAvatar(
-              radius: 75,
+              radius: 75*ScaleUtils.scaleFactor,
               child: CircleAvatar(
-                radius: 70,
+                radius: 70*ScaleUtils.scaleFactor,
                 backgroundColor: Colors.transparent,
                 backgroundImage: AssetImage('assets/user.jpg'),
                 foregroundImage: NetworkImage(widget.callModel.callerPic),
@@ -108,15 +110,15 @@ class _PickupScreenState extends State<PickupScreen> {
             Spacer(),
             Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
                 color: HexColor("3957ED"),
               ),
               child:
               Padding(
-                padding: const EdgeInsets.fromLTRB(18,10,18,10),
+                padding:  EdgeInsets.fromLTRB(18*ScaleUtils.horizontalScale,10*ScaleUtils.verticalScale,18*ScaleUtils.horizontalScale,10*ScaleUtils.verticalScale),
                 child: Text(
                   "Chat with ${widget.callModel.callerName}",
-                  style: TextStyle(fontSize:16,color: Colors.white),
+                  style: TextStyle(fontSize:16*ScaleUtils.scaleFactor,color: Colors.white),
                 ),
               ),
             ),
@@ -128,10 +130,10 @@ class _PickupScreenState extends State<PickupScreen> {
                 Navigator.push(context, MaterialPageRoute(builder: (context)=> ChatScreen(receiver: callerModel!)));
               },
               child: Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding:  EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
                 child: Container(
-                  height: 56,
-                  width: 56,
+                  height: 56*ScaleUtils.verticalScale,
+                  width: 56*ScaleUtils.horizontalScale,
                   decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: UniversalVariables.appThemeColor
@@ -151,8 +153,8 @@ class _PickupScreenState extends State<PickupScreen> {
                     callMethods.endCall(callModel: widget.callModel);
                   },
                   child: Container(
-                    height: 70,
-                    width: 70,
+                    height: 70*ScaleUtils.verticalScale,
+                    width: 70*ScaleUtils.horizontalScale,
                     decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.white
@@ -171,8 +173,8 @@ class _PickupScreenState extends State<PickupScreen> {
                     }
                   },
                   child: Container(
-                    height: 70,
-                    width: 70,
+                    height: 70*ScaleUtils.verticalScale,
+                    width: 70*ScaleUtils.horizontalScale,
                     decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.white
@@ -182,7 +184,7 @@ class _PickupScreenState extends State<PickupScreen> {
                 ),
               ],
             ),
-            SizedBox(height: 100,),
+            Spacer()
           ],
         ),
       ),

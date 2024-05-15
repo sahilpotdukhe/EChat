@@ -1,4 +1,5 @@
 import 'package:echat/Provider/UserProvider.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/utilities.dart';
 import 'package:flutter/material.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
@@ -29,19 +30,20 @@ class ChatCustomTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    ScaleUtils.init(context);
     return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
-          padding: EdgeInsets.symmetric(horizontal: mini ? 10 : 10),
+          padding: EdgeInsets.symmetric(horizontal: mini ? 10*ScaleUtils.horizontalScale : 10*ScaleUtils.horizontalScale),
           margin: margin,
           child: Row(
             children: [
               leading,
               Expanded(
                   child: Container(
-                            margin: EdgeInsets.only(left: mini ? 10 : 15),
-                            padding: EdgeInsets.symmetric(vertical: mini ? 3 : 20),
+                            margin: EdgeInsets.only(left: mini ? 10*ScaleUtils.horizontalScale : 15*ScaleUtils.horizontalScale),
+                            padding: EdgeInsets.symmetric(vertical: mini ? 3*ScaleUtils.verticalScale : 20*ScaleUtils.verticalScale),
                             child: Row(
                               children: [
                                 Expanded(
@@ -50,7 +52,7 @@ class ChatCustomTile extends StatelessWidget {
                                     children: [
                                       title,
                                       SizedBox(
-                                        height: 5,
+                                        height: 5*ScaleUtils.verticalScale,
                                       ),
                                      Row(
                                        children: [

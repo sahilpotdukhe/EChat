@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Models/UserModel.dart';
 import 'package:echat/Provider/AppLoadingProvider.dart';
 import 'package:echat/Provider/UserProvider.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_styled_toast/flutter_styled_toast.dart';
@@ -38,6 +39,7 @@ class _EditProfileState extends State<EditProfile> {
 
   @override
   Widget build(BuildContext context) {
+    ScaleUtils.init(context);
     UserProvider userProvider = Provider.of<UserProvider>(context);
     UserModel? userModel = userProvider.getUser;
     final appprovider = Provider.of<AppProvider>(context);
@@ -61,7 +63,7 @@ class _EditProfileState extends State<EditProfile> {
           shrinkWrap: true,
           children: [
             SizedBox(
-              height: 30,
+              height: 30*ScaleUtils.verticalScale,
             ),
             InkWell(
               onTap: () {
@@ -72,9 +74,9 @@ class _EditProfileState extends State<EditProfile> {
                 children: [
                   Center(
                     child: CircleAvatar(
-                      radius: 70,
+                      radius: 60*ScaleUtils.scaleFactor,
                       child: CircleAvatar(
-                        radius: 70,
+                        radius: 60*ScaleUtils.scaleFactor,
                         backgroundColor: Colors.transparent,
                         backgroundImage: _displayChild(),
                         //foregroundImage: NetworkImage(userModel!.profilePhoto),
@@ -85,19 +87,19 @@ class _EditProfileState extends State<EditProfile> {
                     child: Column(
                       children: [
                         SizedBox(
-                          height: 110,
+                          height: 90*ScaleUtils.verticalScale,
                         ),
                         Container(
-                          margin: EdgeInsets.only(right: 8, top: 8),
+                          margin: EdgeInsets.only(right: 8*ScaleUtils.horizontalScale, top: 8*ScaleUtils.verticalScale),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: HexColor("3957ED"),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
                             child: Icon(
                               Icons.camera_alt,
-                              size: 30,
+                              size: 30*ScaleUtils.scaleFactor,
                               color: Colors.white,
                             ),
                           ),
@@ -111,21 +113,21 @@ class _EditProfileState extends State<EditProfile> {
             Form(
               key: _formKey,
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding:  EdgeInsets.all(16.0*ScaleUtils.scaleFactor),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.all(8.0),
+                      padding:  EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
                       child: TextFormField(
                         initialValue: displayName,
                         decoration: InputDecoration(
                           hintText: 'Enter Your Name',
                           labelText: 'Name',
-                          labelStyle: TextStyle(fontSize: 18.0),
+                          labelStyle: TextStyle(fontSize: 18.0*ScaleUtils.scaleFactor),
                           floatingLabelStyle: TextStyle(
                               fontWeight: FontWeight.w500,
-                              fontSize: 20,
+                              fontSize: 20*ScaleUtils.scaleFactor,
                               color: HexColor('3957ED')),
                           border: OutlineInputBorder(),
                           focusedBorder: OutlineInputBorder(
@@ -149,18 +151,18 @@ class _EditProfileState extends State<EditProfile> {
                         },
                       ),
                     ),
-                    SizedBox(height: 16.0),
+                    SizedBox(height: 16.0*ScaleUtils.verticalScale),
                     Padding(
-                      padding: const EdgeInsets.all(8.0),
+                      padding:  EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
                       child: TextFormField(
                         initialValue: phoneNumber,
                         decoration: InputDecoration(
                           hintText: 'Enter Your Phone number',
                           labelText: 'Phone number',
-                          labelStyle: TextStyle(fontSize: 18.0),
+                          labelStyle: TextStyle(fontSize: 18.0*ScaleUtils.scaleFactor),
                           floatingLabelStyle: TextStyle(
                               fontWeight: FontWeight.w500,
-                              fontSize: 20,
+                              fontSize: 20*ScaleUtils.scaleFactor,
                               color: HexColor('3957ED')),
                           border: OutlineInputBorder(),
                           suffixIcon: Icon(Icons.phone_android_outlined,
@@ -195,11 +197,11 @@ class _EditProfileState extends State<EditProfile> {
                     ),
                     Center(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        padding:  EdgeInsets.symmetric(vertical: 8.0*ScaleUtils.verticalScale),
                         child: Text(
                           'Gender',
                           style: TextStyle(
-                            fontSize: 16.0,
+                            fontSize: 16.0*ScaleUtils.scaleFactor,
                             color: HexColor('3957ED'),
                             fontWeight: FontWeight.bold,
                           ),
@@ -231,7 +233,7 @@ class _EditProfileState extends State<EditProfile> {
                         const Text('Female'),
                       ],
                     ),
-                    const SizedBox(height: 16.0),
+                    SizedBox(height: 16.0*ScaleUtils.verticalScale),
                     (appprovider.isLoading)
                         ? Center(child: CircularProgressIndicator())
                         : Center(
@@ -282,15 +284,15 @@ class _EditProfileState extends State<EditProfile> {
                               },
                               child: Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
+                                  borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
                                   color: HexColor("30B319"),
                                 ),
                                 child: Padding(
-                                  padding: const EdgeInsets.all(14.0),
+                                  padding:  EdgeInsets.all(14.0*ScaleUtils.scaleFactor),
                                   child: Text(
                                     "Save Changes",
                                     style: TextStyle(
-                                        fontSize: 16, color: Colors.white),
+                                        fontSize: 14*ScaleUtils.scaleFactor, color: Colors.white),
                                   ),
                                 ),
                               ),

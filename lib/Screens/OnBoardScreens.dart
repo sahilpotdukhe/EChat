@@ -1,6 +1,10 @@
+import 'dart:math';
+
 import 'package:echat/Models/OnBoardModel.dart';
 import 'package:echat/Screens/LoginScreen.dart';
+import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
+import 'package:echat/Utils/globals.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -52,6 +56,13 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
   ];
   @override
   Widget build(BuildContext context) {
+    // double height = MediaQuery.of(context).size.height;
+    // double width = MediaQuery.of(context).size.width;
+    // var verticalScale = height / mockUpHeight;
+    // var horizontalScale = width / mockUpWidth;
+    // // Calculate the scale factor based on the smaller dimension
+    // double scaleFactor = max(horizontalScale,verticalScale);
+    ScaleUtils.init(context);
     return Scaffold(
       backgroundColor: (currentIndex%2 ==0 )?Colors.white: UniversalVariables.appThemeColor,
       appBar: AppBar(
@@ -65,7 +76,7 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
               },
               child: Text("Skip",
                 style: TextStyle(
-                  fontSize: 20.0,
+                  fontSize: 20.0*ScaleUtils.scaleFactor,
                   fontWeight: FontWeight.bold,
                   fontFamily: 'Poppins',
                   color: currentIndex % 2 == 0 ? UniversalVariables.appThemeColor  : Colors.white,
@@ -74,11 +85,10 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
         ],
       ),
       body: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
+        padding: EdgeInsets.symmetric(horizontal: ScaleUtils.horizontalScale*20),
         child: PageView.builder(
             itemCount: screens.length,
             controller: _pageController,
-            // physics: NeverScrollableScrollPhysics(),
             onPageChanged: (int index){
               setState(() {
                 currentIndex = index;
@@ -89,12 +99,12 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Image.asset(screens[index].image),
+                  Image.asset(screens[index].image,height: 360*ScaleUtils.verticalScale,width: 366*ScaleUtils.horizontalScale,),
                   Text(
                     screens[index].text,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 27.0,
+                      fontSize: 25.0*ScaleUtils.scaleFactor,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'Poppins',
                       color: index % 2 == 0 ? Colors.black  : Colors.white,
@@ -104,13 +114,13 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
                     screens[index].description,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 18.0,
+                      fontSize: 16*ScaleUtils.scaleFactor,
                       fontFamily: 'Montserrat',
                       color: index % 2 == 0 ? Colors.black  : Colors.white,
                     ),
                   ),
-                  Container(
-                    height: 10,
+                  SizedBox(
+                    height: 10*ScaleUtils.verticalScale,
                     child: ListView.builder(
                       itemCount: screens.length,
                       shrinkWrap: true,
@@ -120,12 +130,12 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
-                              margin: EdgeInsets.symmetric(horizontal: 3),
-                              width: currentIndex == index ?25 : 8,
-                              height: 8,
+                              margin: EdgeInsets.symmetric(horizontal: 3*ScaleUtils.horizontalScale),
+                              width: currentIndex == index ?20*ScaleUtils.horizontalScale : 8*ScaleUtils.horizontalScale,
+                              height: 8*ScaleUtils.verticalScale,
                               decoration: BoxDecoration(
                                   color: currentIndex == index && currentIndex %2 ==0 ? UniversalVariables.appThemeColor:Colors.blue[200],
-                                  borderRadius: BorderRadius.circular(10)
+                                  borderRadius: BorderRadius.circular(10*ScaleUtils.scaleFactor)
                               ),
                             )
                           ],
@@ -142,21 +152,21 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
                       _pageController.nextPage(duration: Duration(microseconds: 500), curve: Curves.bounceIn);
                     },
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 30,vertical: 10),
+                      padding: EdgeInsets.symmetric(horizontal: 24*ScaleUtils.horizontalScale,vertical: 10*ScaleUtils.verticalScale),
                       decoration: BoxDecoration(
                         color: index % 2 == 0 ? UniversalVariables.appThemeColor  : Colors.white,
-                        borderRadius: BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(15*ScaleUtils.scaleFactor),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children:  [
                           Text((index == screens.length -1 )?"Finish":"Next",
                           style: TextStyle(
-                            fontSize: 16.0,
+                            fontSize: 16.0*ScaleUtils.scaleFactor,
                             color: index % 2 == 0 ? Colors.white  : UniversalVariables.appThemeColor,
                           ),
                           ),
-                          SizedBox(width: 15,),
+                          SizedBox(width: 9*ScaleUtils.horizontalScale,),
                           Icon(Icons.arrow_forward_sharp,color: index % 2 == 0 ? Colors.white  : UniversalVariables.appThemeColor,),
                         ],
                       ),

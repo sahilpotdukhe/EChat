@@ -15,6 +15,7 @@ class CallUtilities {
   static CallMethods callMethods = CallMethods();
 
   static Future<CallModel> dial({required UserModel from_Caller, required UserModel to_receiver, context,required String callType}) async {
+
     CallModel callModel = CallModel(
       callerId: from_Caller.uid,
       callerName: from_Caller.name,
@@ -38,6 +39,7 @@ class CallUtilities {
 
     bool callMade = await callMethods.makeCall(callModel: callModel);
 
+    print("vfbr");
     print("Receivername: ${to_receiver.name}");
     print("Rexeiver url ${to_receiver.profilePhoto}");
     print("CallerName: ${from_Caller.name}");
@@ -76,14 +78,15 @@ class CallUtilities {
         );
         response;
       } catch (e) {
-        e;
+        print("Hello $e");
       }
       if(callType=='videoCall'){
+        print("vfbr");
         Navigator.push(context, MaterialPageRoute(builder: (context) => CallScreen(callModel: callModel)));
       }else if(callType == "audioCall"){
+        print("vfbr");
         Navigator.push(context, MaterialPageRoute(builder: (context) => AudioCallScreen(callModel: callModel)));
       }
-
     }
     return callModel;
   }
