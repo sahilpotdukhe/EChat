@@ -6,7 +6,9 @@
 **ECHAT** is a comprehensive chat application created using Flutter, Firebase, Dart, and Figma, offering a seamless communication experience.
 
 ### 🎥 Simple demo
-
+<p align="center">
+  <img src="echatdemo.gif" alt="EchatDemo" width="350" />
+</p>
 
 ### 🔰 Project Description
 - Created **ECHAT**, a robust chat application, leveraging Flutter, Firebase, Dart, and Figma, to provide users with an all-encompassing communication platform.
