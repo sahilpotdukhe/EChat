@@ -1,11 +1,8 @@
-import 'dart:math';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Screens/SignUpScreen.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
-import 'package:echat/Utils/globals.dart';
 import 'package:echat/Widgets/BottomNavigationBar.dart';
 import 'package:echat/Widgets/loading.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -49,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-   ScaleUtils.init(context);
+    ScaleUtils.init(context);
     return Scaffold(
       backgroundColor: UniversalVariables.appThemeColor,
       body: Stack(
@@ -121,7 +118,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 30 * ScaleUtils.horizontalScale,
                           ),
                           Padding(
-                            padding: EdgeInsets.all(8.0 * ScaleUtils.scaleFactor),
+                            padding:
+                                EdgeInsets.all(8.0 * ScaleUtils.scaleFactor),
                             child: Text(
                               "Hello\nSign in!",
                               style: TextStyle(
@@ -139,23 +137,33 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     Container(
-                      height: ScaleUtils.height - 267 * ScaleUtils.verticalScale,
+                      height:
+                          ScaleUtils.height - 267 * ScaleUtils.verticalScale,
                       decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(50 * ScaleUtils.scaleFactor),
-                              topRight: Radius.circular(50 * ScaleUtils.scaleFactor))),
+                              topLeft:
+                                  Radius.circular(50 * ScaleUtils.scaleFactor),
+                              topRight: Radius.circular(
+                                  50 * ScaleUtils.scaleFactor))),
                       child: Form(
                         key: _loginkey,
                         child: Container(
-                          margin: EdgeInsets.fromLTRB(38*ScaleUtils.horizontalScale,38*ScaleUtils.verticalScale,38*ScaleUtils.horizontalScale,0),
+                          margin: EdgeInsets.fromLTRB(
+                              38 * ScaleUtils.horizontalScale,
+                              38 * ScaleUtils.verticalScale,
+                              38 * ScaleUtils.horizontalScale,
+                              0),
                           decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius:
-                                  BorderRadius.circular(25 * ScaleUtils.scaleFactor)),
+                              borderRadius: BorderRadius.circular(
+                                  25 * ScaleUtils.scaleFactor)),
                           child: ListView(
                             padding: EdgeInsets.fromLTRB(
-                                0, 32 * ScaleUtils.verticalScale, 0, 32 * ScaleUtils.verticalScale),
+                                0,
+                                32 * ScaleUtils.verticalScale,
+                                0,
+                                32 * ScaleUtils.verticalScale),
                             shrinkWrap: true,
                             children: [
                               TextFormField(
@@ -176,12 +184,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                         borderSide: BorderSide(
                                             color: UniversalVariables
                                                 .appThemeColor,
-                                            width: 2 * ScaleUtils.horizontalScale)),
+                                            width: 2 *
+                                                ScaleUtils.horizontalScale)),
                                     enabledBorder: OutlineInputBorder(
                                       borderSide: BorderSide(
                                           color:
                                               UniversalVariables.appThemeColor,
-                                          width: 2 * ScaleUtils.horizontalScale),
+                                          width:
+                                              2 * ScaleUtils.horizontalScale),
                                     ),
                                     suffixIcon: Icon(
                                       Icons.email,
@@ -213,19 +223,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                         fontWeight: FontWeight.w500,
                                         color:
                                             UniversalVariables.appThemeColor),
-                                    labelStyle:
-                                        TextStyle(fontSize: 16 * ScaleUtils.scaleFactor),
+                                    labelStyle: TextStyle(
+                                        fontSize: 16 * ScaleUtils.scaleFactor),
                                     border: OutlineInputBorder(),
                                     focusedBorder: OutlineInputBorder(
                                         borderSide: BorderSide(
                                             color: UniversalVariables
                                                 .appThemeColor,
-                                            width: 2 * ScaleUtils.horizontalScale)),
+                                            width: 2 *
+                                                ScaleUtils.horizontalScale)),
                                     enabledBorder: OutlineInputBorder(
                                       borderSide: BorderSide(
                                           color:
                                               UniversalVariables.appThemeColor,
-                                          width: 2 * ScaleUtils.horizontalScale),
+                                          width:
+                                              2 * ScaleUtils.horizontalScale),
                                     ),
                                     suffix: InkWell(
                                       onTap: _togglepasswordview,
@@ -270,16 +282,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 children: [
                                                   Lottie.asset(
                                                       'assets/email.json',
-                                                      height:
-                                                          0.15 * ScaleUtils.verticalScale,
+                                                      height: 0.15 *
+                                                          ScaleUtils
+                                                              .verticalScale,
                                                       width: 0.5 *
-                                                          ScaleUtils.horizontalScale),
+                                                          ScaleUtils
+                                                              .horizontalScale),
                                                   Text(
                                                     'Password Reset',
                                                     style: TextStyle(
                                                         color: Colors.red,
-                                                        fontSize:
-                                                            22 * ScaleUtils.scaleFactor,
+                                                        fontSize: 22 *
+                                                            ScaleUtils
+                                                                .scaleFactor,
                                                         fontWeight:
                                                             FontWeight.bold),
                                                   ),
@@ -305,7 +320,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                                   textAlign: TextAlign.center,
                                                 ),
                                                 SizedBox(
-                                                  height: 10 * ScaleUtils.verticalScale,
+                                                  height: 10 *
+                                                      ScaleUtils.verticalScale,
                                                 ),
                                                 Text(
                                                   'Didn\'t get the email?',
@@ -323,8 +339,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                                     child: Text(
                                                       'Retry',
                                                       style: TextStyle(
-                                                        fontSize:
-                                                            20 * ScaleUtils.scaleFactor,
+                                                        fontSize: 20 *
+                                                            ScaleUtils
+                                                                .scaleFactor,
                                                       ),
                                                     ),
                                                     onPressed: () {
@@ -345,8 +362,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                                   'Error',
                                                   style: TextStyle(
                                                       color: Colors.red,
-                                                      fontSize:
-                                                          24 * ScaleUtils.scaleFactor,
+                                                      fontSize: 24 *
+                                                          ScaleUtils
+                                                              .scaleFactor,
                                                       fontWeight:
                                                           FontWeight.bold),
                                                 ),
@@ -355,7 +373,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 'Enter email in the email field or check if the email is valid.',
                                                 textAlign: TextAlign.center,
                                                 style: TextStyle(
-                                                    fontSize: 16 * ScaleUtils.scaleFactor),
+                                                    fontSize: 16 *
+                                                        ScaleUtils.scaleFactor),
                                               ),
                                               actions: [
                                                 TextButton(
@@ -385,7 +404,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ? Loading()
                                     : ElevatedButton(
                                         style: ElevatedButton.styleFrom(
-                                          primary:
+                                          backgroundColor:
                                               UniversalVariables.appThemeColor,
                                         ),
                                         onPressed: () {
@@ -449,7 +468,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                                                     color: Colors
                                                                         .red,
                                                                     fontSize: 24 *
-                                                                        ScaleUtils.scaleFactor,
+                                                                        ScaleUtils
+                                                                            .scaleFactor,
                                                                     fontWeight:
                                                                         FontWeight
                                                                             .bold),
@@ -458,7 +478,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                                             content: Text(
                                                               '       There is no user record \n corresponding to the identifier.',
                                                               style: TextStyle(
-                                                                  fontSize: 16*ScaleUtils.scaleFactor),
+                                                                  fontSize: 16 *
+                                                                      ScaleUtils
+                                                                          .scaleFactor),
                                                             ),
                                                             actions: [
                                                               TextButton(
@@ -479,34 +501,39 @@ class _LoginScreenState extends State<LoginScreen> {
                                           }
                                         },
                                         child: Padding(
-                                          padding:  EdgeInsets.fromLTRB(
-                                              80*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 80*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale),
+                                          padding: EdgeInsets.fromLTRB(
+                                              80 * ScaleUtils.horizontalScale,
+                                              8 * ScaleUtils.verticalScale,
+                                              80 * ScaleUtils.horizontalScale,
+                                              8 * ScaleUtils.verticalScale),
                                           child: Text(
                                             'SIGN IN',
                                             style: TextStyle(
                                                 color: Colors.white,
-                                                fontSize: 18*ScaleUtils.scaleFactor,
+                                                fontSize:
+                                                    18 * ScaleUtils.scaleFactor,
                                                 fontWeight: FontWeight.w600),
                                           ),
                                         ),
                                       ),
                               ),
                               SizedBox(
-                                height: 20*ScaleUtils.verticalScale,
+                                height: 20 * ScaleUtils.verticalScale,
                               ),
                               Center(
                                 child: Text(
                                   'OR',
                                   style: TextStyle(
-                                      fontSize: 20*ScaleUtils.scaleFactor,
+                                      fontSize: 20 * ScaleUtils.scaleFactor,
                                       fontWeight: FontWeight.bold),
                                 ),
                               ),
                               SizedBox(
-                                height: 20*ScaleUtils.verticalScale,
+                                height: 20 * ScaleUtils.verticalScale,
                               ),
                               SignInButton(Buttons.GoogleDark,
-                                  padding: EdgeInsets.all(4*ScaleUtils.scaleFactor),
+                                  padding: EdgeInsets.all(
+                                      4 * ScaleUtils.scaleFactor),
                                   elevation: 10, onPressed: () async {
                                 try {
                                   setState(() {
@@ -539,13 +566,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   print(e);
                                 }
                               }),
-                              SizedBox(height: 20*ScaleUtils.verticalScale),
+                              SizedBox(height: 20 * ScaleUtils.verticalScale),
                               Column(
                                 children: [
                                   Text(
                                     "Don't have account?",
                                     style: TextStyle(
-                                        fontSize: 15*ScaleUtils.scaleFactor,
+                                        fontSize: 15 * ScaleUtils.scaleFactor,
                                         color: Colors.grey,
                                         fontWeight: FontWeight.w500),
                                   ),
@@ -554,7 +581,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                         "Sign up",
                                         style: TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 18*ScaleUtils.scaleFactor),
+                                            fontSize:
+                                                18 * ScaleUtils.scaleFactor),
                                       ),
                                       onPressed: () {
                                         Navigator.push(

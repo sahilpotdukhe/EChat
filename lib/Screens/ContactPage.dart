@@ -1,15 +1,13 @@
-import 'package:agora_uikit/agora_uikit.dart';
 import 'package:echat/Models/UserModel.dart';
 import 'package:echat/Provider/UserProvider.dart';
-import 'package:echat/Screens/Call/PickupLayout.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
-import 'package:echat/Screens/ChatList/ChatListScreenWidgets/UserCircle.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:fast_contacts/fast_contacts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_sms/flutter_sms.dart';
+import 'package:permission_handler/permission_handler.dart';
+// import 'package:flutter_sms/flutter_sms.dart';
 import 'package:provider/provider.dart';
 
 class ContactPage extends StatefulWidget {
@@ -32,7 +30,7 @@ class _ContactPageState extends State<ContactPage> {
     super.initState();
   }
 
-  Future<void> getUser() async{
+  Future<void> getUser() async {
     await Future.delayed(Duration.zero);
     userProvider = Provider.of<UserProvider>(context, listen: false);
     await userProvider.refreshUser();
@@ -55,7 +53,9 @@ class _ContactPageState extends State<ContactPage> {
           title: Text(
             "Contact List",
             style: TextStyle(
-                color: Colors.white, fontSize: 20*ScaleUtils.scaleFactor, fontWeight: FontWeight.bold),
+                color: Colors.white,
+                fontSize: 20 * ScaleUtils.scaleFactor,
+                fontWeight: FontWeight.bold),
           ),
           actions: <Widget>[
             IconButton(
@@ -73,8 +73,7 @@ class _ContactPageState extends State<ContactPage> {
             color: Colors.white,
             onPressed: () {},
           ),
-          centerTitle: true
-      ),
+          centerTitle: true),
       body: FutureBuilder(
           future: getContacts(),
           builder: (context, AsyncSnapshot snapshot) {
@@ -87,38 +86,39 @@ class _ContactPageState extends State<ContactPage> {
                   itemBuilder: (context, index) {
                     Contact contact = snapshot.data![index];
                     String firstPhoneNumber =
-                    contact.phones?.isNotEmpty ?? false
-                        ? contact.phones![0].number ?? ''
-                        : '';
+                        contact.phones?.isNotEmpty ?? false
+                            ? contact.phones![0].number ?? ''
+                            : '';
                     return (firstPhoneNumber == "")
                         ? Container()
                         : ListTile(
-                          leading: CircleAvatar(
-                            radius: 20,
-                            child: Icon(Icons.person),
-                          ),
-                          title: Text(
-                            contact.displayName,
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18*ScaleUtils.scaleFactor,
-                                fontWeight: FontWeight.w500),
-                          ),
-                          subtitle: Text(firstPhoneNumber),
-                          trailing: InkWell(
-                            onTap: (){
-                              String message = "${currentUserModel!.name} would like to chat and engage through video and voice calls with you on Echat.It's free!";
-                              _sendSMS(message, [firstPhoneNumber]);
-                            },
-                            child: Text(
-                              "Invite",
+                            leading: CircleAvatar(
+                              radius: 20,
+                              child: Icon(Icons.person),
+                            ),
+                            title: Text(
+                              contact.displayName,
                               style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14*ScaleUtils.scaleFactor,
+                                  color: Colors.white,
+                                  fontSize: 18 * ScaleUtils.scaleFactor,
+                                  fontWeight: FontWeight.w500),
+                            ),
+                            subtitle: Text(firstPhoneNumber),
+                            trailing: InkWell(
+                              onTap: () {
+                                String message =
+                                    "${currentUserModel!.name} would like to chat and engage through video and voice calls with you on Echat.It's free!";
+                                _sendSMS(message, [firstPhoneNumber]);
+                              },
+                              child: Text(
+                                "Invite",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14 * ScaleUtils.scaleFactor,
+                                ),
                               ),
                             ),
-                          ),
-                    );
+                          );
                   }),
             );
           }),
@@ -137,12 +137,10 @@ class _ContactPageState extends State<ContactPage> {
   }
 
   void _sendSMS(String message, List<String> recipents) async {
-    String _result = await sendSMS(message: message, recipients: recipents)
-        .catchError((onError) {
-      print(onError);
-    });
-    print(_result);
+    // String _result = await sendSMS(message: message, recipients: recipents)
+    //     .catchError((onError) {
+    //   print(onError);
+    // });
+    // print(_result);
   }
-
-
 }

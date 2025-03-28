@@ -70,7 +70,8 @@ class _EditProfileState extends State<EditProfile> {
                 selectImage(
                     ImagePicker().pickImage(source: ImageSource.gallery));
               },
-              child: Stack(
+              child:
+              Stack(
                 children: [
                   Center(
                     child: CircleAvatar(
