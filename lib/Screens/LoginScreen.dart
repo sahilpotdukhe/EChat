@@ -1,18 +1,15 @@
-import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Screens/SignUpScreen.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
-import 'package:echat/Utils/globals.dart';
 import 'package:echat/Widgets/BottomNavigationBar.dart';
 import 'package:echat/Widgets/loading.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_signin_button/button_list.dart';
-import 'package:flutter_signin_button/button_view.dart';
+import 'package:echat/Widgets/GoogleSignInButton.dart';
 import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
@@ -385,7 +382,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ? Loading()
                                     : ElevatedButton(
                                         style: ElevatedButton.styleFrom(
-                                          primary:
+                                          backgroundColor:
                                               UniversalVariables.appThemeColor,
                                         ),
                                         onPressed: () {
@@ -415,7 +412,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 });
                                                 await FirebaseFirestore.instance
                                                     .collection("Users")
-                                                    .doc(user!.uid)
+                                                    .doc(user.uid)
                                                     .update({
                                                   "notification_token":
                                                       initialToken,
@@ -505,8 +502,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               SizedBox(
                                 height: 20*ScaleUtils.verticalScale,
                               ),
-                              SignInButton(Buttons.GoogleDark,
-                                  padding: EdgeInsets.all(4*ScaleUtils.scaleFactor),
+                              GoogleSignInButton(
+                            padding: EdgeInsets.all(4*ScaleUtils.scaleFactor),
                                   elevation: 10, onPressed: () async {
                                 try {
                                   setState(() {
@@ -515,7 +512,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                   final googleProvider =
                                       Provider.of<GoogleSignInProvider>(context,
                                           listen: false);
-                                  await googleProvider.googleLogin(context);
+                                  final signedIn = await googleProvider.googleLogin(context);
+                                  if (signedIn != true) {
+                                    setState(() {
+                                      isPressed = false;
+                                    });
+                                    if (signedIn == false && context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Google sign-in failed. Please try again.')));
+                                    }
+                                    return;
+                                  }
 
                                   // String? initialToken = await FirebaseMessaging.instance.getToken();
                                   // print("Initial Token  Sign in screen ${initialToken}");

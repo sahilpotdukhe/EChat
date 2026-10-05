@@ -8,8 +8,7 @@ import 'package:echat/Provider/ImageUploadProvider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:fc_native_video_thumbnail/fc_native_video_thumbnail.dart';
 import 'package:http/http.dart' as http;
 
 
@@ -70,13 +69,13 @@ class FirebaseStorageMethod{
     }
   }
 
-  void uploadAnyFile(FilePickerResult? result, String receiverId, String senderId, ImageUploadProvider imageUploadProvider, Function(double) onProgress,String receiverToken, UserModel sender) async {
+  void uploadAnyFile(PlatformFile? pickedFile, String receiverId, String senderId, ImageUploadProvider imageUploadProvider, Function(double) onProgress,String receiverToken, UserModel sender) async {
 
       imageUploadProvider.setToLoading();
 
-      if(result != null){
-        File file = File(result.files.single.path!);
-        String fileName = result.files.single.name;
+      if(pickedFile != null){
+        File file = File(pickedFile.path!);
+        String fileName = pickedFile.name;
         String fileExtension = fileName.split('.').last;
 
         Reference ref = FirebaseStorage.instance.ref().child(fileName);
@@ -96,7 +95,7 @@ class FirebaseStorageMethod{
         String pdfUrl = '';
         String pdfName = '';
         if (fileExtension == 'mp4') {
-          thumbnailUrl = await _generateThumbnailandUpload(downloadUrl);
+          thumbnailUrl = await _generateThumbnailandUpload(file.path);
         }else if(fileExtension == 'pdf'){
           pdfUrl = downloadUrl;
           pdfName = fileName;
@@ -168,20 +167,20 @@ class FirebaseStorageMethod{
       }
   }
 
-  Future<String> _generateThumbnailandUpload(String videoUrl) async {
-    final thumbnailPath = (await getTemporaryDirectory()).path;
-    final thumbnail = await VideoThumbnail.thumbnailFile(
-      video: videoUrl,
-      thumbnailPath: (await getTemporaryDirectory()).path,
-      imageFormat: ImageFormat.JPEG,
-      maxHeight: 200,
-      quality: 100,
+  // Builds the thumbnail from the local video file, then uploads it.
+  // Returns '' if no thumbnail could be made, so the message still sends.
+  Future<String> _generateThumbnailandUpload(String videoPath) async {
+    final thumbnail = await FcNativeVideoThumbnail().saveThumbnailToBytes(
+      srcFile: videoPath,
+      width: 360,
+      height: 200,
+      format: 'jpeg',
+      quality: 90,
     );
-
-    final file = File(thumbnail!);
+    if (thumbnail == null) return '';
 
     final Reference storageRef = FirebaseStorage.instance.ref().child('thumbnails/${DateTime.now().microsecondsSinceEpoch}');
-    await storageRef.putFile(file);
+    await storageRef.putData(thumbnail, SettableMetadata(contentType: 'image/jpeg'));
 
     // Get the download URL of the uploaded thumbnail image
     final String downloadURL = await storageRef.getDownloadURL();

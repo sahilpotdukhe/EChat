@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:echat/Models/UserModel.dart';
 import 'package:echat/Provider/AppLoadingProvider.dart';
 import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
@@ -41,7 +40,6 @@ class _EditProfileState extends State<EditProfile> {
   Widget build(BuildContext context) {
     ScaleUtils.init(context);
     UserProvider userProvider = Provider.of<UserProvider>(context);
-    UserModel? userModel = userProvider.getUser;
     final appprovider = Provider.of<AppProvider>(context);
     return Scaffold(
       appBar: AppBar(
@@ -208,30 +206,22 @@ class _EditProfileState extends State<EditProfile> {
                         ),
                       ),
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Radio<String>(
-                          value: 'Male',
-                          groupValue: gender,
-                          onChanged: (value) {
-                            setState(() {
-                              gender = value!;
-                            });
-                          },
-                        ),
-                        const Text('Male'),
-                        Radio<String>(
-                          value: 'Female',
-                          groupValue: gender,
-                          onChanged: (value) {
-                            setState(() {
-                              gender = value!;
-                            });
-                          },
-                        ),
-                        const Text('Female'),
-                      ],
+                    RadioGroup<String>(
+                      groupValue: gender,
+                      onChanged: (value) {
+                        setState(() {
+                          gender = value!;
+                        });
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Radio<String>(value: 'Male'),
+                          Text('Male'),
+                          Radio<String>(value: 'Female'),
+                          Text('Female'),
+                        ],
+                      ),
                     ),
                     SizedBox(height: 16.0*ScaleUtils.verticalScale),
                     (appprovider.isLoading)
@@ -320,7 +310,7 @@ class _EditProfileState extends State<EditProfile> {
     if (_image == null) {
       return (userprovider.getUser!.profilePhoto == '')
           ? AssetImage('assets/user.jpg')
-          : NetworkImage(userprovider.getUser!.profilePhoto ?? '');
+          : NetworkImage(userprovider.getUser!.profilePhoto);
     } else {
       final File _imagex = File(_image!.path);
       return FileImage(_imagex);

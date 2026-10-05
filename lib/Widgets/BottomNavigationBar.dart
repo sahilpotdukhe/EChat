@@ -132,16 +132,16 @@ class _BotttomNavigationBarState extends State<BotttomNavigationBar>  with Widge
     super.didChangeAppLifecycleState(state);
     switch(state){
       case AppLifecycleState.resumed:
-        currentUserid !=null ? authMethods.setUserState(userId: currentUserid, userState: UserState.Online): print("resumed");
+        authMethods.setUserState(userId: currentUserid, userState: UserState.Online);
             break;
       case AppLifecycleState.inactive:
-        currentUserid !=null ? authMethods.setUserState(userId: currentUserid, userState: UserState.Offline): print("inactive");
+        authMethods.setUserState(userId: currentUserid, userState: UserState.Offline);
         break;
       case AppLifecycleState.paused:
-        currentUserid !=null ? authMethods.setUserState(userId: currentUserid, userState: UserState.Waiting): print("paused");
+        authMethods.setUserState(userId: currentUserid, userState: UserState.Waiting);
         break;
       case AppLifecycleState.detached:
-        currentUserid !=null ? authMethods.setUserState(userId: currentUserid, userState: UserState.Waiting): print("detached");
+        authMethods.setUserState(userId: currentUserid, userState: UserState.Waiting);
         break;
       case AppLifecycleState.hidden:
         // TODO: Handle this case.

@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:echat/Resources/AuthMethods.dart';
-import 'package:echat/Screens/SearchScreen.dart';
-import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 

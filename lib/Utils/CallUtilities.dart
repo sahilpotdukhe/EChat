@@ -7,7 +7,6 @@ import 'package:echat/Models/UserModel.dart';
 import 'package:echat/Resources/Repository/LogRepository.dart';
 import 'package:echat/Screens/Call/CallScreen.dart';
 import 'package:echat/Screens/Call/AudioCallScreen.dart';
-import 'package:echat/Utils/utilities.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 

@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "735724774271-19p1ct9np3kupjv6mr5sgk2f0ai4fi55.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.echat",
+            "certificate_hash": "5e60363b11526b80776b243eb8b088b1c3bcd422"
+          }
+        },
+        {
           "client_id": "735724774271-mpmfg5d5sao3svh6lpcsnoav91ae0rom.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
