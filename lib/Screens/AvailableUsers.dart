@@ -1,11 +1,9 @@
-import 'dart:math';
 
 import 'package:echat/Models/UserModel.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
 import 'package:echat/Screens/ChatScreen/ChatScreen.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
-import 'package:echat/Utils/globals.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -81,7 +79,6 @@ class _AvailableUsersState extends State<AvailableUsers> {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(receiver: userList[index])));},
               onLongPress: () {}
           );
-          return null;
         },
       ),
     );

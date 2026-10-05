@@ -1,10 +1,8 @@
-import 'dart:math';
 
 import 'package:echat/Models/OnBoardModel.dart';
 import 'package:echat/Screens/LoginScreen.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
-import 'package:echat/Utils/globals.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

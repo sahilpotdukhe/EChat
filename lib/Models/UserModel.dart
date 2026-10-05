@@ -41,18 +41,20 @@ class UserModel{
     return data;
   }
 
+  // Missing fields (older or partly-filled user docs) fall back to defaults
+  // instead of throwing.
   UserModel.fromMap(Map<String, dynamic> mapData){
-    uid = mapData['uid'];
-    name = mapData['name'];
-    email = mapData['email'];
-    username = mapData['username'];
-    status = mapData['status'];
-    state = mapData['state'];
-    profilePhoto = mapData['profile_photo'];
-    gender= mapData['gender'];
-    phoneNumber = mapData['phone_Number'];
-    authType = mapData['auth_type'];
-    notificationToken = mapData['notification_token'];
+    uid = mapData['uid'] ?? '';
+    name = mapData['name'] ?? '';
+    email = mapData['email'] ?? '';
+    username = mapData['username'] ?? '';
+    status = mapData['status'] ?? '';
+    state = (mapData['state'] as num?)?.toInt() ?? 0;
+    profilePhoto = mapData['profile_photo'] ?? '';
+    gender= mapData['gender'] ?? '';
+    phoneNumber = mapData['phone_Number'] ?? '';
+    authType = mapData['auth_type'] ?? '';
+    notificationToken = mapData['notification_token'] ?? '';
   }
 
 }

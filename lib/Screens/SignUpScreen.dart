@@ -1,19 +1,14 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:awesome_dialog/awesome_dialog.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
-import 'package:echat/Utils/globals.dart';
 import 'package:echat/Widgets/BottomNavigationBar.dart';
 import 'package:echat/Widgets/loading.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_signin_button/button_list.dart';
-import 'package:flutter_signin_button/button_view.dart';
+import 'package:echat/Widgets/GoogleSignInButton.dart';
 import 'package:flutter_styled_toast/flutter_styled_toast.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
@@ -382,7 +377,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               ? Loading()
                               : ElevatedButton(
                                   style: ElevatedButton.styleFrom(
-                                      primary: UniversalVariables.appThemeColor),
+                                      backgroundColor: UniversalVariables.appThemeColor),
                                   onPressed: () async {
                                     if (_signupkey.currentState!.validate()) {
                                       setState(() {
@@ -525,7 +520,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                                           },
                                                           style: ElevatedButton
                                                               .styleFrom(
-                                                                  primary:
+                                                                  backgroundColor:
                                                                       Colors
                                                                           .red),
                                                         ),
@@ -552,8 +547,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         SizedBox(
                           height: 20*ScaleUtils.verticalScale,
                         ),
-                        SignInButton(
-                            Buttons.GoogleDark,
+                        GoogleSignInButton(
                             padding: EdgeInsets.all(4),
                             elevation: 10,
                             onPressed:() async{
@@ -562,7 +556,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   isPressed = true;
                                 });
                                 final googleProvider = Provider.of<GoogleSignInProvider>(context,listen:false);
-                                await googleProvider.googleLogin(context);
+                                final signedIn = await googleProvider.googleLogin(context);
+                                if (signedIn != true) {
+                                  setState(() {
+                                    isPressed = false;
+                                  });
+                                  if (signedIn == false && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Google sign-in failed. Please try again.')));
+                                  }
+                                  return;
+                                }
 
 
                                 // String? initialToken = await FirebaseMessaging.instance.getToken();

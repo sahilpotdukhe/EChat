@@ -13,7 +13,7 @@ class ReceiverDetails extends StatelessWidget {
   final UserModel senderModel;
   ReceiverDetails({super.key, required this.receiverModel, required this.senderModel});
 
-  AuthMethods authMethods = AuthMethods();
+  final AuthMethods authMethods = AuthMethods();
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +139,7 @@ class ReceiverDetails extends StatelessWidget {
                               borderRadius: BorderRadius.circular(30*ScaleUtils.scaleFactor),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.grey.withOpacity(0.5),
+                                  color: Colors.grey.withValues(alpha: 0.5),
                                   spreadRadius: 5,
                                   blurRadius: 7,
                                   offset: Offset(0, 3), // changes position of shadow
