@@ -2,7 +2,6 @@ import 'package:echat/Screens/SearchScreen.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 
 class QuietBox extends StatelessWidget {
   final screen;

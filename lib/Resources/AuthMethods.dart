@@ -24,7 +24,6 @@ class Authenticate extends StatelessWidget {
 
 class AuthMethods {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
   FirebaseFirestore firestore = FirebaseFirestore.instance;
 
   Future<User?> getCurrentUser() async {
@@ -175,21 +174,28 @@ class AuthMethods {
 
 class GoogleSignInProvider extends ChangeNotifier {
   AuthMethods authMethods = AuthMethods();
-  final googleSignIn = GoogleSignIn();
+  final googleSignIn = GoogleSignIn.instance;
+  // google_sign_in 7+ must be initialized exactly once before use.
+  static Future<void>? _initialization;
   GoogleSignInAccount? _user;
   GoogleSignInAccount get user => _user!;
 
   Future googleLogin(context) async {
     try {
-      final googleUser = await googleSignIn.signIn();
-      if (googleUser == null) return;
+      await (_initialization ??= googleSignIn.initialize());
+      final GoogleSignInAccount googleUser;
+      try {
+        googleUser = await googleSignIn.authenticate();
+      } on GoogleSignInException catch (e) {
+        if (e.code == GoogleSignInExceptionCode.canceled) return;
+        rethrow;
+      }
       _user = googleUser;
       print('user...');
       print(_user);
-      final googleAuth = await googleUser.authentication;
+      final googleAuth = googleUser.authentication;
       print("this is goooogle-- $googleAuth");
       final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
       await FirebaseAuth.instance.signInWithCredential(credential);
@@ -200,7 +206,7 @@ class GoogleSignInProvider extends ChangeNotifier {
       if (userDocs.data() == null) {
         authMethods.setUserProfile(name: _user?.displayName, email: _user?.email,mobilenumber: '',profilePic:_user?.photoUrl,authType: "googleAuth");
       }else{
-        User? currentUser = await FirebaseAuth.instance.currentUser;
+        User? currentUser = FirebaseAuth.instance.currentUser;
         String? alreadyInitialToken = await FirebaseMessaging.instance.getToken();
         print("Initial Token else already exists ${alreadyInitialToken}");
         authMethods.updateToken(currentUser!.uid, alreadyInitialToken!);

@@ -1,10 +1,8 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Provider/AppLoadingProvider.dart';
 import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Screens/OnBoardScreens.dart';
-import 'package:echat/Screens/SplashScreen.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';

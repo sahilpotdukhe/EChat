@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Provider/UserProvider.dart';
@@ -16,7 +15,6 @@ import 'package:echat/Widgets/PdfViewerScreen.dart';
 import 'package:echat/Widgets/ReceiverDetails.dart';
 import 'package:echat/enum/ViewState.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:echat/Models/MessageModel.dart';
 import 'package:echat/Models/UserModel.dart';
@@ -25,7 +23,6 @@ import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:echat/Widgets/CachedChatImage.dart';
 import 'package:echat/Widgets/ModalTile.dart';
 import 'package:hexcolor/hexcolor.dart';
-import 'package:hive/hive.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -284,8 +281,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           SizedBox(
                             height: 10*ScaleUtils.verticalScale,
                           ),
-                          if (uploadProgress != null &&
-                              uploadProgress > 0 &&
+                          if (uploadProgress > 0 &&
                               uploadProgress < 1.0)
                             Text(
                               "${(uploadProgress * 100).toStringAsFixed(2)} %",
@@ -533,7 +529,6 @@ class _ChatScreenState extends State<ChatScreen> {
                               padding:  EdgeInsets.fromLTRB(8.0*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 8*ScaleUtils.horizontalScale, 0),
                               child: GestureDetector(
                                 onTap: () async {
-                                  final url = snapshot['pdfUrl'];
                                   Navigator.push(
                                       context,
                                       MaterialPageRoute(
@@ -684,7 +679,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           subtitle: "Share Videos",
                           icon: Icons.play_circle,
                           onTap: () async {
-                            var status = await Permission.storage.status;
+                            await Permission.storage.status;
                             if (await Permission.storage.isDenied) {
                               await Permission.storage.request();
                             } else {}
@@ -696,7 +691,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           subtitle: "Share Pdf",
                           icon: Icons.picture_as_pdf_outlined,
                           onTap: () async {
-                            var status = await Permission.storage.status;
+                            await Permission.storage.status;
                             if (await Permission.storage.isDenied) {
                               await Permission.storage.request();
                             } else {}
@@ -866,10 +861,11 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _selectFile(ImageUploadProvider imageUploadProvider) async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
+    final List<PlatformFile> pickedFiles = await FilePicker.pickFiles();
+    final PlatformFile? pickedFile = pickedFiles.isEmpty ? null : pickedFiles.first;
     String receiverToken = widget.receiver.notificationToken;
     firebaseStorageMethod.uploadAnyFile(
-        result, widget.receiver.uid, _currentUserId, imageUploadProvider,
+        pickedFile, widget.receiver.uid, _currentUserId, imageUploadProvider,
         (double progress) {
       setState(() {
         uploadProgress = progress;

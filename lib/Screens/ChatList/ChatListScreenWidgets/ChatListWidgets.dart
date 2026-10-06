@@ -1,9 +1,6 @@
-import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
-import 'package:echat/Utils/utilities.dart';
 import 'package:flutter/material.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
-import 'package:provider/provider.dart';
 
 class ChatCustomTile extends StatelessWidget {
   final Widget leading;

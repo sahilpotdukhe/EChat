@@ -1,15 +1,12 @@
-import 'package:agora_uikit/agora_uikit.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:echat/Models/UserModel.dart';
 import 'package:echat/Provider/UserProvider.dart';
-import 'package:echat/Screens/Call/PickupLayout.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
-import 'package:echat/Screens/ChatList/ChatListScreenWidgets/UserCircle.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:fast_contacts/fast_contacts.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_sms/flutter_sms.dart';
+// import 'package:flutter_sms/flutter_sms.dart';
 import 'package:provider/provider.dart';
 
 class ContactPage extends StatefulWidget {
@@ -20,13 +17,10 @@ class ContactPage extends StatefulWidget {
 }
 
 class _ContactPageState extends State<ContactPage> {
-  String _currentUserId = '';
   late UserProvider userProvider;
   UserModel? currentUserModel;
   @override
   void initState() {
-    User? currentUser = FirebaseAuth.instance.currentUser;
-    _currentUserId = currentUser!.uid;
     getUser();
     // TODO: implement initState
     super.initState();
@@ -87,8 +81,8 @@ class _ContactPageState extends State<ContactPage> {
                   itemBuilder: (context, index) {
                     Contact contact = snapshot.data![index];
                     String firstPhoneNumber =
-                    contact.phones?.isNotEmpty ?? false
-                        ? contact.phones![0].number ?? ''
+                    contact.phones.isNotEmpty
+                        ? contact.phones[0].number
                         : '';
                     return (firstPhoneNumber == "")
                         ? Container()
@@ -137,11 +131,12 @@ class _ContactPageState extends State<ContactPage> {
   }
 
   void _sendSMS(String message, List<String> recipents) async {
-    String _result = await sendSMS(message: message, recipients: recipents)
-        .catchError((onError) {
-      print(onError);
-    });
-    print(_result);
+    // flutter_sms dependency removed; SMS invite disabled for now.
+    // String _result = await sendSMS(message: message, recipients: recipents)
+    //     .catchError((onError) {
+    //   print(onError);
+    // });
+    // print(_result);
   }
 
 
