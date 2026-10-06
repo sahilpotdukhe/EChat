@@ -4,7 +4,6 @@ import 'package:echat/Models/CallModel.dart';
 import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Screens/Call/PickupScreen.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
-import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:flutter/material.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:provider/provider.dart';
@@ -20,7 +19,7 @@ class PickupLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     ScaleUtils.init(context);
     final UserProvider userProvider = Provider.of<UserProvider>(context);
-    return (userProvider != null && userProvider.getUser != null)
+    return (userProvider.getUser != null)
         ? StreamBuilder<DocumentSnapshot>(
             stream: callMethods.callStream(uid: userProvider.getUser!.uid),
             builder: (context, snapshot) {

@@ -7,7 +7,6 @@ import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dar
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/LastMessageContainer.dart';
 import 'package:echat/Screens/ChatScreen/ChatScreen.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
-import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:echat/Widgets/CachedChatImage.dart';
 import 'package:echat/Widgets/OnlineDotIndicator.dart';
 import 'package:flutter/cupertino.dart';
@@ -67,8 +66,7 @@ class ViewLayout extends StatelessWidget {
           child: Stack(
             children: [
               CachedChatImage(
-                  imageUrl: contactUserModel?.profilePhoto ??
-                      'https://www.esm.rochester.edu/uploads/NoPhotoAvailable.jpg',
+                  imageUrl: contactUserModel.profilePhoto,
                   isRound: true,
                   radius: 80,
                   height: 0,
@@ -79,7 +77,7 @@ class ViewLayout extends StatelessWidget {
           ),
         ),
         title: Text(
-          contactUserModel.name ?? '..',
+          contactUserModel.name,
           overflow: TextOverflow.ellipsis,
           maxLines: 1,
           style:

@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:echat/Models/CallLogModel.dart';
 import 'package:echat/Resources/Interface/CallLogInterface.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
 // Hive stores data in the form of key value pairs
