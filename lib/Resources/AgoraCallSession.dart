@@ -8,11 +8,11 @@ import 'package:permission_handler/permission_handler.dart';
 /// One Agora voice/video call: fetches a token, joins the channel and tracks
 /// the remote user. Used by CallScreen and AudioCallScreen.
 class AgoraCallSession {
-  static const String appId = '3a5f9bfe0efa423e9eaf5447565e0f7b';
-  static const String videoTokenServer =
+  // Must be the same Agora project the token server signs tokens for,
+  // otherwise Agora rejects the token and the call never connects.
+  static const String appId = '4e3d9239cb394c08beae2ed37754bf1d';
+  static const String _tokenServer =
       'https://agora-node-tokenserver-new.onrender.com/access_token';
-  static const String audioTokenServer =
-      'https://agoratokenserver-ny1v.onrender.com/access_token';
 
   final String channelId;
   final bool video;
@@ -25,8 +25,6 @@ class AgoraCallSession {
 
   AgoraCallSession({required this.channelId, required this.video});
 
-  String get _tokenServer => video ? videoTokenServer : audioTokenServer;
-
   Future<void> start() async {
     await [Permission.microphone, if (video) Permission.camera].request();
     final token = await _fetchToken();
@@ -36,6 +34,11 @@ class AgoraCallSession {
       channelProfile: ChannelProfileType.channelProfileCommunication,
     ));
     engine.registerEventHandler(RtcEngineEventHandler(
+      onError: (err, msg) => debugPrint('Agora error: $err $msg'),
+      onConnectionStateChanged: (connection, state, reason) =>
+          debugPrint('Agora connection: $state ($reason)'),
+      onJoinChannelSuccess: (connection, elapsed) =>
+          debugPrint('Agora joined channel ${connection.channelId}'),
       onUserJoined: (connection, uid, elapsed) => remoteUid.value = uid,
       onUserOffline: (connection, uid, reason) {
         if (remoteUid.value == uid) remoteUid.value = null;
