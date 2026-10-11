@@ -10,24 +10,23 @@ class HiveMethods implements CallLogInterface {
   String hiveBox = ""; //a storage container
 
   @override
-  openDb(dbName) => (hiveBox = dbName);
+  void openDb(String dbName) => hiveBox = dbName;
 
   @override
-  init() async {
+  Future<void> init() async {
     Directory dir = await getApplicationDocumentsDirectory();
     Hive.init(dir.path);
   }
 
 
   @override
-  addLogs(CallLogModel callLogModel) async {
+  Future<void> addLogs(CallLogModel callLogModel) async {
     await init();
     var box = await Hive.openBox(hiveBox);
     var logMap = callLogModel.toMap(callLogModel);
-    int idOfInput = await box.add(logMap); // for the very first addition of data the idOfInput will be 0 then 1 then 2 ...
+    await box.add(logMap); // keys count up from 0: 0, 1, 2…
     debugPrint("Call Dialled from Hive");
-    close();
-    return idOfInput;
+    await close();
   }
   // Hive Box (named according to hiveBox variable)
   // -----------------------------------------------
@@ -53,12 +52,12 @@ class HiveMethods implements CallLogInterface {
   // -----------------------------------------------
 
 
-  updateLog(int i, CallLogModel newCallLogModel) async {
+  Future<void> updateLog(int i, CallLogModel newCallLogModel) async {
     await init();
     var box = await Hive.openBox(hiveBox);
     var newLogMap = newCallLogModel.toMap(newCallLogModel);
-    box.putAt(i, newLogMap);
-    close();
+    await box.putAt(i, newLogMap);
+    await close();
   }
 
   @override
@@ -74,7 +73,7 @@ class HiveMethods implements CallLogInterface {
   }
 
   @override
-  deleteLogs(int logId) async {
+  Future<void> deleteLogs(int logId) async {
     await init();
     var box = await Hive.openBox(hiveBox);
     await box.deleteAt(logId);
@@ -82,8 +81,6 @@ class HiveMethods implements CallLogInterface {
   }
 
   @override
-  close() {
-    Hive.close();
-  }
+  Future<void> close() => Hive.close();
 
 }

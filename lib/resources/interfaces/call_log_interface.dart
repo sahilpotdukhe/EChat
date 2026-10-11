@@ -1,15 +1,17 @@
 import 'package:echat/models/call_log_model.dart';
 
-abstract class CallLogInterface{
-  openDb(dbName);
+/// Where the call history on this phone is stored.
+abstract class CallLogInterface {
+  void openDb(String dbName);
 
-  init();
+  Future<void> init();
 
-  addLogs(CallLogModel callLogModel);
+  Future<void> addLogs(CallLogModel callLogModel);
 
   Future<List<CallLogModel>> getLogs();
 
-  deleteLogs(int logId);
+  /// [logId] is the log's position in storage (oldest first).
+  Future<void> deleteLogs(int logId);
 
-  close();
+  Future<void> close();
 }

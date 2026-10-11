@@ -6,7 +6,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   awesome_notifications
   fc_native_video_thumbnail
   file_selector_linux
-  rive_native
   url_launcher_linux
 )
 
