@@ -6,6 +6,7 @@ import 'package:echat/theme/app_colors.dart';
 import 'package:echat/utils/call_utilities.dart';
 import 'package:echat/utils/utilities.dart';
 import 'package:echat/widgets/common/user_avatar.dart';
+import 'package:echat/widgets/common/info_section.dart';
 import 'package:echat/widgets/full_image_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -164,63 +165,35 @@ class _ReceiverDetailsState extends State<ReceiverDetails> {
   }
 
   Widget _details(UserModel user) {
-    final t = context.shadcn;
-    final rows = <Widget>[
-      if (user.email.isNotEmpty)
-        _DetailRow(
-          icon: Icons.mail_outline_rounded,
-          label: 'Email',
-          value: user.email,
-          onTap: () => _launch(Uri(scheme: 'mailto', path: user.email), 'No email app found'),
-          onLongPress: () => _copy('Email', user.email),
-        ),
-      if (user.phoneNumber.isNotEmpty)
-        _DetailRow(
-          icon: Icons.phone_outlined,
-          label: 'Phone',
-          value: user.phoneNumber,
-          onTap: () => _launch(Uri(scheme: 'tel', path: user.phoneNumber), 'Couldn\'t start a phone call'),
-          onLongPress: () => _copy('Phone number', user.phoneNumber),
-        ),
-      if (user.gender.isNotEmpty)
-        _DetailRow(
-          icon: Icons.person_outline_rounded,
-          label: 'Gender',
-          value: user.gender[0].toUpperCase() + user.gender.substring(1),
-        ),
-    ];
-    if (rows.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final hasCopyable = user.email.isNotEmpty || user.phoneNumber.isNotEmpty;
+    return InfoSection(
+      title: 'Details',
+      footer: hasCopyable ? 'Tip: press and hold a detail to copy it.' : null,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: ShadcnText(
-            'DETAILS',
-            variant: ShadcnTextVariant.muted,
-            style: const ShadcnTextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.8),
+        if (user.email.isNotEmpty)
+          InfoRow(
+            icon: Icons.mail_outline_rounded,
+            title: user.email,
+            subtitle: 'Email',
+            onTap: () => _launch(Uri(scheme: 'mailto', path: user.email), 'No email app found'),
+            onLongPress: () => _copy('Email', user.email),
+            semanticLabel: 'Email, ${user.email}. Double tap to open, long press to copy',
           ),
-        ),
-        ShadcnCard(
-          padding: EdgeInsets.zero,
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              for (final (i, row) in rows.indexed) ...[
-                if (i > 0) Padding(padding: const EdgeInsets.only(left: 56), child: Divider(color: t.border)),
-                row,
-              ],
-            ],
+        if (user.phoneNumber.isNotEmpty)
+          InfoRow(
+            icon: Icons.phone_outlined,
+            title: user.phoneNumber,
+            subtitle: 'Phone',
+            onTap: () => _launch(Uri(scheme: 'tel', path: user.phoneNumber), 'Couldn\'t start a phone call'),
+            onLongPress: () => _copy('Phone number', user.phoneNumber),
+            semanticLabel: 'Phone, ${user.phoneNumber}. Double tap to call, long press to copy',
           ),
-        ),
-        if (user.email.isNotEmpty || user.phoneNumber.isNotEmpty) ...[
-          ShadcnGap.sm,
-          const Padding(
-            padding: EdgeInsets.only(left: 4),
-            child: ShadcnText('Tip: press and hold a detail to copy it.', variant: ShadcnTextVariant.muted),
+        if (user.gender.isNotEmpty)
+          InfoRow(
+            icon: Icons.person_outline_rounded,
+            title: user.gender[0].toUpperCase() + user.gender.substring(1),
+            subtitle: 'Gender',
           ),
-        ],
       ],
     );
   }
@@ -252,33 +225,6 @@ class _ActionButton extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
-
-  const _DetailRow({required this.icon, required this.label, required this.value, this.onTap, this.onLongPress});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.shadcn;
-    return ShadcnListTile(
-      leading: Icon(icon, color: t.mutedForeground, size: 22),
-      gap: 18,
-      title: Text(value),
-      subtitle: Text(label),
-      titleStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: t.foreground),
-      subtitleStyle: TextStyle(fontSize: 12, color: t.mutedForeground),
-      trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
-      onTap: onTap,
-      onLongPress: onLongPress,
-      semanticLabel: onLongPress == null ? null : '$label, $value. Double tap to open, long press to copy',
     );
   }
 }

@@ -27,6 +27,8 @@ class CallUtilities {
     );
 
     CallLogModel callLogModel = CallLogModel(
+        callerId: fromCaller.uid,
+        receiverId: toReceiver.uid,
         callerName: fromCaller.name,
         callerPic: fromCaller.profilePhoto,
         receiverName: toReceiver.name,

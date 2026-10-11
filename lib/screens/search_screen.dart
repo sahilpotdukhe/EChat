@@ -12,8 +12,13 @@ import 'package:flutter/material.dart';
 import 'package:shadcn_kit/shadcn_kit.dart';
 
 /// Find someone on EChat by name or username and start chatting.
+///
+/// Also used as the home screen's People tab ([asTab]): a "People" title
+/// with the search box under it, no back button and pull-to-refresh.
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final bool asTab;
+
+  const SearchScreen({super.key, this.asTab = false});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -38,9 +43,9 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _load() async {
+    // Keep showing the current list while refreshing it.
     setState(() {
       _failed = false;
-      _users = null;
     });
     final me = FirebaseAuth.instance.currentUser;
     if (me == null) return;
@@ -65,6 +70,27 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.asTab) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('People')),
+        body: ResponsiveCenter(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(ShadcnSpacing.lg, ShadcnSpacing.xs, ShadcnSpacing.lg, 0),
+                child: AppSearchField(
+                  controller: _controller,
+                  hint: 'Search by name or username',
+                  onChanged: (v) => setState(() => _query = v),
+                  onClear: () => setState(() => _query = ''),
+                ),
+              ),
+              Expanded(child: RefreshIndicator(onRefresh: _load, child: _body(context))),
+            ],
+          ),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
@@ -118,6 +144,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
     final shadcn = context.shadcn;
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.only(bottom: ShadcnSpacing.xl2),
       itemCount: matches.length + 1,

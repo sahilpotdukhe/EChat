@@ -5,7 +5,7 @@ import 'package:echat/resources/repositories/log_repository.dart';
 import 'package:echat/screens/call/pickup_layout.dart';
 import 'package:echat/screens/call_logs/call_logs_screen.dart';
 import 'package:echat/screens/chat_list/chat_list_screen.dart';
-import 'package:echat/screens/available_users.dart';
+import 'package:echat/screens/search_screen.dart';
 import 'package:echat/widgets/new_user_details.dart';
 import 'package:echat/enums/user_state.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -176,9 +176,9 @@ class _HomeScreenState extends State<HomeScreen>  with WidgetsBindingObserver{
       case 0:
         return ChatListScreen(onOpenProfile: () => _select(_profileTab));
       case 1:
-        return CallLogsScreen();
+        return CallLogsScreen(isActive: _page == 1);
       case 2:
-        return AvailableUsers();
+        return const SearchScreen(asTab: true);
       case 3:
         return ContactPage();
       default:
