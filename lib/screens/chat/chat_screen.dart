@@ -540,7 +540,7 @@ class _ChatScreenState extends State<ChatScreen> {
       debugPrint('Message failed to send: $e');
       _showError("Message couldn't be sent: \"${_preview(text)}\"");
     });
-    // The push notification is sent by the notifyNewMessage Cloud Function.
+    // addMessagetoDb asks the notification server to send the push notification.
   }
 
   String _preview(String text) =>

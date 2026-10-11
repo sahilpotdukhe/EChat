@@ -51,7 +51,7 @@ class CallUtilities {
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Couldn't start the call. Check your connection.")));
     } else {
-      // The incoming-call notification is sent by the notifyIncomingCall Cloud Function.
+      // CallMethods.makeCall asks the notification server to ring the receiver.
       if(callType=='videoCall'){
         Navigator.push(context, MaterialPageRoute(builder: (context) => CallScreen(callModel: callModel)));
       }else if(callType == "audioCall"){

@@ -13,7 +13,7 @@ import 'package:fc_native_video_thumbnail/fc_native_video_thumbnail.dart';
 
 // Uploads chat media, then saves the message. Each user uploads into their own
 // folder (see storage.rules). The push notification is sent by the
-// notifyNewMessage Cloud Function. Both upload methods throw on failure so the
+// notification server (see NotificationService). Both upload methods throw on failure so the
 // chat screen can tell the user; the "uploading" spinner is always cleared.
 class FirebaseStorageMethod{
 
