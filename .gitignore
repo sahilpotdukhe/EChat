@@ -41,3 +41,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase
+/server/node_modules/
+firebase-debug.log
+firestore-debug.log
+/firebase-tests/node_modules/
+/server/.vercel/

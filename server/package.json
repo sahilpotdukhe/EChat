@@ -1,0 +1,17 @@
+{
+  "name": "echat-notify-server",
+  "description": "Sends EChat push notifications (runs on Vercel, no Firebase Blaze plan needed)",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "cd .. && firebase emulators:exec --only firestore --project demo-echat 'node --test server/test/*.test.js'"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "firebase-admin": "^13.0.0"
+  }
+}

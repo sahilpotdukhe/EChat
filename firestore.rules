@@ -1,0 +1,96 @@
+rules_version = '2';
+
+// Matches how the app reads and writes today (see lib/resources/*_methods.dart).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isMe(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Profiles. Every signed-in user can read them (needed for search and the
+    // chat list); only the owner can change their own, and can't change its uid.
+    match /Users/{uid} {
+      allow read: if signedIn();
+      allow create, update: if isMe(uid)
+          && request.resource.data.get('uid', uid) == uid;
+      allow delete: if false;
+
+      // Users/{owner}/Contacts/{other}. Sending a message adds each person to the
+      // other's list, so either of the two people may create the entry.
+      match /Contacts/{contactId} {
+        allow list: if isMe(uid);
+        allow get: if isMe(uid) || isMe(contactId);
+        allow create: if (isMe(uid) || isMe(contactId))
+            && request.resource.data.contact_id == contactId;
+        allow update: if false;
+        allow delete: if isMe(uid);
+      }
+    }
+
+    // messages/{owner}/{peer}/{msg}: the owner's copy of their chat with peer.
+    // The sender writes both copies, so a message is only allowed when the
+    // signed-in user is its sender and the path belongs to those two people.
+    match /messages/{ownerId}/{peerId}/{messageId} {
+      allow read: if isMe(ownerId);
+      allow create: if signedIn()
+          && request.resource.data.senderId == request.auth.uid
+          && (
+            (ownerId == request.auth.uid && peerId == request.resource.data.receiverId)
+            || (peerId == request.auth.uid && ownerId == request.resource.data.receiverId)
+          );
+      allow update, delete: if false;
+    }
+
+    // Call/{uid}: the call currently ringing for uid. The caller writes a copy
+    // for both people; either person may hang up (delete both copies).
+    match /Call/{uid} {
+      allow read: if isMe(uid);
+      // The caller writes both docs (theirs and the receiver's).
+      function isCallerWrite() {
+        return signedIn()
+            && request.resource.data.caller_id == request.auth.uid
+            && (uid == request.resource.data.caller_id || uid == request.resource.data.receiver_id);
+      }
+      // Docs from old app builds have no created_at/accepted, so they count as old and unanswered.
+      function startedBefore(d) {
+        return resource.data.get('created_at', timestamp.value(0)) < request.time - d;
+      }
+      // A doc left behind: never answered for a minute, or "in a call" for
+      // 4 hours (an app crashed mid-call). Anything else means busy.
+      function isLeftOver() {
+        return (!resource.data.get('accepted', false) && startedBefore(duration.value(60, 's')))
+            || (resource.data.get('accepted', false) && startedBefore(duration.value(4, 'h')));
+      }
+      // The same caller re-writing the same call.
+      function isSameCall() {
+        return resource.data.caller_id == request.auth.uid
+            && resource.data.channel_id == request.resource.data.channel_id;
+      }
+      // Either side marking the call as picked up, touching nothing else.
+      function isAccepting() {
+        return signedIn()
+            && (request.auth.uid == resource.data.caller_id || request.auth.uid == resource.data.receiver_id)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['accepted'])
+            && request.resource.data.accepted == true;
+      }
+
+      allow create: if isCallerWrite();
+      allow update: if (isCallerWrite() && (isLeftOver() || isSameCall())) || isAccepting();
+      // resource is null when the other side already deleted it.
+      allow delete: if isMe(uid)
+          || resource == null
+          || resource.data.caller_id == request.auth.uid
+          || resource.data.receiver_id == request.auth.uid;
+    }
+
+    // Anything not listed above is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
