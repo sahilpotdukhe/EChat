@@ -1,15 +1,17 @@
 import 'package:echat/models/user_model.dart';
 import 'package:echat/providers/user_provider.dart';
 import 'package:echat/resources/auth_methods.dart';
-import 'package:echat/utils/scale_utils.dart';
-import 'package:echat/utils/universal_variables.dart';
+import 'package:echat/utils/theme_preference.dart';
+import 'package:echat/widgets/common/info_section.dart';
+import 'package:echat/widgets/common/user_avatar.dart';
 import 'package:echat/widgets/edit_profile.dart';
 import 'package:echat/widgets/full_image_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_styled_toast/flutter_styled_toast.dart';
-import 'package:hexcolor/hexcolor.dart';
 import 'package:provider/provider.dart';
+import 'package:shadcn_kit/shadcn_kit.dart';
 
+/// The Profile tab: your photo and details, appearance (System / Light /
+/// Dark), editing your profile and logging out.
 class NewUserDetails extends StatefulWidget {
   const NewUserDetails({super.key});
 
@@ -18,242 +20,164 @@ class NewUserDetails extends StatefulWidget {
 }
 
 class _NewUserDetailsState extends State<NewUserDetails> {
-  AuthMethods authMethods = AuthMethods();
+  bool _loggingOut = false;
+
+  Future<void> _logOut() async {
+    final confirmed = await showShadcnAlertDialog(
+      context,
+      title: 'Log out of EChat?',
+      description: 'You\'ll stop getting message and call notifications on this phone until you log back in.',
+      confirmLabel: 'Log out',
+      destructive: true,
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _loggingOut = true);
+    try {
+      await AuthMethods().logOut(context);
+    } catch (e) {
+      debugPrint('Logout failed: $e');
+      if (mounted) {
+        setState(() => _loggingOut = false);
+        showShadcnToast(context, title: 'Couldn\'t log out. Please try again.', variant: ShadcnToastVariant.destructive);
+      }
+    }
+  }
+
+  void _setThemeMode(String value) {
+    final mode = ThemeMode.values.byName(value);
+    ShadcnThemeController.of(context).setMode(mode);
+    ThemePreference.save(mode);
+  }
 
   @override
   Widget build(BuildContext context) {
-    ScaleUtils.init(context);
-    UserProvider userProvider = Provider.of<UserProvider>(context);
-    UserModel? userModel = userProvider.getUser;
+    final user = Provider.of<UserProvider>(context).getUser;
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Container(
-          child: Stack(
-            children: [
-              Container(
-                height: 200*ScaleUtils.verticalScale,
-                decoration: BoxDecoration(
-                  gradient: UniversalVariables.appGradient,
-                  borderRadius: BorderRadius.only(
-                      bottomRight: Radius.circular(80*ScaleUtils.scaleFactor),
-                      bottomLeft: Radius.circular(80*ScaleUtils.scaleFactor)),
+      appBar: AppBar(
+        title: const Text('Profile'),
+        actions: [
+          if (user != null)
+            Padding(
+              padding: const EdgeInsets.only(right: ShadcnSpacing.sm),
+              child: ShadcnButton(
+                variant: ShadcnButtonVariant.ghost,
+                leading: const Icon(Icons.edit_outlined),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfile())),
+                child: const Text('Edit'),
+              ),
+            ),
+        ],
+      ),
+      body: user == null
+          ? const Center(child: SizedBox.square(dimension: 28, child: CircularProgressIndicator(strokeWidth: 2.5)))
+          : RefreshIndicator(
+              onRefresh: () => Provider.of<UserProvider>(context, listen: false).refreshUser(),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(ShadcnSpacing.lg, ShadcnSpacing.sm, ShadcnSpacing.lg, ShadcnSpacing.xl3),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 560),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _header(user),
+                        ShadcnGap.xl2,
+                        InfoSection(
+                          title: 'Account',
+                          children: [
+                            InfoRow(icon: Icons.mail_outline_rounded, title: user.email, subtitle: 'Email'),
+                            InfoRow(
+                              icon: Icons.phone_outlined,
+                              title: user.phoneNumber.isEmpty ? 'Add your phone number' : user.phoneNumber,
+                              subtitle: 'Phone',
+                              onTap: user.phoneNumber.isEmpty ? _openEdit : null,
+                            ),
+                            if (user.gender.isNotEmpty)
+                              InfoRow(
+                                icon: Icons.person_outline_rounded,
+                                title: user.gender[0].toUpperCase() + user.gender.substring(1),
+                                subtitle: 'Gender',
+                              ),
+                          ],
+                        ),
+                        ShadcnGap.xl2,
+                        _appearance(),
+                        ShadcnGap.xl3,
+                        ShadcnButton(
+                          variant: ShadcnButtonVariant.outline,
+                          size: ShadcnButtonSize.lg,
+                          fullWidth: true,
+                          loading: _loggingOut,
+                          foregroundColor: context.shadcn.destructive,
+                          leading: const Icon(Icons.logout_rounded),
+                          onPressed: _logOut,
+                          child: const Text('Log out'),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              Center(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    SizedBox(height: 110*ScaleUtils.verticalScale),
-                    GestureDetector(
-                      onTap: (){
-                        Navigator.push(context,
-                            MaterialPageRoute(builder: (_) {
-                              return FullImageWidget(
-                                imageUrl: userModel.profilePhoto,
-                              );
-                            }));
-                      },
-                      child: CircleAvatar(
-                        radius: 75*ScaleUtils.scaleFactor,
-                        child: CircleAvatar(
-                          radius: 70*ScaleUtils.scaleFactor,
-                          backgroundColor: Colors.transparent,
-                          backgroundImage: AssetImage('assets/user.jpg'),
-                          foregroundImage: NetworkImage(userModel!.profilePhoto),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: 10*ScaleUtils.verticalScale,
-                    ),
-                    Text(
-                      userModel.name,
-                      style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 25*ScaleUtils.scaleFactor,
-                          fontWeight: FontWeight.bold),
-                    ),
-                    Padding(
-                      padding:  EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          InkWell(
-                            onTap: () {
-                              Navigator.pushNamed(context, '/searchScreen');
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
-                                color: HexColor("3957ED"),
-                              ),
-                              child: Padding(
-                                padding:  EdgeInsets.all(12.0*ScaleUtils.scaleFactor),
-                                child: Row(
-                                  children:  [
-                                    Text(
-                                      "Message Friend",
-                                      style: TextStyle(fontSize:14*ScaleUtils.scaleFactor,color: Colors.white),
-                                    ),
-                                    SizedBox(width: 8*ScaleUtils.horizontalScale,),
-                                    Icon(Icons.message,color: Colors.white,)
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          InkWell(
-                            onTap: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (context)=>EditProfile()));
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
-                                color: HexColor("3957ED"),
-                              ),
-                              child: Padding(
-                                padding:  EdgeInsets.all(12.0*ScaleUtils.scaleFactor),
-                                child:  Row(
-                                  children:  [
-                                    Text(
-                                      "Edit Profile",
-                                      style: TextStyle(fontSize:14*ScaleUtils.scaleFactor,color: Colors.white),
-                                    ),
-                                    SizedBox(width: 8*ScaleUtils.verticalScale,),
-                                    Icon(Icons.edit,color: Colors.white,)
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // SizedBox(
-                    //   height: 20*ScaleUtils.verticalScale,
-                    // ),
-                    Padding(
-                      padding:  EdgeInsets.symmetric(horizontal: 10*ScaleUtils.horizontalScale,vertical: 20*ScaleUtils.verticalScale),
-                      child: Container(
-                        decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(30*ScaleUtils.scaleFactor),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withValues(alpha: 0.5),
-                                spreadRadius: 5,
-                                blurRadius: 7,
-                                offset: Offset(0, 3), // changes position of shadow
-                              ),
-                            ]),
-                        child: Padding(
-                          padding:  EdgeInsets.all(18.0*ScaleUtils.scaleFactor),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                "Name",
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
-                              ),
-                              Text(
-                                userModel.name,
-                                style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
-                              ),
-                              Divider(),
-                              Text(
-                                "Username",
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
-                              ),
-                              Text(
-                                userModel.username,
-                                style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
-                              ),
-                              Divider(),
-                              Text(
-                                "Email",
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
-                              ),
-                              Text(
-                                userModel.email,
-                                style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
-                              ),
-                              (userModel.phoneNumber=='')?Container()
-                                  :Column(
-                                children: [
-                                  Divider(),
-                                  Text(
-                                    "Phone number",
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
-                                  ),
-                                  Text(
-                                    userModel.phoneNumber,
-                                    style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
-                                  ),
-                                ],
-                              ),
-                              (userModel.gender == "")?Container()
-                                  :Column(
-                                children: [
-                                  Divider(),
-                                  Text(
-                                    "Gender",
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
-                                  ),
-                                  Text(
-                                    userModel.gender,
-                                    style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
-                                  ),
-                                ],
-                              )
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () {
-                        authMethods.logOut(context);
-                        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) {return NewLoginScreen();}));
-                        showToast("Account Logging Out....", backgroundColor: Colors.red, context: context);
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
-                          color: HexColor("EE3427"),
-                        ),
-                        child: Padding(
-                          padding:  EdgeInsets.all(12.0*ScaleUtils.scaleFactor),
-                          child:  Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children:  [
-                              Text(
-                                "Logout",
-                                style: TextStyle(fontSize:16*ScaleUtils.scaleFactor,color: Colors.white),
-                              ),
-                              SizedBox(width: 8*ScaleUtils.horizontalScale,),
-                              Icon(Icons.logout,color: Colors.white,)
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    // SizedBox(height: 70,)
-                    //Spacer()
-                  ],
-                ),
-              )
-            ],
+            ),
+    );
+  }
+
+  void _openEdit() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfile()));
+
+  Widget _header(UserModel user) {
+    final name = user.name.isEmpty ? 'EChat user' : user.name;
+    final heroTag = 'avatar_${user.uid}';
+    return Column(
+      children: [
+        Hero(
+          tag: heroTag,
+          child: UserAvatar(
+            name: user.name,
+            imageUrl: user.profilePhoto,
+            size: 104,
+            onTap: user.profilePhoto.isEmpty
+                ? _openEdit
+                : () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => FullImageWidget(imageUrl: user.profilePhoto, heroTag: heroTag, title: name),
+                    )),
           ),
         ),
-      ),
+        ShadcnGap.lg,
+        ShadcnText(name, variant: ShadcnTextVariant.h3, textAlign: TextAlign.center, maxLines: 2),
+        if (user.username.isNotEmpty) ...[
+          ShadcnGap.xs,
+          ShadcnText(user.username.replaceFirst('echat:', '@'), variant: ShadcnTextVariant.lead),
+        ],
+      ],
+    );
+  }
+
+  Widget _appearance() {
+    final controller = ShadcnThemeController.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: ShadcnText(
+            'APPEARANCE',
+            variant: ShadcnTextVariant.muted,
+            style: const ShadcnTextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.8),
+          ),
+        ),
+        ShadcnTabs(
+          fullWidth: true,
+          contentSpacing: 0,
+          initialValue: controller.mode.name,
+          onChanged: _setThemeMode,
+          items: const [
+            ShadcnTabItem(value: 'system', label: 'System', icon: Icon(Icons.brightness_auto_outlined, size: 16), content: SizedBox.shrink()),
+            ShadcnTabItem(value: 'light', label: 'Light', icon: Icon(Icons.light_mode_outlined, size: 16), content: SizedBox.shrink()),
+            ShadcnTabItem(value: 'dark', label: 'Dark', icon: Icon(Icons.dark_mode_outlined, size: 16), content: SizedBox.shrink()),
+          ],
+        ),
+      ],
     );
   }
 }

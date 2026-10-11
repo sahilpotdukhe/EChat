@@ -48,3 +48,6 @@ firebase-debug.log
 firestore-debug.log
 /firebase-tests/node_modules/
 /server/.vercel/
+
+# Local override for developing shared packages
+pubspec_overrides.yaml

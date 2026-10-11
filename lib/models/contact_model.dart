@@ -11,7 +11,7 @@ class ContactModel{
 });
 
   Map toMap(ContactModel contactModel){
-    var data = Map<String,dynamic>();
+    final data = <String, dynamic>{};
     data['contact_id'] = contactModel.uid;
     data['added_on'] = contactModel.addedOn;
     return data;

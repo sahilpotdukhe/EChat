@@ -1,26 +1,29 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:echat/providers/user_provider.dart';
-import 'package:echat/resources/chat_firebase_methods.dart';
-import 'package:echat/resources/firebase_storage_method.dart';
-import 'package:echat/screens/call/pickup_layout.dart';
-import 'package:echat/screens/chat_list/widgets/chat_list_widgets.dart';
-import 'package:echat/screens/chat/chat_quiet_box.dart';
-import 'package:echat/screens/chat/message_bubble.dart';
-import 'package:echat/utils/call_utilities.dart';
-import 'package:echat/utils/message_utils.dart';
-import 'package:echat/utils/scale_utils.dart';
-import 'package:echat/widgets/receiver_details.dart';
 import 'package:echat/enums/view_state.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:echat/models/message_model.dart';
 import 'package:echat/models/user_model.dart';
 import 'package:echat/providers/image_upload_provider.dart';
-import 'package:echat/utils/universal_variables.dart';
-import 'package:echat/widgets/modal_tile.dart';
+import 'package:echat/providers/user_provider.dart';
+import 'package:echat/resources/auth_methods.dart';
+import 'package:echat/resources/chat_firebase_methods.dart';
+import 'package:echat/resources/firebase_storage_method.dart';
+import 'package:echat/screens/call/pickup_layout.dart';
+import 'package:echat/screens/chat/message_bubble.dart';
+import 'package:echat/screens/chat/widgets/attachment_sheet.dart';
+import 'package:echat/screens/chat/widgets/chat_composer.dart';
+import 'package:echat/screens/chat/widgets/chat_parts.dart';
+import 'package:echat/theme/app_colors.dart';
+import 'package:echat/utils/call_utilities.dart';
+import 'package:echat/utils/message_utils.dart';
+import 'package:echat/utils/responsive.dart';
+import 'package:echat/widgets/common/user_avatar.dart';
+import 'package:echat/widgets/receiver_details.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:shadcn_kit/shadcn_kit.dart';
 
 class ChatScreen extends StatefulWidget {
   final UserModel receiver;
@@ -32,15 +35,16 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  TextEditingController messageController = TextEditingController();
-  late UserProvider userProvider;
-  bool isWriting = false;
-  // Loaded asynchronously in initializeSender; null until then.
-  UserModel? sender;
+  final TextEditingController _messageController = TextEditingController();
+  final ChatFirebaseMethods _chatFirebaseMethods = ChatFirebaseMethods();
+  final FirebaseStorageMethod _firebaseStorageMethod = FirebaseStorageMethod();
+  final ScrollController _scrollController = ScrollController();
+
+  // Loaded asynchronously in _initializeSender; null until then.
+  UserModel? _sender;
   String _currentUserId = '';
-  ChatFirebaseMethods chatFirebaseMethods = ChatFirebaseMethods();
-  FirebaseStorageMethod firebaseStorageMethod = FirebaseStorageMethod();
-  double uploadProgress = 0.0;
+  double _uploadProgress = 0.0;
+  bool _showJumpToLatest = false;
 
   // Messages load newest-first, a page at a time; scrolling up loads more.
   static const int _pageSize = 30;
@@ -49,21 +53,25 @@ class _ChatScreenState extends State<ChatScreen> {
   // Built once (and again only when loading more), not on every rebuild:
   // a new query per keystroke would re-subscribe to Firestore each time.
   late Stream<QuerySnapshot> _messagesStream;
-  final ScrollController _scrollController = ScrollController();
+  late final Stream<DocumentSnapshot> _receiverStream =
+      AuthMethods().getUserStream(uid: widget.receiver.uid);
+
+  /// Widest the messages and the typing bar get on tablets.
+  static const double _maxChatWidth = 760;
 
   @override
   void initState() {
     super.initState();
     _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
     _messagesStream = _messagesQuery();
-    _scrollController.addListener(_loadMoreIfAtTop);
-    initializeSender();
+    _scrollController.addListener(_onScroll);
+    _initializeSender();
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
-    messageController.dispose();
+    _messageController.dispose();
     super.dispose();
   }
 
@@ -75,11 +83,16 @@ class _ChatScreenState extends State<ChatScreen> {
       .limit(_messageLimit)
       .snapshots();
 
-  // The list is reversed, so the oldest loaded message is at maxScrollExtent.
-  void _loadMoreIfAtTop() {
+  void _onScroll() {
     final position = _scrollController.position;
+
+    // The list is reversed: 0 is the newest message.
+    final showJump = position.pixels > 400;
+    if (showJump != _showJumpToLatest) setState(() => _showJumpToLatest = showJump);
+
+    // The oldest loaded message is at maxScrollExtent. Fewer messages than
+    // the limit means we already have the whole chat.
     final bool nearTop = position.pixels >= position.maxScrollExtent - 200;
-    // Fewer messages than the limit means we already have the whole chat.
     if (!nearTop || _loadedCount < _messageLimit) return;
     setState(() {
       _messageLimit += _pageSize;
@@ -87,440 +100,237 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  void _showError(String text) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  void _jumpToLatest() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
   }
 
-  Future<void> initializeSender() async {
+  void _showError(String text) {
+    if (!mounted) return;
+    showShadcnToast(context, title: text, variant: ShadcnToastVariant.destructive);
+  }
+
+  Future<void> _initializeSender() async {
     await Future.delayed(Duration.zero);
     if (!mounted) return;
-    userProvider = Provider.of<UserProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
     await userProvider.refreshUser();
     if (!mounted) return;
     if (userProvider.getUser != null) {
-      setState(() {
-        sender = userProvider.getUser;
-      });
+      setState(() => _sender = userProvider.getUser);
     } else {
       debugPrint('User is null');
     }
   }
 
+  void _openProfile() {
+    final me = _sender;
+    if (me == null) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ReceiverDetails(receiverModel: widget.receiver, senderModel: me),
+    ));
+  }
+
+  void _call(String callType) {
+    final me = _sender;
+    if (me == null) return;
+    CallUtilities.dial(fromCaller: me, toReceiver: widget.receiver, context: context, callType: callType);
+  }
+
   @override
   Widget build(BuildContext context) {
-    ScaleUtils.init(context);
-    ImageUploadProvider imageUploadProvider =
-        Provider.of<ImageUploadProvider>(context);
+    final imageUploadProvider = Provider.of<ImageUploadProvider>(context);
+    final uploading = imageUploadProvider.getViewState == ViewState.loading;
+    final colors = context.colors;
+    final side = ((context.screenWidth - _maxChatWidth) / 2).clamp(0.0, double.infinity);
+
     return PickupLayout(
       scaffold: Scaffold(
-        backgroundColor: Colors.black,
-        appBar: CustomAppBar(
-          title: InkWell(
-              onTap: () {
-                final me = sender;
-                if (me == null) return;
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => ReceiverDetails(
-                              receiverModel: widget.receiver,
-                              senderModel: me,
-                            )));
-              },
-              child: Text(
-                widget.receiver.name,
-                style: TextStyle(
-                    color: Colors.white, fontSize: 16 * ScaleUtils.scaleFactor),
-              )),
-          actions: [
-            IconButton(
-                onPressed: sender == null
-                    ? null
-                    : () {
-                        CallUtilities.dial(
-                            fromCaller: sender!,
-                            toReceiver: widget.receiver,
-                            context: context,
-                            callType: 'audioCall');
-                      },
-                icon: Icon(
-                  Icons.phone,
-                  color: Colors.white,
-                )),
-            IconButton(
-                onPressed: sender == null
-                    ? null
-                    : () {
-                        CallUtilities.dial(
-                            fromCaller: sender!,
-                            toReceiver: widget.receiver,
-                            context: context,
-                            callType: 'videoCall');
-                      },
-                icon: Icon(
-                  Icons.video_call,
-                  color: Colors.white,
-                )),
-          ],
-          leading: InkWell(
-            onTap: () {
-              final me = sender;
-              if (me == null) return;
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => ReceiverDetails(
-                          receiverModel: widget.receiver,
-                          senderModel: me)));
-            },
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 8 * ScaleUtils.horizontalScale,
-                ),
-                Container(
-                  child: CircleAvatar(
-                    radius: 20 * ScaleUtils.scaleFactor,
-                    backgroundColor: Colors.transparent,
-                    backgroundImage: AssetImage('assets/user.jpg'),
-                    foregroundImage: NetworkImage(widget.receiver.profilePhoto),
-                  ),
-                ),
-              ],
-            ),
+        backgroundColor: colors.chatBackground,
+        appBar: AppBar(
+          titleSpacing: 0,
+          title: ChatHeaderTitle(
+            receiver: widget.receiver,
+            receiverStream: _receiverStream,
+            onTap: _sender == null ? null : _openProfile,
           ),
-          centerTitle: false,
+          actions: [
+            ShadcnButton(
+              variant: ShadcnButtonVariant.ghost,
+              size: ShadcnButtonSize.icon,
+              tooltip: 'Voice call',
+              semanticLabel: 'Voice call',
+              onPressed: _sender == null ? null : () => _call('audioCall'),
+              child: const Icon(Icons.call_outlined, size: 22),
+            ),
+            ShadcnButton(
+              variant: ShadcnButtonVariant.ghost,
+              size: ShadcnButtonSize.icon,
+              tooltip: 'Video call',
+              semanticLabel: 'Video call',
+              onPressed: _sender == null ? null : () => _call('videoCall'),
+              child: const Icon(Icons.videocam_outlined, size: 24),
+            ),
+            const SizedBox(width: 6),
+          ],
         ),
         body: Column(
           children: [
-            Flexible(
-                child: StreamBuilder<QuerySnapshot>(
-              stream: _messagesStream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                      child: Text("Couldn't load messages",
-                          style: TextStyle(color: Colors.white)));
-                }
-                if (snapshot.data == null) {
-                  return Center(child: CircularProgressIndicator());
-                }
-                final docs = snapshot.data!.docs;
-                _loadedCount = docs.length;
-                if (docs.isEmpty) {
-                  return ChatQuietBox(
-                    screen: "ChatScreen",
-                  );
-                }
-                final bool hasOlder = docs.length >= _messageLimit;
-                final DateTime now = DateTime.now();
-                return ListView.builder(
-                  controller: _scrollController,
-                  itemCount: docs.length,
-                  reverse: true,
-                  itemBuilder: (context, index) {
-                    final MessageModel message = MessageModel.fromMap(
-                        docs[index].data() as Map<String, dynamic>);
-                    final DateTime messageTime = message.timestamp.toDate();
-
-                    // The list is newest-first, so index + 1 is the previous message.
-                    // Show a date chip where the day changes. The oldest loaded
-                    // message only gets one if there is nothing older to load.
-                    bool startsNewDay;
-                    if (index == docs.length - 1) {
-                      startsNewDay = !hasOlder;
-                    } else {
-                      final previous = MessageModel.fromMap(
-                          docs[index + 1].data() as Map<String, dynamic>);
-                      startsNewDay = !MessageUtils.isSameDay(
-                          messageTime, previous.timestamp.toDate());
-                    }
-                    final bool isMe = message.senderId == _currentUserId;
-                    return Column(
-                      children: [
-                        if (startsNewDay)
-                          Padding(
-                            padding: EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10*ScaleUtils.scaleFactor),
-                                color: Colors.white
-                              ),
-                              padding: EdgeInsets.fromLTRB(10*ScaleUtils.horizontalScale, 4*ScaleUtils.verticalScale, 10*ScaleUtils.horizontalScale, 4*ScaleUtils.verticalScale),
-                              child: Text(
-                                MessageUtils.chatDateLabel(messageTime, now),
-                                style: TextStyle(
-                                    fontSize: 15*ScaleUtils.scaleFactor,
-                                    color: Colors.black),
-                              ),
-                            ),
-                          ),
-                        Container(
-                            alignment: isMe
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: MessageBubble(message: message, isMe: isMe)),
-                      ],
-                    );
-                  },
-                );
-              },
-            )),
-            SizedBox(
-              height: 10*ScaleUtils.verticalScale,
-            ),
-            (imageUploadProvider.getViewState == ViewState.loading)
-                ? Container(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      margin: EdgeInsets.fromLTRB(0, 12*ScaleUtils.verticalScale, 12*ScaleUtils.horizontalScale, 0),
-                      height: 250*ScaleUtils.verticalScale,
-                      width: 250*ScaleUtils.horizontalScale,
-                      constraints: BoxConstraints(
-                          maxWidth: ScaleUtils.width* 0.65),
-                      decoration: BoxDecoration(
-                          color: UniversalVariables.senderColor,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(10*ScaleUtils.scaleFactor),
-                            topRight: Radius.circular(10*ScaleUtils.scaleFactor),
-                            bottomLeft: Radius.circular(10*ScaleUtils.scaleFactor),
-                          )),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          (imageUploadProvider.getViewState ==
-                                  ViewState.loading)
-                              ? CircularProgressIndicator(
-                                  color: Colors.white,
-                                )
-                              : Container(),
-                          SizedBox(
-                            height: 10*ScaleUtils.verticalScale,
-                          ),
-                          if (uploadProgress > 0 &&
-                              uploadProgress < 1.0)
-                            Text(
-                              "${(uploadProgress * 100).toStringAsFixed(2)} %",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                        ],
+            Expanded(
+              child: Stack(
+                children: [
+                  _messages(side),
+                  Positioned(
+                    right: 16 + side,
+                    bottom: 12,
+                    child: AnimatedScale(
+                      scale: _showJumpToLatest ? 1 : 0,
+                      duration: const Duration(milliseconds: 180),
+                      child: ShadcnButton(
+                        variant: ShadcnButtonVariant.outline,
+                        size: ShadcnButtonSize.icon,
+                        tooltip: 'Jump to latest',
+                        semanticLabel: 'Jump to latest message',
+                        style: const ShadcnButtonStyle(shape: CircleBorder()),
+                        onPressed: _jumpToLatest,
+                        child: const Icon(Icons.keyboard_arrow_down_rounded, size: 24),
                       ),
                     ),
-                  )
-                : Container(),
-            chatControls(imageUploadProvider)
+                  ),
+                ],
+              ),
+            ),
+            if (uploading)
+              Padding(
+                padding: EdgeInsets.only(left: side, right: side, bottom: 8),
+                child: UploadBubble(progress: _uploadProgress),
+              ),
+            ResponsiveCenter(
+              maxWidth: _maxChatWidth,
+              child: ChatComposer(
+                controller: _messageController,
+                canSend: _sender != null,
+                onSend: _sendMessage,
+                onAttach: () => _attach(imageUploadProvider),
+                onCamera: () => _pickImage(ImageSource.camera, imageUploadProvider),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget chatControls(ImageUploadProvider imageUploadProvider) {
-    void pickImageMethod({required ImageSource source}) async {
-      final XFile? selectedImage = await ImagePicker().pickImage(source: source);
-      // Picker closed without choosing: nothing to upload.
-      if (selectedImage == null) return;
-      try {
-        await firebaseStorageMethod.uploadImage(selectedImage, widget.receiver.uid,
-            _currentUserId, imageUploadProvider, _onUploadProgress);
-      } catch (e) {
-        debugPrint('Image upload failed: $e');
-        _showError("Couldn't send the photo. Please try again.");
-      }
-    }
-
-    addMediaModel(BuildContext context) {
-      showModalBottomSheet(
-          context: context,
-          elevation: 0,
-          backgroundColor: UniversalVariables.blackColor,
-          builder: (context) {
-            return Column(
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(vertical: 15*ScaleUtils.verticalScale),
-                  child: Row(
-                    children: [
-                      TextButton(
-                        child: Icon(
-                          Icons.close,
-                          color: Colors.white,
-                        ),
-                        onPressed: () {
-                          Navigator.maybePop(context);
-                        },
-                      ),
-                      SizedBox(
-                        width: 75*ScaleUtils.horizontalScale,
-                      ),
-                      Align(
-                        alignment: Alignment.center,
-                        child: Text(
-                          "Content and tools",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20*ScaleUtils.scaleFactor,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      )
-                    ],
-                  ),
-                ),
-                Flexible(
-                  child: ListView(
-                    children: [
-                      ModalTile(
-                          title: "Media",
-                          subtitle: "Share Photos from gallery",
-                          icon: Icons.image,
-                          onTap: () {
-                            pickImageMethod(source: ImageSource.gallery);
-                            Navigator.maybePop(context);
-                          }),
-                      ModalTile(
-                          title: "Video",
-                          subtitle: "Share Videos",
-                          icon: Icons.play_circle,
-                          onTap: () {
-                            Navigator.maybePop(context);
-                            _selectFile(imageUploadProvider, FileType.video);
-                          }),
-                      ModalTile(
-                          title: "PDF",
-                          subtitle: "Share Pdf",
-                          icon: Icons.picture_as_pdf_outlined,
-                          onTap: () {
-                            Navigator.maybePop(context);
-                            _selectFile(imageUploadProvider, FileType.custom,
-                                allowedExtensions: ['pdf']);
-                          }),
-                      ModalTile(
-                          title: "Document",
-                          subtitle: "Share any file",
-                          icon: Icons.attach_file,
-                          onTap: () {
-                            Navigator.maybePop(context);
-                            _selectFile(imageUploadProvider, FileType.any);
-                          }),
-                      ModalTile(
-                          title: "Contact",
-                          subtitle: "Share Contacts",
-                          icon: Icons.contacts,
-                          onTap: () {}),
-                      ModalTile(
-                          title: "Location",
-                          subtitle: "Share a location",
-                          icon: Icons.add_location,
-                          onTap: () {}),
-                    ],
-                  ),
-                )
-              ],
-            );
-          });
-    }
-
-    return Container(
-      padding: EdgeInsets.all(10*ScaleUtils.scaleFactor),
-      child: Row(
-        children: [
-          GestureDetector(
-            child: Container(
-              padding: EdgeInsets.all(5*ScaleUtils.scaleFactor),
-              decoration: BoxDecoration(
-                  gradient: UniversalVariables.appGradient,
-                  shape: BoxShape.circle),
-              child: Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 36*ScaleUtils.scaleFactor,
-              ),
+  Widget _messages(double side) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _messagesStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return ShadcnEmptyState(
+            icon: Icons.cloud_off_rounded,
+            title: 'Couldn\'t load messages',
+            description: 'Check your internet connection and try again.',
+            action: ShadcnButton(
+              variant: ShadcnButtonVariant.outline,
+              leading: const Icon(Icons.refresh_rounded),
+              onPressed: () => setState(() => _messagesStream = _messagesQuery()),
+              child: const Text('Retry'),
             ),
-            onTap: () {
-              addMediaModel(context);
+          );
+        }
+        if (snapshot.data == null) {
+          return const Center(
+            child: SizedBox.square(dimension: 28, child: CircularProgressIndicator(strokeWidth: 2.5)),
+          );
+        }
+        final docs = snapshot.data!.docs;
+        _loadedCount = docs.length;
+        if (docs.isEmpty) return _emptyChat();
+
+        final messages = [
+          for (final doc in docs) MessageModel.fromMap(doc.data() as Map<String, dynamic>),
+        ];
+        final bool hasOlder = docs.length >= _messageLimit;
+        final DateTime now = DateTime.now();
+        final senderName = widget.receiver.name.isEmpty ? 'EChat user' : widget.receiver.name;
+
+        return LayoutBuilder(builder: (context, constraints) {
+          final chatWidth = (constraints.maxWidth - side * 2).clamp(0.0, _maxChatWidth);
+          final bubbleMaxWidth = (chatWidth * 0.78).clamp(0.0, 520.0);
+
+          return ListView.builder(
+            controller: _scrollController,
+            reverse: true,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.only(left: side, right: side, top: 8, bottom: 10),
+            itemCount: messages.length,
+            itemBuilder: (context, index) {
+              // Newest-first: index + 1 is the older neighbour, index - 1 the newer.
+              final message = messages[index];
+              final time = message.timestamp.toDate();
+              final older = index + 1 < messages.length ? messages[index + 1] : null;
+              final newer = index > 0 ? messages[index - 1] : null;
+
+              // Show a date chip where the day changes. The oldest loaded
+              // message only gets one if there is nothing older to load.
+              final bool startsNewDay = older == null
+                  ? !hasOlder
+                  : !MessageUtils.isSameDay(time, older.timestamp.toDate());
+              bool groups(MessageModel? other) =>
+                  other != null &&
+                  MessageUtils.groupsWith(
+                    senderA: message.senderId,
+                    timeA: time,
+                    senderB: other.senderId,
+                    timeB: other.timestamp.toDate(),
+                  );
+
+              return Column(
+                children: [
+                  if (startsNewDay) DateChip(label: MessageUtils.chatDateLabel(time, now)),
+                  MessageBubble(
+                    message: message,
+                    isMe: message.senderId == _currentUserId,
+                    senderName: senderName,
+                    maxWidth: bubbleMaxWidth,
+                    groupedWithOlder: !startsNewDay && groups(older),
+                    groupedWithNewer: groups(newer),
+                  ),
+                ],
+              );
             },
-          ),
-          SizedBox(width: 5*ScaleUtils.horizontalScale),
-          Expanded(
-            child: TextField(
-              controller: messageController,
-              style: TextStyle(color: Colors.white),
-              onChanged: (val) {
-                setState(() {
-                  (val.isNotEmpty && val.trim() != "")
-                      ? isWriting = true
-                      : isWriting = false;
-                });
+          );
+        });
+      },
+    );
+  }
+
+  Widget _emptyChat() {
+    final receiver = widget.receiver;
+    final firstName = receiver.name.trim().isEmpty ? 'them' : receiver.name.trim().split(RegExp(r'\s+')).first;
+    return ShadcnEmptyState(
+      illustration: Center(child: UserAvatar(name: receiver.name, imageUrl: receiver.profilePhoto, size: 88)),
+      title: 'Say hi to $firstName',
+      description: 'This is the start of your conversation. Messages, photos and files you share will show up here.',
+      action: ShadcnButton(
+        onPressed: _sender == null
+            ? null
+            : () {
+                _messageController.text = 'Hi 👋';
+                _sendMessage();
               },
-              decoration: InputDecoration(
-                  hintText: "Type a message",
-                  hintStyle: TextStyle(color: UniversalVariables.greyColor),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(50)),
-                      borderSide: BorderSide.none),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 20*ScaleUtils.horizontalScale, vertical: 5*ScaleUtils.verticalScale),
-                  filled: true,
-                  fillColor: UniversalVariables.separatorColor,
-                  suffixIcon: GestureDetector(
-                    onTap: () async {},
-                    child: Icon(Icons.face, color: Colors.white),
-                  )),
-            ),
-          ),
-          (isWriting)
-              ? Container()
-              : GestureDetector(
-                  onTap: () {},
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 10*ScaleUtils.horizontalScale),
-                    child: Icon(
-                      Icons.record_voice_over,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-          (isWriting)
-              ? Container()
-              : GestureDetector(
-                  child: Icon(
-                    Icons.camera_alt,
-                    color: Colors.white,
-                  ),
-                  onTap: () {
-                    pickImageMethod(source: ImageSource.camera);
-                  },
-                ),
-          (isWriting)
-              ? Container(
-                  margin: EdgeInsets.only(left: 10*ScaleUtils.horizontalScale),
-                  decoration: BoxDecoration(
-                      gradient: UniversalVariables.fabGradient,
-                      shape: BoxShape.circle),
-                  child: IconButton(
-                    onPressed: () {
-                      sendMessage();
-                    },
-                    icon: Icon(
-                      Icons.send,
-                      size: 28*ScaleUtils.scaleFactor,
-                      color: Colors.white,
-                    ),
-                  ),
-                )
-              : Container()
-        ],
+        child: const Text('👋  Say hi'),
       ),
     );
   }
 
-  void sendMessage() {
-    final me = sender;
+  void _sendMessage() {
+    final me = _sender;
     // Keep the typed text if our profile hasn't loaded yet.
     if (me == null) return;
-    var text = messageController.text;
-    MessageModel message = MessageModel(
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+    final message = MessageModel(
         senderId: me.uid,
         receiverId: widget.receiver.uid,
         type: 'text',
@@ -530,27 +340,54 @@ class _ChatScreenState extends State<ChatScreen> {
         thumbnailUrl: '',
         pdfUrl: '',
         pdfName: '');
-    setState(() {
-      isWriting = false;
-    });
-    messageController.text = "";
+    _messageController.clear();
+    _jumpToLatest();
     // Offline, the message shows straight away and is sent once back online;
     // only a real failure (e.g. rejected by the server) lands in catchError.
-    chatFirebaseMethods.addMessagetoDb(message).catchError((Object e) {
+    // addMessagetoDb also asks the notification server to send the push.
+    _chatFirebaseMethods.addMessagetoDb(message).catchError((Object e) {
       debugPrint('Message failed to send: $e');
       _showError("Message couldn't be sent: \"${_preview(text)}\"");
     });
-    // addMessagetoDb asks the notification server to send the push notification.
   }
 
-  String _preview(String text) =>
-      text.length > 30 ? '${text.substring(0, 30)}…' : text;
+  String _preview(String text) => text.length > 30 ? '${text.substring(0, 30)}…' : text;
 
   void _onUploadProgress(double progress) {
     if (!mounted) return;
-    setState(() {
-      uploadProgress = progress;
-    });
+    setState(() => _uploadProgress = progress);
+  }
+
+  Future<void> _attach(ImageUploadProvider imageUploadProvider) async {
+    final choice = await showAttachmentSheet(context);
+    if (choice == null || !mounted) return;
+    switch (choice) {
+      case AttachmentChoice.gallery:
+        await _pickImage(ImageSource.gallery, imageUploadProvider);
+      case AttachmentChoice.camera:
+        await _pickImage(ImageSource.camera, imageUploadProvider);
+      case AttachmentChoice.video:
+        await _selectFile(imageUploadProvider, FileType.video);
+      case AttachmentChoice.pdf:
+        await _selectFile(imageUploadProvider, FileType.custom, allowedExtensions: ['pdf']);
+      case AttachmentChoice.document:
+        await _selectFile(imageUploadProvider, FileType.any);
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source, ImageUploadProvider imageUploadProvider) async {
+    final XFile? selectedImage = await ImagePicker().pickImage(source: source);
+    // Picker closed without choosing: nothing to upload.
+    if (selectedImage == null) return;
+    setState(() => _uploadProgress = 0);
+    _jumpToLatest();
+    try {
+      await _firebaseStorageMethod.uploadImage(
+          selectedImage, widget.receiver.uid, _currentUserId, imageUploadProvider, _onUploadProgress);
+    } catch (e) {
+      debugPrint('Image upload failed: $e');
+      _showError("Couldn't send the photo. Please try again.");
+    }
   }
 
   // The system file picker needs no storage permission.
@@ -560,9 +397,11 @@ class _ChatScreenState extends State<ChatScreen> {
         await FilePicker.pickFiles(type: type, allowedExtensions: allowedExtensions);
     // Picker closed without choosing: nothing to upload.
     if (pickedFiles.isEmpty) return;
+    setState(() => _uploadProgress = 0);
+    _jumpToLatest();
     try {
-      await firebaseStorageMethod.uploadAnyFile(pickedFiles.first, widget.receiver.uid,
-          _currentUserId, imageUploadProvider, _onUploadProgress);
+      await _firebaseStorageMethod.uploadAnyFile(
+          pickedFiles.first, widget.receiver.uid, _currentUserId, imageUploadProvider, _onUploadProgress);
     } catch (e) {
       debugPrint('File upload failed: $e');
       _showError("Couldn't send the file. Please try again.");

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 class UserProvider with ChangeNotifier{
   UserModel? _userModel;
-  AuthMethods authMethods = AuthMethods();
+  late AuthMethods authMethods = AuthMethods();
 
   UserModel? get getUser => _userModel;
 

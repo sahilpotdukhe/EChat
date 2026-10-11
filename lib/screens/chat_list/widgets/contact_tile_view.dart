@@ -1,106 +1,122 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:echat/enums/user_state.dart';
 import 'package:echat/models/contact_model.dart';
+import 'package:echat/models/message_model.dart';
 import 'package:echat/models/user_model.dart';
-import 'package:echat/providers/user_provider.dart';
 import 'package:echat/resources/auth_methods.dart';
 import 'package:echat/resources/chat_firebase_methods.dart';
-import 'package:echat/screens/chat_list/widgets/chat_list_widgets.dart';
-import 'package:echat/screens/chat_list/widgets/last_message_container.dart';
 import 'package:echat/screens/chat/chat_screen.dart';
-import 'package:echat/utils/scale_utils.dart';
-import 'package:echat/widgets/cached_chat_image.dart';
-import 'package:echat/widgets/online_dot_indicator.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:echat/utils/message_utils.dart';
+import 'package:echat/utils/utilities.dart';
+import 'package:echat/widgets/common/skeleton.dart';
+import 'package:echat/widgets/common/user_avatar.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:shadcn_kit/shadcn_kit.dart';
 
-class ContactTileView extends StatelessWidget {
+/// One conversation in the chat list: the other person's photo (with an
+/// online dot), name, last message preview and its time.
+class ContactTileView extends StatefulWidget {
   final ContactModel contactModel;
-  final AuthMethods _authMethods = AuthMethods();
+  final String currentUserId;
 
-  ContactTileView({super.key, required this.contactModel});
+  const ContactTileView({super.key, required this.contactModel, required this.currentUserId});
+
+  @override
+  State<ContactTileView> createState() => _ContactTileViewState();
+}
+
+class _ContactTileViewState extends State<ContactTileView> {
+  // Created once, so rebuilding the list doesn't re-open the streams.
+  late final Stream<DocumentSnapshot> _userStream =
+      AuthMethods().getUserStream(uid: widget.contactModel.uid);
+  late final Stream<QuerySnapshot> _lastMessageStream = ChatFirebaseMethods()
+      .fetchLastMessageBetween(senderId: widget.currentUserId, receiverId: widget.contactModel.uid);
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<UserModel?>(
-        future: _authMethods.getUserDetailsById(contactModel.uid),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            UserModel userModel = snapshot.data!;
-            return ViewLayout(contactUserModel: userModel);
-          }
-          // Contact's profile no longer exists, or failed to load: hide the row
-          // instead of spinning forever.
-          if (snapshot.connectionState == ConnectionState.done) {
-            return const SizedBox.shrink();
-          }
-          return Container(
-              height: 80,
-              //constraints: BoxConstraints(maxHeight: 68, maxWidth: 60),
-              child: Center(
-                  child: Padding(
-                    padding:  EdgeInsets.fromLTRB(8,8,8,0),
-                    child: Column(
-                      children:const [
-                        Padding(
-                          padding:  EdgeInsets.fromLTRB(8,8,8,0),
-                          child: CircularProgressIndicator(),
-                        ),
-                        Divider(
-                          color: Colors.white,
-                          thickness: 0.2,
-                        )
-                      ],
-                    ),
-              )));
-        });
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _userStream,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          // Profile no longer exists or can't be read: hide the row rather
+          // than spin forever.
+          if (snapshot.hasError) return const SizedBox.shrink();
+          return const SkeletonListTile();
+        }
+        final data = snapshot.data!.data() as Map<String, dynamic>?;
+        if (data == null) return const SizedBox.shrink();
+        final user = UserModel.fromMap(data);
+
+        return StreamBuilder<QuerySnapshot>(
+          stream: _lastMessageStream,
+          builder: (context, messageSnapshot) {
+            final docs = messageSnapshot.data?.docs ?? const [];
+            final MessageModel? last = docs.isEmpty
+                ? null
+                : MessageModel.fromMap(docs.first.data() as Map<dynamic, dynamic>);
+            return ChatRow(
+              user: user,
+              lastMessage: last,
+              isLoadingMessage: !messageSnapshot.hasData && !messageSnapshot.hasError,
+              sentByMe: last?.senderId == widget.currentUserId,
+            );
+          },
+        );
+      },
+    );
   }
 }
 
-class ViewLayout extends StatelessWidget {
-  final UserModel contactUserModel;
-  final ChatFirebaseMethods chatFirebaseMethods = ChatFirebaseMethods();
+/// The visible row, given already-loaded data.
+class ChatRow extends StatelessWidget {
+  final UserModel user;
+  final MessageModel? lastMessage;
+  final bool isLoadingMessage;
+  final bool sentByMe;
 
-  ViewLayout({super.key, required this.contactUserModel});
+  const ChatRow({
+    super.key,
+    required this.user,
+    required this.lastMessage,
+    required this.isLoadingMessage,
+    required this.sentByMe,
+  });
 
   @override
   Widget build(BuildContext context) {
-    UserProvider userProvider = Provider.of<UserProvider>(context);
-    return ChatCustomTile(
-        leading: Container(
-          constraints: BoxConstraints(maxHeight: 60, maxWidth: 60),
-          child: Stack(
-            children: [
-              CachedChatImage(
-                  imageUrl: contactUserModel.profilePhoto,
-                  isRound: true,
-                  radius: 80,
-                  height: 0,
-                  width: 0,
-                  fit: BoxFit.cover),
-              OnlineDotIndicator(uid: contactUserModel.uid)
-            ],
-          ),
-        ),
-        title: Text(
-          contactUserModel.name,
-          overflow: TextOverflow.ellipsis,
-          maxLines: 1,
-          style:
-              TextStyle(color: Colors.white, fontFamily: "Arial", fontSize: 16*ScaleUtils.scaleFactor),
-        ),
-        icon: Container(),
-        subtitle: LastMessageContainer(
-            position: "subtitle",
-            stream: chatFirebaseMethods.fetchLastMessageBetween(
-                senderId: userProvider.getUser!.uid,
-                receiverId: contactUserModel.uid)),
-        trailing: LastMessageContainer(position: "trailing",stream: chatFirebaseMethods.fetchLastMessageBetween(senderId: userProvider.getUser!.uid, receiverId: contactUserModel.uid)),
-        margin: EdgeInsets.all(0),
-        mini: false,
-        onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(receiver: contactUserModel)));
-        },
-        onLongPress: () {}
+    final last = lastMessage;
+
+    String preview;
+    if (last != null) {
+      preview = MessageUtils.previewText(
+        type: last.type,
+        message: last.message,
+        fileName: last.fileName.isNotEmpty ? last.fileName : last.pdfName,
+      );
+      if (sentByMe) preview = 'You: $preview';
+    } else {
+      preview = isLoadingMessage ? '' : 'Say hi 👋';
+    }
+
+    return ShadcnListTile(
+      leading: UserAvatar(
+        name: user.name,
+        imageUrl: user.profilePhoto,
+        size: 52,
+        isOnline: Utils.numToState(user.state) == UserState.online,
+      ),
+      title: Text(user.name.isEmpty ? 'EChat user' : user.name),
+      // Keep the message on a single line so every row has the same height.
+      subtitle: Text(preview),
+      trailing: last == null
+          ? null
+          : Text(
+              MessageUtils.chatListTime(last.timestamp.toDate(), DateTime.now()),
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => ChatScreen(receiver: user)),
+      ),
     );
   }
 }

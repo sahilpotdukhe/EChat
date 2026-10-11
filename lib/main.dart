@@ -1,9 +1,11 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:echat/providers/app_provider.dart';
 import 'package:echat/providers/user_provider.dart';
 import 'package:echat/resources/auth_methods.dart';
+import 'package:echat/resources/local_notifications.dart';
 import 'package:echat/screens/on_board_screens.dart';
-import 'package:echat/utils/universal_variables.dart';
+import 'package:echat/theme/app_colors.dart';
+import 'package:echat/theme/app_theme.dart';
+import 'package:echat/utils/theme_preference.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -13,83 +15,18 @@ import 'package:echat/screens/search_screen.dart';
 import 'package:echat/screens/home_screen.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:provider/provider.dart';
+import 'package:shadcn_kit/shadcn_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 int? isViewed;
+ThemeMode savedThemeMode = ThemeMode.system;
 
 // Runs in a separate background isolate, so it must be a top-level function
 // kept by the compiler and must set up Firebase itself.
 @pragma('vm:entry-point')
-Future<void> backgroundHandler(RemoteMessage message) async{
+Future<void> backgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  // Data-only messages have no notification part; fall back to the data fields
-  // (sent by server/src/app.js) instead of crashing.
-  final bool isCall = message.data['type'] == 'call' ||
-      message.notification?.title == 'Incoming Call';
-  String? title = message.notification?.title ?? (isCall ? 'Incoming Call' : null);
-  String? body = message.notification?.body;
-  if (title == null && body == null) return;
-  if(isCall){
-    AwesomeNotifications().createNotification(
-        content: NotificationContent(
-          id: 123,
-          channelKey: "call_channel",
-          title: title,
-          body: body,
-          category: NotificationCategory.Call,
-          wakeUpScreen: true,
-          fullScreenIntent: true,
-          autoDismissible: false,
-          backgroundColor: UniversalVariables.appThemeColor,
-          notificationLayout: NotificationLayout.BigPicture,
-          largeIcon: 'asset://assets/login.png',
-          displayOnForeground: true,
-          displayOnBackground: true,
-        ),
-        actionButtons: [
-          NotificationActionButton(key: "Accept", label: "Accept Call",color: Colors.green,autoDismissible: true),
-          NotificationActionButton(key: "Reject", label: "Reject Call",color: Colors.red,autoDismissible: true),
-        ]
-    );
-  }else{
-    AwesomeNotifications().createNotification(
-        content: NotificationContent(
-          id: 456,
-          channelKey: "message_channel",
-          title: title,
-          body: body,
-          category: NotificationCategory.Message,
-          wakeUpScreen: true,
-          fullScreenIntent: true,
-          autoDismissible: false,
-          backgroundColor: UniversalVariables.appThemeColor,
-          notificationLayout: NotificationLayout.BigPicture,
-          largeIcon: 'asset://assets/login.png',
-          displayOnForeground: true,
-          displayOnBackground: true,
-        ),
-        actionButtons: [
-          NotificationActionButton(key: "Reply", label: "Reply",color: Colors.grey,autoDismissible: true),
-          NotificationActionButton(key: "Mark as read", label: "Mark as read",color: Colors.grey,actionType: ActionType.DismissAction),
-        ]
-    );
-  }
-
-
-  AwesomeNotifications().setListeners(
-      onActionReceivedMethod: (receivedAction) async{
-        if(receivedAction.buttonKeyPressed == "Accept"){
-          debugPrint("Call Accepted");
-        }else if(receivedAction.buttonKeyPressed == "Reject"){
-          debugPrint("Call Rejected");
-        }else if(receivedAction.buttonKeyPressed == "Reply"){
-          debugPrint("Message replied");
-        }else{
-          debugPrint("Clicked on notification");
-          await AwesomeNotifications().dismiss(receivedAction.id!);
-        }
-
-      });
+  await LocalNotifications.show(message);
 }
 
 
@@ -131,6 +68,7 @@ void main() async {
       .initializeApp(); // This line initializes Firebase services asynchronously.
   SharedPreferences prefs = await SharedPreferences.getInstance();
   isViewed = prefs.getInt("OnBoard");
+  savedThemeMode = ThemePreference.read(prefs);
   FlutterNativeSplash.remove();
   runApp(MyApp());
   //runApp(const MyApp());
@@ -155,13 +93,14 @@ class _MyAppState extends State<MyApp> {
       providers: [
         ChangeNotifierProvider(create: (_) => ImageUploadProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => AppProvider()),
         ChangeNotifierProvider(create: (_) => GoogleSignInProvider())
       ],
-      child: MaterialApp(
-        title: 'ECHAT',
-        debugShowCheckedModeBanner: false,
-        initialRoute: '/',
+      child: ShadcnApp(
+        title: 'EChat',
+        light: AppColors.shadcnLight,
+        dark: AppColors.shadcnDark,
+        initialMode: savedThemeMode,
+        materialThemeBuilder: AppTheme.build,
         routes: {
           '/searchScreen': (context) => SearchScreen()},
         home: FutureBuilder(
