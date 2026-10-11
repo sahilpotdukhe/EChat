@@ -1,17 +1,23 @@
 import 'dart:async';
 
-import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:echat/resources/auth_methods.dart';
-import 'package:echat/utils/scale_utils.dart';
-import 'package:echat/utils/universal_variables.dart';
 import 'package:echat/screens/home_screen.dart';
-import 'package:echat/widgets/loading.dart';
+import 'package:echat/theme/app_colors.dart';
+import 'package:echat/utils/validators.dart';
+import 'package:echat/widgets/auth_layout.dart';
+import 'package:echat/widgets/common/busy_overlay.dart';
+import 'package:echat/widgets/google_sign_in_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:echat/widgets/google_sign_in_button.dart';
-import 'package:flutter_styled_toast/flutter_styled_toast.dart';
+import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
+import 'package:shadcn_kit/shadcn_kit.dart';
+
+const _defaultProfilePic =
+    'https://firebasestorage.googleapis.com/v0/b/echat-888ef.appspot.com/o/user.jpg?alt=media&token=6f598b3e-9c10-49ee-8a68-49468b32bddf';
+
+enum _Step { form, verifying, verified }
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -21,593 +27,330 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  bool _isHidden = true;
-  bool _isLoading = false;
-  bool isVerified = false;
-  bool? googleloading = false;
-  bool isPressed = false;
-  Timer? timer;
-  final _signupkey = GlobalKey<FormState>();
-  TextEditingController name = TextEditingController();
-  TextEditingController email = TextEditingController();
-  TextEditingController password = TextEditingController();
-  TextEditingController mobile = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _name = TextEditingController();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  final _mobile = TextEditingController();
+  late final _authMethods = AuthMethods();
 
-  AuthMethods authMethods = AuthMethods();
+  _Step _step = _Step.form;
+  bool _isLoading = false;
+  bool _isGoogleLoading = false;
+  bool _isResending = false;
+  bool _checking = false;
+  Timer? _timer;
+
+  bool get _busy => _isLoading || _isGoogleLoading;
 
   @override
   void dispose() {
-    timer?.cancel();
+    _timer?.cancel();
+    _name.dispose();
+    _email.dispose();
+    _password.dispose();
+    _mobile.dispose();
     super.dispose();
   }
 
-  Future checkEmailVerified(User user) async {
-    await FirebaseAuth.instance.currentUser!.reload();
-    setState(() {
-      isVerified = FirebaseAuth.instance.currentUser!.emailVerified;
-    });
+  void _goHome() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => HomeScreen()),
+      (route) => false,
+    );
+  }
 
-    if (isVerified) timer?.cancel();
-    if (isVerified) {
-      await authMethods.setUserProfile(
-          name: name.text,
-          email: email.text,
-          profilePic: 'https://firebasestorage.googleapis.com/v0/b/echat-888ef.appspot.com/o/user.jpg?alt=media&token=6f598b3e-9c10-49ee-8a68-49468b32bddf',
-          authType: 'emailAuth',
-          mobilenumber: mobile.text);
+  Future<void> _createAccount() async {
+    FocusScope.of(context).unfocus();
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+
+    final user = await _authMethods.createAccountbyEmail(_email.text.trim(), _password.text, context);
+    if (!mounted) return;
+    if (user == null) {
+      setState(() => _isLoading = false);
+      showShadcnAlertDialog(
+        context,
+        icon: ShadcnIconBadge(Icons.error_outline_rounded, color: context.shadcn.destructive),
+        title: 'Couldn\'t create your account',
+        description: '${_email.text.trim()} may already be registered. '
+            'Try signing in instead, or use a different email.',
+        confirmLabel: 'Try again',
+        cancelLabel: 'Go to sign in',
+      ).then((tryAgain) {
+        if (tryAgain == false && mounted) Navigator.of(context).maybePop();
+      });
+      return;
+    }
+
+    try {
+      await user.sendEmailVerification();
+    } catch (e) {
+      debugPrint('$e');
+    }
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+      _step = _Step.verifying;
+    });
+    _timer = Timer.periodic(const Duration(seconds: 3), (_) => _checkEmailVerified());
+  }
+
+  Future<void> _checkEmailVerified() async {
+    // A slow network can make checks overlap; only run one at a time.
+    if (_checking) return;
+    _checking = true;
+    try {
+      final current = FirebaseAuth.instance.currentUser;
+      if (current == null) return;
+      await current.reload();
+      if (!(FirebaseAuth.instance.currentUser?.emailVerified ?? false)) return;
+
+      _timer?.cancel();
+      await _authMethods.setUserProfile(
+        name: _name.text.trim(),
+        email: _email.text.trim(),
+        profilePic: _defaultProfilePic,
+        authType: 'emailAuth',
+        mobilenumber: _mobile.text.trim(),
+      );
       if (!mounted) return;
-      AwesomeDialog(
-        context: context,
-        animType: AnimType.leftSlide,
-        headerAnimationLoop: true,
-        dialogType: DialogType.success,
-        showCloseIcon: true,
-        //autoHide: Duration(seconds: 6),
-        title: 'Verified!',
-        desc:
-            'You have successfully verified the account.\n Please wait you will be redirected to the HomePage.',
-        btnOkOnPress: () {
-          debugPrint('OnClcik');
-        },
-        btnOkIcon: Icons.check_circle,
-        onDismissCallback: (type) {
-          debugPrint('Dialog Dissmiss from callback $type');
-        },
-      ).show();
-      // showToast('Account Created Successfully');
-      await Future.delayed(Duration(seconds: 6));
+      setState(() => _step = _Step.verified);
+      await Future.delayed(const Duration(milliseconds: 1400));
       if (!mounted) return;
-      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => HomeScreen()), (route) => false);
-    } else {
-      // setState(() {
-      //   _auth.currentUser=null;
-      // });
+      _goHome();
+    } catch (e) {
+      debugPrint('$e');
+    } finally {
+      _checking = false;
     }
   }
 
-  void _togglepasswordview() {
-    setState(() {
-      _isHidden = !_isHidden;
-    });
+  Future<void> _resendEmail() async {
+    setState(() => _isResending = true);
+    try {
+      await FirebaseAuth.instance.currentUser?.sendEmailVerification();
+      if (mounted) showShadcnToast(context, title: 'Verification email sent again.', variant: ShadcnToastVariant.success);
+    } catch (e) {
+      debugPrint('$e');
+      if (mounted) {
+        showShadcnToast(context, title: 'Please wait a minute before asking for another email.', variant: ShadcnToastVariant.destructive);
+      }
+    } finally {
+      if (mounted) setState(() => _isResending = false);
+    }
+  }
+
+  Future<void> _signUpWithGoogle() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      final googleProvider = Provider.of<GoogleSignInProvider>(context, listen: false);
+      final signedIn = await googleProvider.googleLogin(context);
+      if (!mounted) return;
+      if (signedIn == true) {
+        _goHome();
+        return;
+      }
+      setState(() => _isGoogleLoading = false);
+      if (signedIn == false) {
+        showShadcnToast(context, title: 'Google sign-in failed. Please try again.', variant: ShadcnToastVariant.destructive);
+      }
+    } catch (e) {
+      debugPrint('$e');
+      if (mounted) setState(() => _isGoogleLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    ScaleUtils.init(context);
-    return Scaffold(
-      backgroundColor: UniversalVariables.appThemeColor,
-      body: Stack(
+    final verifying = _step != _Step.form;
+    return PopScope(
+      // Leaving mid-verification stops the background check.
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) _timer?.cancel();
+      },
+      child: BusyOverlay(
+        visible: _isGoogleLoading,
+        message: 'Signing you in…',
+        child: AuthLayout(
+          showBack: true,
+          title: verifying ? 'Check your inbox' : 'Create your account',
+          subtitle: verifying
+              ? 'One quick step to keep your account safe.'
+              : 'It only takes a minute to start chatting.',
+          illustration: 'assets/second.png',
+          panelTitle: 'Your people, one tap away.',
+          form: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: verifying ? _verifyPanel(context) : _form(),
+          ),
+          footer: verifying
+              ? null
+              : AuthFooterLink(
+                  question: 'Already have an account?',
+                  action: 'Sign in',
+                  onTap: () => Navigator.of(context).maybePop(),
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _form() {
+    return AutofillGroup(
+      key: const ValueKey('form'),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ShadcnInput(
+              controller: _name,
+              label: 'Full name',
+              placeholder: 'Alex Johnson',
+              leading: const Icon(Icons.person_outline_rounded),
+              keyboardType: TextInputType.name,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.name],
+              validator: Validators.name,
+              autovalidateMode: AutovalidateMode.onUserInteractionIfError,
+              style: authInputStyle,
+            ),
+            ShadcnGap.lg,
+            ShadcnInput(
+              controller: _email,
+              label: 'Email',
+              placeholder: 'you@example.com',
+              leading: const Icon(Icons.mail_outline_rounded),
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.email],
+              autocorrect: false,
+              validator: Validators.email,
+              autovalidateMode: AutovalidateMode.onUserInteractionIfError,
+              style: authInputStyle,
+            ),
+            ShadcnGap.lg,
+            ShadcnInput(
+              controller: _mobile,
+              label: 'Phone number',
+              placeholder: '10-digit mobile number',
+              leading: const Icon(Icons.phone_outlined),
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.telephoneNumberNational],
+              maxLength: 10,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              validator: Validators.phone,
+              autovalidateMode: AutovalidateMode.onUserInteractionIfError,
+              style: authInputStyle,
+            ),
+            ShadcnGap.lg,
+            ShadcnPasswordInput(
+              controller: _password,
+              label: 'Password',
+              placeholder: 'Create a strong password',
+              helperText: Validators.passwordRules,
+              leading: const Icon(Icons.lock_outline_rounded),
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.newPassword],
+              validator: Validators.newPassword,
+              autovalidateMode: AutovalidateMode.onUserInteractionIfError,
+              style: authInputStyle,
+              onSubmitted: (_) => _busy ? null : _createAccount(),
+            ),
+            ShadcnGap.xl2,
+            ShadcnButton(
+              size: ShadcnButtonSize.lg,
+              fullWidth: true,
+              loading: _isLoading,
+              onPressed: _isGoogleLoading ? null : _createAccount,
+              child: const Text('Create account'),
+            ),
+            ShadcnGap.xl2,
+            const ShadcnSeparator(label: 'or'),
+            ShadcnGap.xl2,
+            GoogleSignInButton(
+              label: 'Sign up with Google',
+              onPressed: _busy ? null : _signUpWithGoogle,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _verifyPanel(BuildContext context) {
+    final colors = context.colors;
+    final shadcn = context.shadcn;
+    final verified = _step == _Step.verified;
+
+    return ShadcnCard(
+      key: const ValueKey('verify'),
+      padding: const EdgeInsets.all(ShadcnSpacing.xl2),
+      child: Column(
         children: [
-          (isPressed)
-          ?Container(
-              height: ScaleUtils.height,
-              width: ScaleUtils.width,
-              color: Colors.white,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Lottie.asset(
-                    'assets/google_loader.json',
-                  ),
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Signing ',
-                          style: TextStyle(
-                            color: Colors.blue,
-                            // Set the color for the word "Signing"
-                            fontSize: 24*ScaleUtils.scaleFactor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'In ',
-                          style: TextStyle(
-                            color: Colors.yellow.shade700,
-                            // Set the color for the word "in"
-                            fontSize: 24*ScaleUtils.scaleFactor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'Please ',
-                          style: TextStyle(
-                            color: Colors.red,
-                            // Set the color for the word "Please"
-                            fontSize: 24*ScaleUtils.scaleFactor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'wait',
-                          style: TextStyle(
-                            color: Colors.green,
-                            // Set the color for the word "wait"
-                            fontSize: 24*ScaleUtils.scaleFactor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                ],
-              ))
-          :ListView(
-            shrinkWrap: true,
+          SizedBox(
+            height: 110,
+            child: verified
+                ? Icon(Icons.verified_rounded, size: 80, color: colors.success)
+                : Lottie.asset('assets/email.json'),
+          ),
+          ShadcnGap.md,
+          if (verified)
+            const ShadcnText('Email verified!', variant: ShadcnTextVariant.h4, textAlign: TextAlign.center)
+          else ...[
+            ShadcnText(
+              'We sent a verification link to',
+              textAlign: TextAlign.center,
+              style: ShadcnTextStyle(color: shadcn.mutedForeground),
+            ),
+            ShadcnGap.xs,
+            ShadcnText(
+              _email.text.trim(),
+              variant: ShadcnTextVariant.large,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+            ),
+          ],
+          ShadcnGap.lg,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                height: 267*ScaleUtils.verticalScale,
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 30*ScaleUtils.horizontalScale,
-                    ),
-                    Padding(
-                      padding: EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
-                      child: Text(
-                        "Create\nYour\nAccount",
-                        style: TextStyle(
-                            fontSize: 26*ScaleUtils.scaleFactor,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    Spacer(),
-                    Image.asset(
-                      'assets/login.png',
-                      width: 240*ScaleUtils.horizontalScale,
-                    )
-                  ],
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: verified ? colors.success : shadcn.primary),
+              ),
+              ShadcnGap.md,
+              Flexible(
+                child: ShadcnText(
+                  verified ? 'Taking you in…' : 'Waiting for you to tap the link…',
+                  variant: ShadcnTextVariant.muted,
                 ),
               ),
-              Container(
-                height: ScaleUtils.height - 267*ScaleUtils.verticalScale,
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(50*ScaleUtils.scaleFactor),
-                        topRight: Radius.circular(50*ScaleUtils.scaleFactor))),
-                child: Form(
-                  key: _signupkey,
-                  child: Container(
-                    margin: EdgeInsets.fromLTRB(24*ScaleUtils.horizontalScale,24*ScaleUtils.verticalScale,24*ScaleUtils.horizontalScale,0),
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(25*ScaleUtils.scaleFactor)),
-                    child: ListView(
-                      padding: EdgeInsets.fromLTRB(25*ScaleUtils.horizontalScale, 10*ScaleUtils.verticalScale, 24*ScaleUtils.horizontalScale, 10*ScaleUtils.verticalScale),
-                      shrinkWrap: true,
-                      children: [
-                        TextFormField(
-                          controller: name,
-                          decoration: InputDecoration(
-                              hintText: 'Enter Your Name',
-                              hintStyle: TextStyle(
-                                fontSize: 16*ScaleUtils.scaleFactor,
-                              ),
-                              labelText: 'Name',
-                              floatingLabelStyle: TextStyle(
-                                  fontSize: 18*ScaleUtils.scaleFactor,
-                                  fontWeight: FontWeight.w500,
-                                  color: UniversalVariables.appThemeColor),
-                              labelStyle: TextStyle(
-                                fontSize: 18*ScaleUtils.scaleFactor,
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(
-                                      color: UniversalVariables.appThemeColor, width: 2)),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                    color: UniversalVariables.appThemeColor, width: 2),
-                              ),
-                              suffixIcon: Icon(
-                                Icons.person,
-                                color: UniversalVariables.appThemeColor,
-                              )),
-                          keyboardType: TextInputType.name,
-                          validator: (value) {
-                            if (value!.isEmpty) {
-                              return 'Please Enter Name';
-                            } else if (!RegExp(r'^[a-z A-Z]+$')
-                                .hasMatch(value)) {
-                              return 'Please enter a valid Name';
-                            }
-                            return null;
-                          },
-                        ),
-                        SizedBox(
-                          height: 12*ScaleUtils.verticalScale,
-                        ),
-                        TextFormField(
-                          controller: email,
-                          decoration: InputDecoration(
-                              hintText: 'Enter Your Email',
-                              hintStyle: TextStyle(
-                                fontSize: 16*ScaleUtils.scaleFactor,
-                              ),
-                              labelText: 'Email',
-                              floatingLabelStyle: TextStyle(
-                                  fontSize: 16*ScaleUtils.scaleFactor,
-                                  fontWeight: FontWeight.w500,
-                                  color: UniversalVariables.appThemeColor),
-                              labelStyle: TextStyle(
-                                fontSize: 16*ScaleUtils.scaleFactor,
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(
-                                      color: UniversalVariables.appThemeColor, width: 2)),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                    color: UniversalVariables.appThemeColor, width: 2),
-                              ),
-                              suffixIcon: Icon(
-                                Icons.email,
-                                color: UniversalVariables.appThemeColor,
-                              )),
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value!.isEmpty) {
-                              return 'Enter email address';
-                            } else if (!RegExp(
-                                    r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?"
-                                    r"(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?)*$")
-                                .hasMatch(value)) {
-                              return 'Please enter a valid email address';
-                            }
-                            return null;
-                          },
-                        ),
-                        SizedBox(
-                          height: 12*ScaleUtils.verticalScale,
-                        ),
-                        TextFormField(
-                          controller: password,
-                          decoration: InputDecoration(
-                              hintText: 'Set Password',
-                              hintStyle: TextStyle(
-                                fontSize: 16*ScaleUtils.scaleFactor,
-                              ),
-                              labelStyle: TextStyle(
-                                fontSize: 16*ScaleUtils.scaleFactor,
-                              ),
-                              labelText: 'Password',
-                              floatingLabelStyle: TextStyle(
-                                  fontSize: 16*ScaleUtils.scaleFactor,
-                                  fontWeight: FontWeight.w500,
-                                  color: UniversalVariables.appThemeColor),
-                              focusedBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(
-                                      color: UniversalVariables.appThemeColor, width: 2)),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                    color: UniversalVariables.appThemeColor, width: 2),
-                              ),
-                              suffix: InkWell(
-                                onTap: _togglepasswordview,
-                                child: Icon(
-                                  _isHidden
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                  color: UniversalVariables.appThemeColor,
-                                ),
-                              ),
-                              errorMaxLines: 2),
-                          obscureText: _isHidden,
-                          validator: (value) {
-                            if (value!.isEmpty) {
-                              return 'Set the Password';
-                            } else if (!RegExp(
-                                    r'^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[!@#\$&*~]).{8,}$')
-                                .hasMatch(value)) {
-                              return 'Password must have atleast one Uppercase, one Lowercase, one special character, and one numeric value';
-                            }
-                            return null;
-                          },
-                        ),
-                        SizedBox(
-                          height: 12*ScaleUtils.verticalScale,
-                        ),
-                        TextFormField(
-                          controller: mobile,
-                          decoration: InputDecoration(
-                              hintText: 'Enter Your Number',
-                              hintStyle: TextStyle(
-                                fontSize: 16*ScaleUtils.scaleFactor,
-                              ),
-                              labelText: 'Phone Number',
-                              floatingLabelStyle: TextStyle(
-                                  fontSize: 16*ScaleUtils.scaleFactor,
-                                  fontWeight: FontWeight.w500,
-                                  color: UniversalVariables.appThemeColor),
-                              labelStyle: TextStyle(
-                                fontSize: 16*ScaleUtils.scaleFactor,
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(
-                                      color: UniversalVariables.appThemeColor, width: 2)),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                    color: UniversalVariables.appThemeColor, width: 2),
-                              ),
-                              suffixIcon: Icon(
-                                Icons.phone,
-                                color: UniversalVariables.appThemeColor,
-                              ),
-                              counterText: ""
-                          ),
-                          keyboardType: TextInputType.phone,
-                          maxLength: 10,
-                          validator: (value) {
-                            if (value!.isEmpty) {
-                              return 'Please Enter Phone No';
-                            } else if (!RegExp(
-                                    r'^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*$')
-                                .hasMatch(value)) {
-                              return 'Please enter a valid Phone Number';
-                            } else if (value.length < 10) {
-                              return 'Enter 10 digit Phone number';
-                            }
-                            return null;
-                          },
-                        ),
-                        SizedBox(
-                          height: 18*ScaleUtils.verticalScale,
-                        ),
-                        Center(
-                          child: (_isLoading)
-                              ? Loading()
-                              : ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: UniversalVariables.appThemeColor),
-                                  onPressed: () async {
-                                    if (_signupkey.currentState!.validate()) {
-                                      setState(() {
-                                        _isLoading = true;
-                                      });
-                                      authMethods.createAccountbyEmail(email.text, password.text, context)
-                                          .then((user) async {
-                                        // Screen may have closed while creating the account.
-                                        if (!context.mounted) return;
-                                        if (user != null) {
-                                          debugPrint('$user');
-                                          if (!isVerified) {
-                                            showDialog(
-                                                context: context,
-                                                builder: (BuildContext context) {
-                                                  Future.delayed(Duration(seconds: 13), () {
-                                                    // Close only this dialog, and only if the user
-                                                    // hasn't already closed it.
-                                                    if (context.mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
-                                                      Navigator.of(context).pop(true);
-                                                    }
-                                                  });
-                                                  return AlertDialog(
-                                                    title: Center(
-                                                      child: Column(
-                                                        children: [
-                                                          Lottie.asset(
-                                                              'assets/email.json',
-                                                              height: 0.15*ScaleUtils.verticalScale,
-                                                              width: 0.5*ScaleUtils.scaleFactor),
-                                                          Text(
-                                                            'Verify Your Email',
-                                                            style: TextStyle(
-                                                                color:
-                                                                    Colors.red,
-                                                                fontSize: 22*ScaleUtils.scaleFactor,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    content: Column(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        Text(
-                                                          'Verification link has been sent to ',
-                                                          textAlign:
-                                                              TextAlign.center,
-                                                          style: TextStyle(),
-                                                        ),
-                                                        Text(
-                                                          email.text,
-                                                          style: TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold),
-                                                        ),
-                                                        Text(
-                                                          'Please check your inbox.Click the link in the email to confirm your email address.',
-                                                          textAlign:
-                                                              TextAlign.center,
-                                                        ),
-                                                        SizedBox(
-                                                          height: 10*ScaleUtils.verticalScale,
-                                                        ),
-                                                        Text(
-                                                          'Didn\'t get the email?',
-                                                          textAlign:
-                                                              TextAlign.center,
-                                                          style: TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold),
-                                                        ),
-                                                        Text(
-                                                          'Check entered email or check spam folder.',
-                                                          textAlign:
-                                                              TextAlign.center,
-                                                          style: TextStyle(),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  );
-                                                });
-
-                                            await user.sendEmailVerification();
-                                            timer = Timer.periodic(Duration(seconds: 3),
-                                                    (_) => checkEmailVerified(user));
-                                            debugPrint('${FirebaseAuth.instance.currentUser!.displayName}');
-                                            setState(() {
-                                              _isLoading = false;
-                                            });
-                                          }
-                                        } else {
-                                          setState(() {
-                                            _isLoading = false;
-                                          });
-                                          showDialog(
-                                              context: context,
-                                              builder: (BuildContext context) {
-                                                return AlertDialog(
-                                                    title: Center(
-                                                      child: Text(
-                                                        'Account Creation Failed!',
-                                                        style: TextStyle(
-                                                            color: Colors.red,
-                                                            fontSize: 22*ScaleUtils.scaleFactor,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .bold),
-                                                      ),
-                                                    ),
-                                                    content: Column(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        Text(
-                                                          'The email address ',
-                                                          textAlign:
-                                                              TextAlign.center,
-                                                        ),
-                                                        Text(
-                                                          email.text,
-                                                          textAlign:
-                                                              TextAlign.center,
-                                                          style: TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                          ),
-                                                        ),
-                                                        Text(
-                                                          'is already in use by another account.',
-                                                          textAlign:
-                                                              TextAlign.center,
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    actions: [
-                                                      Center(
-                                                        child: ElevatedButton(
-                                                          child: Text('Retry'),
-                                                          onPressed: () {
-                                                            Navigator.pop(
-                                                                context, true);
-                                                          },
-                                                          style: ElevatedButton
-                                                              .styleFrom(
-                                                                  backgroundColor:
-                                                                      Colors
-                                                                          .red),
-                                                        ),
-                                                      )
-                                                    ]);
-                                              });
-                                          showToast('Account Creation Failed');
-                                        }
-                                      });
-                                    }
-                                  },
-                                  child: Padding(
-                                    padding: EdgeInsets.fromLTRB(80*ScaleUtils.horizontalScale,8*ScaleUtils.verticalScale,80*ScaleUtils.horizontalScale,8*ScaleUtils.verticalScale),
-                                    child: Text(
-                                      'SIGN UP',
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 18*ScaleUtils.scaleFactor,
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                                  ),
-                                ),
-                        ),
-                        SizedBox(
-                          height: 20*ScaleUtils.verticalScale,
-                        ),
-                        GoogleSignInButton(
-                            padding: EdgeInsets.all(4),
-                            elevation: 10,
-                            onPressed:() async{
-                              try{
-                                setState(() {
-                                  isPressed = true;
-                                });
-                                final googleProvider = Provider.of<GoogleSignInProvider>(context,listen:false);
-                                final signedIn = await googleProvider.googleLogin(context);
-                                if (signedIn != true) {
-                                  setState(() {
-                                    isPressed = false;
-                                  });
-                                  if (signedIn == false && context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Google sign-in failed. Please try again.')));
-                                  }
-                                  return;
-                                }
-                                if (!context.mounted) return;
-                                Navigator.pushReplacement(context,
-                                    MaterialPageRoute(builder: (context) {
-                                      return HomeScreen();
-                                    }));
-                                setState(() {
-                                  isPressed = false;
-                                });
-                              }catch(e){
-                                debugPrint('$e');
-                              }
-                            }
-                        ),
-                        SizedBox(height: 10*ScaleUtils.verticalScale,),
-                        Column(
-                          children: [
-                            Text("Already have a account?",style: TextStyle(fontSize: 15*ScaleUtils.scaleFactor,color: Colors.grey,fontWeight: FontWeight.w500),),
-                            MaterialButton(
-                                child: Text("Sign in",style: TextStyle(fontWeight: FontWeight.bold,fontSize: 18*ScaleUtils.scaleFactor),),
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                }),
-                          ],
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-              )
             ],
           ),
+          if (!verified) ...[
+            ShadcnGap.xl2,
+            const ShadcnText(
+              'Can\'t find it? Check your spam folder or send it again.',
+              variant: ShadcnTextVariant.muted,
+              textAlign: TextAlign.center,
+            ),
+            ShadcnGap.md,
+            ShadcnButton(
+              variant: ShadcnButtonVariant.outline,
+              size: ShadcnButtonSize.lg,
+              fullWidth: true,
+              loading: _isResending,
+              onPressed: _resendEmail,
+              leading: const Icon(Icons.refresh_rounded),
+              child: const Text('Resend email'),
+            ),
+          ],
         ],
       ),
     );

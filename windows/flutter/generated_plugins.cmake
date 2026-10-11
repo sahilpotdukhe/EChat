@@ -13,7 +13,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   firebase_storage
   iris_method_channel
   permission_handler_windows
-  rive_native
   url_launcher_windows
 )
 

@@ -1,0 +1,6 @@
+# Copy to pubspec_overrides.yaml (git-ignored) to build EChat against your
+# local checkout of the kit while you change it, then run `flutter pub get`.
+# Delete the copy to go back to the tagged GitHub version.
+dependency_overrides:
+  shadcn_kit:
+    path: ../packages/shadcn_kit

@@ -1,16 +1,10 @@
-import 'dart:async';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:echat/providers/user_provider.dart';
-import 'package:echat/resources/agora_call_session.dart';
-import 'package:echat/resources/call_methods.dart';
 import 'package:echat/models/call_model.dart';
-import 'package:echat/screens/call/call_control_button.dart';
-import 'package:echat/utils/scale_utils.dart';
+import 'package:echat/screens/call/call_lifecycle.dart';
+import 'package:echat/screens/call/widgets/call_ui.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:provider/provider.dart';
 
+/// A voice call: the other person's photo and name, "Ringing…" /
+/// "Connecting…" then a running timer, and Mute / Speaker / End buttons.
 class AudioCallScreen extends StatefulWidget {
   final CallModel callModel;
 
@@ -20,194 +14,144 @@ class AudioCallScreen extends StatefulWidget {
   State<AudioCallScreen> createState() => _AudioCallScreenState();
 }
 
-class _AudioCallScreenState extends State<AudioCallScreen> {
-  final CallMethods callMethods = CallMethods();
-  StreamSubscription? callStreamSubscription;
-  late final AgoraCallSession _session;
-  bool _isLoading = true;
-  String? _error;
+class _AudioCallScreenState extends State<AudioCallScreen> with CallLifecycle {
   bool _micMuted = false;
   bool _speakerOn = false;
-  Timer? _noAnswerTimer;
-  // Set once this screen starts closing, so it is popped only once.
-  bool _closing = false;
-  // Receiver picked up (they may still be connecting to Agora).
-  bool _accepted = false;
+
+  @override
+  CallModel get callModel => widget.callModel;
+
+  @override
+  bool get isVideo => false;
 
   @override
   void initState() {
     super.initState();
-    _session = AgoraCallSession(channelId: widget.callModel.channelId, video: false);
-    _startCall();
-    addPostFrameCallBack();
-    // Caller only: hang up if nobody answers within 45 seconds.
-    if (widget.callModel.hasDialled) {
-      _noAnswerTimer = Timer(const Duration(seconds: 45), _onNoAnswer);
-      _session.remoteUid.addListener(() {
-        if (_session.remoteUid.value != null) _noAnswerTimer?.cancel();
-      });
-    }
-  }
-
-  // Skipped once the receiver accepted: their token fetch can be slow when
-  // the token server is waking up, and they can still hang up themselves.
-  void _onNoAnswer() {
-    if (!mounted || _closing || _accepted || _session.remoteUid.value != null) return;
-    ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    _hangUp();
-    messenger.showSnackBar(SnackBar(content: Text('No answer')));
-  }
-
-  Future<void> _startCall() async {
-    try {
-      await _session.start();
-    } catch (e) {
-      debugPrint('Error starting audio call: $e');
-      _error = 'Could not connect the call. Please try again.';
-    }
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  // Close this screen when the call document is deleted (the other side hung up).
-  addPostFrameCallBack() {
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      UserProvider userProvider = Provider.of<UserProvider>(context, listen: false);
-
-      callStreamSubscription = callMethods.callStream(uid: userProvider.getUser!.uid).listen((DocumentSnapshot documentSnapshot) {
-        Map? data = documentSnapshot.data() as Map?;
-        if (data == null) {
-          if (mounted && !_closing) {
-            _closing = true;
-            _noAnswerTimer?.cancel();
-            Navigator.pop(context);
-          }
-          return;
-        }
-        _accepted = data['accepted'] == true;
-      });
-    });
+    startCall();
   }
 
   @override
   void dispose() {
-    _noAnswerTimer?.cancel();
-    callStreamSubscription?.cancel();
-    _session.release();
+    disposeCall();
     super.dispose();
-  }
-
-  Future<void> _hangUp() async {
-    if (_closing) return;
-    _closing = true;
-    _noAnswerTimer?.cancel();
-    await callStreamSubscription?.cancel();
-    await _session.release();
-    callMethods.endCall(callModel: widget.callModel);
-    if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    ScaleUtils.init(context);
-    return Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: Text('Audio Call'),
-        ),
-        body: SafeArea(
-          child: _isLoading
-              ? Center(child: CircularProgressIndicator())
-              : Column(
+    final ready = !isStarting && error == null;
+    final status = statusText;
+    final name = otherName.isEmpty ? 'EChat user' : otherName;
+
+    return PopScope(
+      // Back hangs up rather than leaving a call running unseen.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) hangUp();
+      },
+      child: Scaffold(
+        body: CallBackground(
+          child: SafeArea(
+            child: LayoutBuilder(builder: (context, constraints) {
+              // A phone held sideways: person on the left, controls on the right.
+              final short = constraints.maxHeight < 480;
+              final avatar = short ? 72.0 : (constraints.maxHeight * 0.2).clamp(88.0, 140.0);
+              final identity = Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  PulsingAvatar(
+                    name: otherName,
+                    imageUrl: otherPic,
+                    size: avatar,
+                    pulsing: connectedAt == null && error == null,
+                  ),
+                  SizedBox(height: short ? 8 : 20),
+                  Text(
+                    name,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: short ? 24 : 28, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  if (status != null)
+                    Text(status,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: error != null ? const Color(0xFFFCA5A5) : Colors.white70,
+                        ))
+                  else
+                    CallDuration(since: connectedAt!),
+                ],
+              );
+              final controls = ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              _participant(widget.callModel.callerPic, widget.callModel.callerName),
-                              SizedBox(width: 20*ScaleUtils.horizontalScale,),
-                              _participant(widget.callModel.receiverPic, widget.callModel.receiverName),
-                            ],
-                          ),
-                          SizedBox(height: 24*ScaleUtils.verticalScale),
-                          _status(),
-                        ],
-                      ),
+                    CallControlButton(
+                      icon: _micMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                      label: _micMuted ? 'Unmute' : 'Mute',
+                      active: _micMuted,
+                      onPressed: !ready
+                          ? null
+                          : () {
+                              setState(() => _micMuted = !_micMuted);
+                              session.engine.muteLocalAudioStream(_micMuted);
+                            },
                     ),
-                    Padding(
-                      padding: EdgeInsets.only(bottom: 24*ScaleUtils.verticalScale),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          CallControlButton(
-                            icon: _micMuted ? Icons.mic_off : Icons.mic,
-                            color: Colors.blueGrey,
-                            onPressed: _error != null
-                                ? null
-                                : () {
-                                    setState(() => _micMuted = !_micMuted);
-                                    _session.engine.muteLocalAudioStream(_micMuted);
-                                  },
-                          ),
-                          CallControlButton(
-                            icon: Icons.call_end,
-                            color: Colors.red,
-                            onPressed: _hangUp,
-                          ),
-                          CallControlButton(
-                            icon: _speakerOn ? Icons.volume_up : Icons.hearing,
-                            color: Colors.blueGrey,
-                            onPressed: _error != null
-                                ? null
-                                : () {
-                                    setState(() => _speakerOn = !_speakerOn);
-                                    _session.engine.setEnableSpeakerphone(_speakerOn);
-                                  },
-                          ),
-                        ],
-                      ),
+                    CallControlButton(
+                      icon: Icons.call_end_rounded,
+                      label: 'End',
+                      tone: CallButtonTone.end,
+                      size: 68,
+                      onPressed: hangUp,
+                    ),
+                    CallControlButton(
+                      icon: _speakerOn ? Icons.volume_up_rounded : Icons.volume_down_rounded,
+                      label: 'Speaker',
+                      active: _speakerOn,
+                      onPressed: !ready
+                          ? null
+                          : () {
+                              setState(() => _speakerOn = !_speakerOn);
+                              session.engine.setEnableSpeakerphone(_speakerOn);
+                            },
                     ),
                   ],
                 ),
-        ));
-  }
+              );
 
-  Widget _participant(String pic, String name) {
-    return SizedBox(
-      width: 120*ScaleUtils.horizontalScale,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircleAvatar(
-            radius: 30*ScaleUtils.scaleFactor,
-            backgroundColor: Colors.transparent,
-            backgroundImage: AssetImage('assets/user.jpg'),
-            foregroundImage: pic.isEmpty ? null : NetworkImage(pic),
+              if (short) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: SingleChildScrollView(padding: const EdgeInsets.all(16), child: identity),
+                      ),
+                    ),
+                    Expanded(child: Center(child: Padding(padding: const EdgeInsets.all(16), child: controls))),
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  const SizedBox(height: 16),
+                  const Text('Voice call', style: TextStyle(fontSize: 14, color: Colors.white70)),
+                  Expanded(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: identity,
+                      ),
+                    ),
+                  ),
+                  Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 32), child: controls),
+                ],
+              );
+            }),
           ),
-          SizedBox(height: 5*ScaleUtils.verticalScale,),
-          Text(name,textAlign:TextAlign.center,overflow:TextOverflow.ellipsis,maxLines:2,style: TextStyle(fontSize: 20*ScaleUtils.scaleFactor,fontWeight: FontWeight.bold),)
-        ],
-      ),
-    );
-  }
-
-  Widget _status() {
-    if (_error != null) {
-      return Text(_error!, textAlign: TextAlign.center);
-    }
-    return ValueListenableBuilder<int?>(
-      valueListenable: _session.remoteUid,
-      builder: (context, remoteUid, _) => Text(
-        remoteUid == null ? 'Ringing...' : 'Connected',
-        style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor, color: Colors.grey),
+        ),
       ),
     );
   }

@@ -1,9 +1,11 @@
-
 import 'package:echat/models/on_board_model.dart';
 import 'package:echat/screens/login_screen.dart';
-import 'package:echat/utils/scale_utils.dart';
-import 'package:echat/utils/universal_variables.dart';
+import 'package:echat/utils/responsive.dart';
+import 'package:echat/widgets/common/brand_logo.dart';
+import 'package:echat/widgets/common/illustration.dart';
+import 'package:echat/widgets/common/page_dots.dart';
 import 'package:flutter/material.dart';
+import 'package:shadcn_kit/shadcn_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OnBoardScreens extends StatefulWidget {
@@ -14,14 +16,28 @@ class OnBoardScreens extends StatefulWidget {
 }
 
 class _OnBoardScreensState extends State<OnBoardScreens> {
-  int currentIndex = 0;
-  late PageController _pageController =PageController();
+  final _pageController = PageController();
+  int _currentIndex = 0;
 
-  @override
-  void initState() {
-    _pageController = PageController(initialPage: 0);
-    super.initState();
-  }
+  static final List<OnBoardModel> _pages = [
+    OnBoardModel(
+      image: 'assets/first.png',
+      text: 'Chat anytime, anywhere',
+      description: 'Send messages, photos and files instantly, on any device.',
+    ),
+    OnBoardModel(
+      image: 'assets/second.png',
+      text: 'Made for your people',
+      description: 'Find friends from your contacts and keep every conversation in one place.',
+    ),
+    OnBoardModel(
+      image: 'assets/third.png',
+      text: 'Crystal-clear calls',
+      description: 'Jump from chat to a smooth voice or video call with a single tap.',
+    ),
+  ];
+
+  bool get _isLast => _currentIndex == _pages.length - 1;
 
   @override
   void dispose() {
@@ -29,154 +45,157 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
     super.dispose();
   }
 
-  _storeOnBoardInfo() async{
-    int isViewed = 0;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt("OnBoard", isViewed);
+  Future<void> _finish() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('OnBoard', 0);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
   }
 
-  List<OnBoardModel> screens = <OnBoardModel>[
-    OnBoardModel(
-      image: 'assets/first.png',
-      text: "Chat anytime, anywhere",
-      description:"Passing of any information on any screen, any device instantly is made simple at its sublime",
-    ),
-    OnBoardModel(
-      image: 'assets/second.png',
-      text: "Perfect chat solution",
-      description:"Welcome to our chat app! Join our community effortlessly and enjoy personalized profiles, enhanced messaging features, and limitless connections. Let's start chatting!"
-    ),
-    OnBoardModel(
-      image: 'assets/third.png',
-      text: "Your space in your dream",
-      description: "A lag-free video chat connection between your users is easy and much everywhere on any device",
-    ),
-  ];
+  void _next() {
+    if (_isLast) {
+      _finish();
+      return;
+    }
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // double height = MediaQuery.of(context).size.height;
-    // double width = MediaQuery.of(context).size.width;
-    // var verticalScale = height / mockUpHeight;
-    // var horizontalScale = width / mockUpWidth;
-    // // Calculate the scale factor based on the smaller dimension
-    // double scaleFactor = max(horizontalScale,verticalScale);
-    ScaleUtils.init(context);
     return Scaffold(
-      backgroundColor: (currentIndex%2 ==0 )?Colors.white: UniversalVariables.appThemeColor,
-      appBar: AppBar(
-        backgroundColor:(currentIndex%2 ==0 )?Colors.white: UniversalVariables.appThemeColor,
-        elevation: 0,
-        actions: [
-          TextButton(
-              onPressed: () async{
-                await _storeOnBoardInfo();
-                if (!context.mounted) return;
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=> LoginScreen()));
-              },
-              child: Text("Skip",
-                style: TextStyle(
-                  fontSize: 20.0*ScaleUtils.scaleFactor,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                  color: currentIndex % 2 == 0 ? UniversalVariables.appThemeColor  : Colors.white,
+      body: SafeArea(
+        child: ResponsiveCenter(
+          maxWidth: 960,
+          child: Column(
+            children: [
+              _topBar(context),
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: _pages.length,
+                  onPageChanged: (i) => setState(() => _currentIndex = i),
+                  itemBuilder: (context, i) => _OnBoardPage(page: _pages[i]),
                 ),
-              )),
+              ),
+              _bottomBar(context),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _topBar(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(context.pagePadding, ShadcnSpacing.sm, ShadcnSpacing.sm, 0),
+      child: SizedBox(
+        height: 48,
+        child: Row(
+          children: [
+            const BrandLogo(size: 32),
+            const Spacer(),
+            // Hidden (but keeping its space) on the last page, where the main
+            // button already finishes.
+            AnimatedOpacity(
+              opacity: _isLast ? 0 : 1,
+              duration: const Duration(milliseconds: 200),
+              child: IgnorePointer(
+                ignoring: _isLast,
+                child: ShadcnButton(
+                  variant: ShadcnButtonVariant.ghost,
+                  onPressed: _finish,
+                  child: const Text('Skip'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomBar(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(context.pagePadding, ShadcnSpacing.lg, context.pagePadding, ShadcnSpacing.xl2),
+      child: Row(
+        children: [
+          PageDots(count: _pages.length, current: _currentIndex),
+          const Spacer(),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            child: ShadcnButton(
+              size: ShadcnButtonSize.lg,
+              onPressed: _next,
+              trailing: _isLast ? null : const Icon(Icons.arrow_forward_rounded),
+              child: Text(_isLast ? 'Get started' : 'Next'),
+            ),
+          ),
         ],
       ),
-      body: Padding(
-        padding: EdgeInsets.symmetric(horizontal: ScaleUtils.horizontalScale*20),
-        child: PageView.builder(
-            itemCount: screens.length,
-            controller: _pageController,
-            onPageChanged: (int index){
-              setState(() {
-                currentIndex = index;
-              });
-            },
-            itemBuilder: (_, index){
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Image.asset(screens[index].image,height: 360*ScaleUtils.verticalScale,width: 366*ScaleUtils.horizontalScale,),
-                  Text(
-                    screens[index].text,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 25.0*ScaleUtils.scaleFactor,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Poppins',
-                      color: index % 2 == 0 ? Colors.black  : Colors.white,
-                    ),
-                  ),
-                  Text(
-                    screens[index].description,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16*ScaleUtils.scaleFactor,
-                      fontFamily: 'Montserrat',
-                      color: index % 2 == 0 ? Colors.black  : Colors.white,
-                    ),
-                  ),
-                  SizedBox(
-                    height: 10*ScaleUtils.verticalScale,
-                    child: ListView.builder(
-                      itemCount: screens.length,
-                      shrinkWrap: true,
-                      scrollDirection: Axis.horizontal,
-                      itemBuilder: (context,index){
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              margin: EdgeInsets.symmetric(horizontal: 3*ScaleUtils.horizontalScale),
-                              width: currentIndex == index ?20*ScaleUtils.horizontalScale : 8*ScaleUtils.horizontalScale,
-                              height: 8*ScaleUtils.verticalScale,
-                              decoration: BoxDecoration(
-                                  color: currentIndex == index && currentIndex %2 ==0 ? UniversalVariables.appThemeColor:Colors.blue[200],
-                                  borderRadius: BorderRadius.circular(10*ScaleUtils.scaleFactor)
-                              ),
-                            )
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () async{
-                      if(index == screens.length -1 ){
-                        await _storeOnBoardInfo();
-                        if (!context.mounted) return;
-                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=> LoginScreen()));
-                      }
-                      _pageController.nextPage(duration: Duration(microseconds: 500), curve: Curves.bounceIn);
-                    },
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 24*ScaleUtils.horizontalScale,vertical: 10*ScaleUtils.verticalScale),
-                      decoration: BoxDecoration(
-                        color: index % 2 == 0 ? UniversalVariables.appThemeColor  : Colors.white,
-                        borderRadius: BorderRadius.circular(15*ScaleUtils.scaleFactor),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children:  [
-                          Text((index == screens.length -1 )?"Finish":"Next",
-                          style: TextStyle(
-                            fontSize: 16.0*ScaleUtils.scaleFactor,
-                            color: index % 2 == 0 ? Colors.white  : UniversalVariables.appThemeColor,
-                          ),
-                          ),
-                          SizedBox(width: 9*ScaleUtils.horizontalScale,),
-                          Icon(Icons.arrow_forward_sharp,color: index % 2 == 0 ? Colors.white  : UniversalVariables.appThemeColor,),
-                        ],
-                      ),
-                    ),
-                  )
-                ],
-              );
-            }
+    );
+  }
+}
+
+class _OnBoardPage extends StatelessWidget {
+  final OnBoardModel page;
+
+  const _OnBoardPage({required this.page});
+
+  @override
+  Widget build(BuildContext context) {
+    final sideways = context.screenWidth > context.screenHeight;
+
+    final text = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: sideways ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      children: [
+        ShadcnText(
+          page.text,
+          variant: ShadcnTextVariant.h2,
+          textAlign: sideways ? TextAlign.start : TextAlign.center,
         ),
-      )
+        ShadcnGap.md,
+        ShadcnText(
+          page.description,
+          variant: ShadcnTextVariant.lead,
+          textAlign: sideways ? TextAlign.start : TextAlign.center,
+        ),
+      ],
+    );
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: context.pagePadding),
+      child: sideways
+          // Landscape / tablets: picture on the left, words on the right.
+          ? Row(
+              children: [
+                Expanded(child: Center(child: Illustration(asset: page.image, maxSize: 360))),
+                ShadcnGap.xl3,
+                Expanded(child: Center(child: SingleChildScrollView(child: text))),
+              ],
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: const Alignment(0, 0.5),
+                    child: Illustration(asset: page.image, maxSize: 340),
+                  ),
+                ),
+                ShadcnGap.xl2,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: Breakpoints.formMaxWidth),
+                  child: text,
+                ),
+                ShadcnGap.lg,
+              ],
+            ),
     );
   }
 }

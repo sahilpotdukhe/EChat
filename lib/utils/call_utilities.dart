@@ -7,6 +7,7 @@ import 'package:echat/resources/repositories/log_repository.dart';
 import 'package:echat/screens/call/call_screen.dart';
 import 'package:echat/screens/call/audio_call_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:shadcn_kit/shadcn_kit.dart';
 
 class CallUtilities {
   static CallMethods callMethods = CallMethods();
@@ -27,6 +28,8 @@ class CallUtilities {
     );
 
     CallLogModel callLogModel = CallLogModel(
+        callerId: fromCaller.uid,
+        receiverId: toReceiver.uid,
         callerName: fromCaller.name,
         callerPic: fromCaller.profilePhoto,
         receiverName: toReceiver.name,
@@ -45,11 +48,14 @@ class CallUtilities {
     if (!context.mounted) return callModel;
 
     if (result == CallResult.busy) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("${toReceiver.name} is on another call")));
+      showShadcnToast(context,
+          title: '${toReceiver.name.isEmpty ? 'They' : toReceiver.name} is on another call',
+          description: 'Try again in a little while.');
     } else if (result == CallResult.failed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Couldn't start the call. Check your connection.")));
+      showShadcnToast(context,
+          title: 'Couldn\'t start the call',
+          description: 'Check your connection and try again.',
+          variant: ShadcnToastVariant.destructive);
     } else {
       // CallMethods.makeCall asks the notification server to ring the receiver.
       if(callType=='videoCall'){

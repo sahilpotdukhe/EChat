@@ -12,6 +12,8 @@ import 'package:provider/provider.dart';
 
 final FirebaseAuth _auth = FirebaseAuth.instance;
 class Authenticate extends StatelessWidget {
+  const Authenticate({super.key});
+
   @override
   Widget build(BuildContext context) {
     if (_auth.currentUser != null) {
@@ -197,14 +199,16 @@ class GoogleSignInProvider extends ChangeNotifier {
   GoogleSignInAccount? _user;
   GoogleSignInAccount get user => _user!;
 
-  Future googleLogin(context) async {
+  /// True when signed in, false on failure, null if the user closed the
+  /// Google picker.
+  Future<bool?> googleLogin(BuildContext context) async {
     try {
       await (_initialization ??= googleSignIn.initialize());
       final GoogleSignInAccount googleUser;
       try {
         googleUser = await googleSignIn.authenticate();
       } on GoogleSignInException catch (e) {
-        if (e.code == GoogleSignInExceptionCode.canceled) return;
+        if (e.code == GoogleSignInExceptionCode.canceled) return null;
         rethrow;
       }
       _user = googleUser;

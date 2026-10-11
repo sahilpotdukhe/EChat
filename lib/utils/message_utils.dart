@@ -36,6 +36,34 @@ class MessageUtils {
     return DateFormat('dd-MM-yyyy').format(messageTime);
   }
 
+  /// Time shown on the right of a chat-list row: the time for today,
+  /// 'Yesterday', the weekday within the last week, otherwise dd/MM/yy.
+  static String chatListTime(DateTime messageTime, DateTime now) {
+    final DateTime messageDay = DateTime(messageTime.year, messageTime.month, messageTime.day);
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    // Rounded so a 23- or 25-hour daylight-saving day still counts as one.
+    final int daysAgo = (today.difference(messageDay).inHours / 24).round();
+    if (daysAgo <= 0) return DateFormat.jm().format(messageTime);
+    if (daysAgo == 1) return 'Yesterday';
+    if (daysAgo < 7) return DateFormat.E().format(messageTime);
+    return DateFormat('dd/MM/yy').format(messageTime);
+  }
+
+  /// Messages close together from the same sender are drawn as one group:
+  /// tighter spacing and a single "tail" corner. True when [a] and [b] are
+  /// from the same sender, on the same day and at most [gap] apart.
+  static bool groupsWith({
+    required String senderA,
+    required DateTime timeA,
+    required String senderB,
+    required DateTime timeB,
+    Duration gap = const Duration(minutes: 5),
+  }) {
+    return senderA == senderB &&
+        isSameDay(timeA, timeB) &&
+        timeA.difference(timeB).abs() <= gap;
+  }
+
   static bool isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
