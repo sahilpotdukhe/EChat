@@ -1,16 +1,12 @@
-import 'dart:async';
-
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:echat/resources/agora_call_session.dart';
-import 'package:echat/resources/call_methods.dart';
 import 'package:echat/models/call_model.dart';
-import 'package:echat/providers/user_provider.dart';
-import 'package:echat/screens/call/call_control_button.dart';
+import 'package:echat/screens/call/call_lifecycle.dart';
+import 'package:echat/screens/call/widgets/call_ui.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:provider/provider.dart';
 
+/// A video call: the other person full-screen, you in a small window in the
+/// corner, the name and timer at the top and Mute / Camera / Flip / End at
+/// the bottom. Once connected, tap the screen to hide or show the controls.
 class CallScreen extends StatefulWidget {
   final CallModel callModel;
 
@@ -20,199 +16,247 @@ class CallScreen extends StatefulWidget {
   State<CallScreen> createState() => _CallScreenState();
 }
 
-class _CallScreenState extends State<CallScreen> {
-  final CallMethods callMethods = CallMethods();
-  StreamSubscription? callStreamSubscription;
-  late final AgoraCallSession _session;
-  bool _isLoading = true;
-  String? _error;
+class _CallScreenState extends State<CallScreen> with CallLifecycle {
   bool _micMuted = false;
   bool _cameraOff = false;
-  Timer? _noAnswerTimer;
-  // Set once this screen starts closing, so it is popped only once.
-  bool _closing = false;
-  // Receiver picked up (they may still be connecting to Agora).
-  bool _accepted = false;
+  bool _showControls = true;
+
+  @override
+  CallModel get callModel => widget.callModel;
+
+  @override
+  bool get isVideo => true;
 
   @override
   void initState() {
     super.initState();
-    _session = AgoraCallSession(channelId: widget.callModel.channelId, video: true);
-    _startCall();
-    addPostFrameCallBack();
-    // Caller only: hang up if nobody answers within 45 seconds.
-    if (widget.callModel.hasDialled) {
-      _noAnswerTimer = Timer(const Duration(seconds: 45), _onNoAnswer);
-      _session.remoteUid.addListener(() {
-        if (_session.remoteUid.value != null) _noAnswerTimer?.cancel();
-      });
-    }
-  }
-
-  // Skipped once the receiver accepted: their token fetch can be slow when
-  // the token server is waking up, and they can still hang up themselves.
-  void _onNoAnswer() {
-    if (!mounted || _closing || _accepted || _session.remoteUid.value != null) return;
-    ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    _hangUp();
-    messenger.showSnackBar(SnackBar(content: Text('No answer')));
-  }
-
-  Future<void> _startCall() async {
-    try {
-      await _session.start();
-    } catch (e) {
-      debugPrint('Error starting video call: $e');
-      _error = 'Could not connect the call. Please try again.';
-    }
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  // Close this screen when the call document is deleted (the other side hung up).
-  addPostFrameCallBack() {
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      UserProvider userProvider = Provider.of<UserProvider>(context, listen: false);
-
-      callStreamSubscription = callMethods.callStream(uid: userProvider.getUser!.uid).listen((DocumentSnapshot documentSnapshot) {
-        Map? data = documentSnapshot.data() as Map?;
-        if (data == null) {
-          if (mounted && !_closing) {
-            _closing = true;
-            _noAnswerTimer?.cancel();
-            Navigator.pop(context);
-          }
-          return;
-        }
-        _accepted = data['accepted'] == true;
-      });
-    });
+    startCall();
   }
 
   @override
   void dispose() {
-    _noAnswerTimer?.cancel();
-    callStreamSubscription?.cancel();
-    _session.release();
+    disposeCall();
     super.dispose();
-  }
-
-  Future<void> _hangUp() async {
-    if (_closing) return;
-    _closing = true;
-    _noAnswerTimer?.cancel();
-    await callStreamSubscription?.cancel();
-    await _session.release();
-    callMethods.endCall(callModel: widget.callModel);
-    if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final ready = !isStarting && error == null;
+    final connected = connectedAt != null;
+    // Controls always show until the other person is on screen.
+    final controlsVisible = _showControls || !connected;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) hangUp();
+      },
+      child: Scaffold(
         backgroundColor: Colors.black,
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: Text('Video Call'),
+        body: CallBackground(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: connected ? () => setState(() => _showControls = !_showControls) : null,
+            child: Stack(
+              children: [
+                Positioned.fill(child: _remoteView()),
+                if (ready) _selfView(context),
+                _topBar(controlsVisible),
+                Positioned(left: 0, right: 0, bottom: 0, child: _controls(controlsVisible, ready)),
+              ],
+            ),
+          ),
         ),
-        body: SafeArea(
-          child: _isLoading
-              ? Center(child: CircularProgressIndicator())
-              : Stack(
-                  children: [
-                    Positioned.fill(child: _remoteVideo()),
-                    if (_error == null)
-                      Positioned(
-                        top: 16,
-                        right: 16,
-                        width: 110,
-                        height: 160,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: _cameraOff
-                              ? Container(color: Colors.grey.shade900)
-                              : AgoraVideoView(
-                                  controller: VideoViewController(
-                                    rtcEngine: _session.engine,
-                                    canvas: const VideoCanvas(uid: 0),
-                                  ),
-                                ),
-                        ),
-                      ),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 24,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          CallControlButton(
-                            icon: _micMuted ? Icons.mic_off : Icons.mic,
-                            onPressed: _error != null
-                                ? null
-                                : () {
-                                    setState(() => _micMuted = !_micMuted);
-                                    _session.engine.muteLocalAudioStream(_micMuted);
-                                  },
-                          ),
-                          CallControlButton(
-                            icon: Icons.call_end,
-                            color: Colors.red,
-                            onPressed: _hangUp,
-                          ),
-                          CallControlButton(
-                            icon: _cameraOff ? Icons.videocam_off : Icons.videocam,
-                            onPressed: _error != null
-                                ? null
-                                : () {
-                                    setState(() => _cameraOff = !_cameraOff);
-                                    _session.engine.muteLocalVideoStream(_cameraOff);
-                                    _cameraOff
-                                        ? _session.engine.stopPreview()
-                                        : _session.engine.startPreview();
-                                  },
-                          ),
-                          CallControlButton(
-                            icon: Icons.cameraswitch,
-                            onPressed: _error != null
-                                ? null
-                                : () => _session.engine.switchCamera(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-        ));
+      ),
+    );
   }
 
-  Widget _remoteVideo() {
-    if (_error != null) {
-      return Center(
-        child: Text(_error!, style: TextStyle(color: Colors.white, fontSize: 16)),
+  // Before the other person joins (or on error), show their photo and the
+  // status in the middle instead of an empty black screen.
+  Widget _remoteView() {
+    final remoteUid = isStarting || error != null ? null : session.remoteUid.value;
+    if (remoteUid == null) {
+      final status = statusText ?? '';
+      final height = MediaQuery.sizeOf(context).height;
+      // Room is left at the top and bottom for the bars; sideways phones get
+      // a smaller photo so the name still fits.
+      final short = height < 480;
+      return SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(24, short ? 16 : 80, 24, short ? 120 : 80),
+            child: Column(
+              children: [
+                PulsingAvatar(name: otherName, imageUrl: otherPic, size: short ? 64 : 112, pulsing: error == null),
+                const SizedBox(height: 20),
+                Text(
+                  otherName.isEmpty ? 'EChat user' : otherName,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Text(status,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 15, color: error != null ? const Color(0xFFFCA5A5) : Colors.white70)),
+              ],
+            ),
+          ),
+        ),
       );
     }
-    return ValueListenableBuilder<int?>(
-      valueListenable: _session.remoteUid,
-      builder: (context, remoteUid, _) {
-        if (remoteUid == null) {
-          return Center(
-            child: Text('Waiting for the other person to join...',
-                style: TextStyle(color: Colors.white, fontSize: 16)),
-          );
-        }
-        return AgoraVideoView(
-          controller: VideoViewController.remote(
-            rtcEngine: _session.engine,
-            canvas: VideoCanvas(uid: remoteUid),
-            connection: RtcConnection(channelId: widget.callModel.channelId),
+    return AgoraVideoView(
+      controller: VideoViewController.remote(
+        rtcEngine: session.engine,
+        canvas: VideoCanvas(uid: remoteUid),
+        connection: RtcConnection(channelId: callModel.channelId),
+      ),
+    );
+  }
+
+  Widget _selfView(BuildContext context) {
+    final shortSide = MediaQuery.sizeOf(context).shortestSide;
+    final width = (shortSide * 0.28).clamp(96.0, 160.0);
+    return Positioned(
+      top: MediaQuery.paddingOf(context).top + 64,
+      right: 16,
+      width: width,
+      height: width * 1.45,
+      child: Semantics(
+        label: _cameraOff ? 'Your camera is off' : 'Your camera',
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white24),
+            boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 12)],
           ),
-        );
-      },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: _cameraOff
+                ? Container(
+                    color: const Color(0xFF23232D),
+                    child: const Icon(Icons.videocam_off_rounded, color: Colors.white54),
+                  )
+                : AgoraVideoView(
+                    controller: VideoViewController(rtcEngine: session.engine, canvas: const VideoCanvas(uid: 0)),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _topBar(bool visible) {
+    return Positioned(
+      left: 0,
+      right: 0,
+      top: 0,
+      child: IgnorePointer(
+        ignoring: !visible,
+        child: AnimatedOpacity(
+          opacity: visible && connectedAt != null ? 1 : 0,
+          duration: const Duration(milliseconds: 200),
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.black54, Colors.transparent],
+              ),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        otherName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    if (connectedAt != null) CallDuration(since: connectedAt!),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _controls(bool visible, bool ready) {
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+              colors: [Colors.black54, Colors.transparent],
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 32, 16, 24),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      CallControlButton(
+                        icon: _micMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                        label: _micMuted ? 'Unmute' : 'Mute',
+                        active: _micMuted,
+                        onPressed: !ready
+                            ? null
+                            : () {
+                                setState(() => _micMuted = !_micMuted);
+                                session.engine.muteLocalAudioStream(_micMuted);
+                              },
+                      ),
+                      CallControlButton(
+                        icon: _cameraOff ? Icons.videocam_off_rounded : Icons.videocam_rounded,
+                        label: 'Camera',
+                        active: _cameraOff,
+                        onPressed: !ready
+                            ? null
+                            : () {
+                                setState(() => _cameraOff = !_cameraOff);
+                                session.engine.muteLocalVideoStream(_cameraOff);
+                                _cameraOff ? session.engine.stopPreview() : session.engine.startPreview();
+                              },
+                      ),
+                      CallControlButton(
+                        icon: Icons.cameraswitch_rounded,
+                        label: 'Flip',
+                        onPressed: !ready || _cameraOff ? null : () => session.engine.switchCamera(),
+                      ),
+                      CallControlButton(
+                        icon: Icons.call_end_rounded,
+                        label: 'End',
+                        tone: CallButtonTone.end,
+                        size: 64,
+                        onPressed: hangUp,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
