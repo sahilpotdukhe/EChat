@@ -8,7 +8,6 @@ class CachedChatImage extends StatelessWidget {
   final double height;
   final double width;
   final BoxFit fit;
-  final String noImageAvailable = "https://www.esm.rochester.edu/uploads/NoPhotoAvailable.jpg";
   const CachedChatImage({super.key, required this.imageUrl, required this.isRound, required this.radius, required this.height, required this.width, required this.fit});
 
   @override
@@ -27,13 +26,20 @@ class CachedChatImage extends StatelessWidget {
                 child: CircularProgressIndicator(),
               );
             },
-            errorWidget: (context,url,error)=> Image.network(noImageAvailable,fit: BoxFit.cover),
+            errorWidget: (context,url,error)=> _unavailable(),
           ),
         ),
       );
     }catch(e){
-      return Image.network(noImageAvailable,fit: BoxFit.cover);
+      return _unavailable();
     }
 
   }
+
+  // Shown when the image can't load (offline, deleted, or no URL).
+  Widget _unavailable() => Container(
+        color: Colors.grey.shade800,
+        alignment: Alignment.center,
+        child: const Icon(Icons.broken_image_outlined, color: Colors.white54),
+      );
 }

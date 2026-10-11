@@ -1,32 +1,39 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Models/ContactModel.dart';
 import 'package:echat/Models/MessageModel.dart';
-import 'package:echat/Models/UserModel.dart';
 
 class ChatFirebaseMethods{
   FirebaseFirestore firestore = FirebaseFirestore.instance;
 
 
-  Future<void> addMessagetoDb(MessageModel messageModel, UserModel sender, UserModel receiver) async {
+  // Saves the sender's and the receiver's copy together: both or neither.
+  // Offline, Firestore shows the message right away and the returned future
+  // completes once it reaches the server; it only throws on a real failure
+  // (e.g. rejected by security rules).
+  Future<void> addMessagetoDb(MessageModel messageModel) async {
     Map<String, dynamic> map = messageModel.toMap() as Map<String, dynamic>;
 
-    // these is to store in the sender side
-    await firestore
+    final DocumentReference senderCopy = firestore
         .collection("messages")
         .doc(messageModel.senderId)
         .collection(messageModel.receiverId)
-        .add(map);
-
-    addToContacts(senderId: messageModel.senderId, receiverId: messageModel.receiverId );
-    // these is to store in the receiver side
-    await firestore
+        .doc();
+    // Same id on both sides makes the two copies easy to match up.
+    final DocumentReference receiverCopy = firestore
         .collection("messages")
         .doc(messageModel.receiverId)
         .collection(messageModel.senderId)
-        .add(map);
+        .doc(senderCopy.id);
+
+    final WriteBatch batch = firestore.batch();
+    batch.set(senderCopy, map);
+    batch.set(receiverCopy, map);
+    await batch.commit();
+
+    await addToContacts(senderId: messageModel.senderId, receiverId: messageModel.receiverId);
   }
 
-  addToContacts({required String senderId, required String receiverId}) async {
+  Future<void> addToContacts({required String senderId, required String receiverId}) async {
     Timestamp currentTime = Timestamp.now();
 
     await addToSenderContacts(senderId, receiverId, currentTime);
@@ -59,6 +66,8 @@ class ChatFirebaseMethods{
       firestore.collection("Users").doc(userId).collection("Contacts").snapshots();
 
 
+  // Only the newest message, for the chat list preview.
   Stream<QuerySnapshot> fetchLastMessageBetween({required String senderId, required String receiverId}) =>
-      firestore.collection("messages").doc(senderId).collection(receiverId).orderBy("timestamp").snapshots();
+      firestore.collection("messages").doc(senderId).collection(receiverId)
+          .orderBy("timestamp", descending: true).limit(1).snapshots();
 }
