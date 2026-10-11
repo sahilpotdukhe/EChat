@@ -1,6 +1,8 @@
-import 'package:awesome_notifications/awesome_notifications.dart';
+import 'dart:async';
+
 import 'package:echat/providers/user_provider.dart';
 import 'package:echat/resources/auth_methods.dart';
+import 'package:echat/resources/local_notifications.dart';
 import 'package:echat/resources/repositories/log_repository.dart';
 import 'package:echat/screens/call/pickup_layout.dart';
 import 'package:echat/screens/call_logs/call_logs_screen.dart';
@@ -12,7 +14,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:echat/screens/contact_page.dart';
 import 'package:echat/utils/responsive.dart';
-import 'package:echat/utils/universal_variables.dart';
 import 'package:echat/widgets/common/brand_logo.dart';
 import 'package:provider/provider.dart';
 
@@ -27,73 +28,15 @@ class _HomeScreenState extends State<HomeScreen>  with WidgetsBindingObserver{
   late UserProvider userProvider;
   AuthMethods authMethods = AuthMethods();
   bool _disposed = false;
+  StreamSubscription<RemoteMessage>? _messageSubscription;
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     initializeUser();
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      String? title= message.notification!.title;
-      String? body = message.notification!.body;
-      if(title == 'Incoming Call'){
-        AwesomeNotifications().createNotification(
-            content: NotificationContent(
-              id: 123,
-              channelKey: "call_channel",
-              title: title,
-              body: body,
-              category: NotificationCategory.Call,
-              wakeUpScreen: true,
-              fullScreenIntent: true,
-              autoDismissible: false,
-              backgroundColor: UniversalVariables.appThemeColor,
-              notificationLayout: NotificationLayout.BigPicture,
-              largeIcon: 'asset://assets/login.png',
-              displayOnForeground: true,
-              displayOnBackground: true,
-            ),
-            actionButtons: [
-              NotificationActionButton(key: "Accept", label: "Accept Call",color: Colors.green,autoDismissible: true),
-              NotificationActionButton(key: "Reject", label: "Reject Call",color: Colors.red,autoDismissible: true),
-            ]
-        );
-      }else{
-        AwesomeNotifications().createNotification(
-            content: NotificationContent(
-              id: 456,
-              channelKey: "message_channel",
-              title: title,
-              body: body,
-              category: NotificationCategory.Message,
-              wakeUpScreen: true,
-              fullScreenIntent: true,
-              autoDismissible: false,
-              backgroundColor: UniversalVariables.appThemeColor,
-              notificationLayout: NotificationLayout.BigPicture,
-              largeIcon: 'asset://assets/login.png',
-              displayOnForeground: true,
-              displayOnBackground: true,
-            ),
-            actionButtons: [
-              NotificationActionButton(key: "Reply", label: "Reply",color: Colors.grey,autoDismissible: true),
-              NotificationActionButton(key: "Mark as read", label: "Mark as read",color: Colors.grey,actionType: ActionType.DismissAction),
-            ]
-        );
-      }
-      AwesomeNotifications().setListeners(
-          onActionReceivedMethod: (receivedAction) async{
-            if(receivedAction.buttonKeyPressed == "Accept"){
-              debugPrint("Call Accepted");
-            }else if(receivedAction.buttonKeyPressed == "Reject"){
-              debugPrint("Call Rejected");
-            }else if(receivedAction.buttonKeyPressed == "Reply"){
-              debugPrint("Message replied");
-            }else{
-              await AwesomeNotifications().dismiss(receivedAction.id!);
-              debugPrint("Clicked on notification");
-            }
-          });
-    });
+    // Show notifications while the app is open too. Messages without a
+    // title are handled (the old code assumed one and could crash).
+    _messageSubscription = FirebaseMessaging.onMessage.listen(LocalNotifications.show);
   }
 
   Future<void> initializeUser() async {
@@ -104,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen>  with WidgetsBindingObserver{
     if (_disposed) return;
     if (userProvider.getUser != null) {
       authMethods.setUserState(userId: userProvider.getUser!.uid, userState: UserState.online);
-      LogRepository.initialize(isHive: true,dbName: userProvider.getUser!.uid);
+      LogRepository.initialize(dbName: userProvider.getUser!.uid);
       debugPrint('${userProvider.getUser!.state}');
 
     } else {
@@ -116,6 +59,7 @@ class _HomeScreenState extends State<HomeScreen>  with WidgetsBindingObserver{
   @override
   void dispose() {
     // TODO: implement dispose
+    _messageSubscription?.cancel();
     super.dispose();
     _disposed = true;
     WidgetsBinding.instance.removeObserver(this);

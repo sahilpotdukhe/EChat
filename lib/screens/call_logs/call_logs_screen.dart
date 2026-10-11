@@ -50,7 +50,7 @@ class _CallLogsScreenState extends State<CallLogsScreen> {
 
   Future<void> _load() async {
     try {
-      final logs = (await LogRepository.getLogs() as List).cast<CallLogModel>();
+      final logs = await LogRepository.getLogs();
       if (!mounted) return;
       setState(() {
         _failed = false;

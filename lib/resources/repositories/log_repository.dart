@@ -1,25 +1,32 @@
 import 'package:echat/models/call_log_model.dart';
+import 'package:echat/resources/interfaces/call_log_interface.dart';
 import 'package:echat/resources/local_database/hive_methods.dart';
-import 'package:echat/resources/local_database/sqflite_methods.dart';
 
-class LogRepository{
-  static var dbObject;
-  static bool? isHive;
+/// The call history on this phone, one store per signed-in account.
+class LogRepository {
+  static CallLogInterface? _store;
 
-  static initialize({required bool isHive, required String dbName}){
-    dbObject = isHive ? HiveMethods() : SqfliteMethods();
-    dbObject.openDb(dbName);
+  /// Replaces the store, e.g. with a fake in tests.
+  static set dbObject(CallLogInterface store) => _store = store;
+
+  // Called by HomeScreen once the signed-in user is known.
+  static void initialize({required String dbName}) {
+    _store = HiveMethods()..openDb(dbName);
   }
 
-  static init() => dbObject.init();
+  static CallLogInterface get _db {
+    final store = _store;
+    if (store == null) throw StateError('Call history used before LogRepository.initialize');
+    return store;
+  }
 
-  static addLogs(CallLogModel callLogModel) => dbObject.addLogs(callLogModel);
+  static Future<void> init() => _db.init();
 
-  static deleteLogs(int logId) => dbObject.deleteLogs(logId);
+  static Future<void> addLogs(CallLogModel callLogModel) => _db.addLogs(callLogModel);
 
-  static getLogs() => dbObject.getLogs();
+  static Future<void> deleteLogs(int logId) => _db.deleteLogs(logId);
 
-  static close() => dbObject.close();
+  static Future<List<CallLogModel>> getLogs() => _db.getLogs();
 
-
+  static Future<void> close() => _db.close();
 }
