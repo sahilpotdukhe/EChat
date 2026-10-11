@@ -7,10 +7,10 @@ import 'package:path_provider/path_provider.dart';
 
 // Hive stores data in the form of key value pairs
 class HiveMethods implements CallLogInterface {
-  String hive_box = ""; //a storage container
+  String hiveBox = ""; //a storage container
 
   @override
-  openDb(dbName) => (hive_box = dbName);
+  openDb(dbName) => (hiveBox = dbName);
 
   @override
   init() async {
@@ -22,14 +22,14 @@ class HiveMethods implements CallLogInterface {
   @override
   addLogs(CallLogModel callLogModel) async {
     await init();
-    var box = await Hive.openBox(hive_box);
+    var box = await Hive.openBox(hiveBox);
     var logMap = callLogModel.toMap(callLogModel);
     int idOfInput = await box.add(logMap); // for the very first addition of data the idOfInput will be 0 then 1 then 2 ...
     debugPrint("Call Dialled from Hive");
     close();
     return idOfInput;
   }
-  // Hive Box (named according to hive_box variable)
+  // Hive Box (named according to hiveBox variable)
   // -----------------------------------------------
   // | Key (Index) | Value (CallLogModel as Map)    |
   // -----------------------------------------------
@@ -55,7 +55,7 @@ class HiveMethods implements CallLogInterface {
 
   updateLog(int i, CallLogModel newCallLogModel) async {
     await init();
-    var box = await Hive.openBox(hive_box);
+    var box = await Hive.openBox(hiveBox);
     var newLogMap = newCallLogModel.toMap(newCallLogModel);
     box.putAt(i, newLogMap);
     close();
@@ -64,7 +64,7 @@ class HiveMethods implements CallLogInterface {
   @override
   Future<List<CallLogModel>> getLogs() async {
     await init();
-    var box = await Hive.openBox(hive_box);
+    var box = await Hive.openBox(hiveBox);
     List<CallLogModel> logModelList = [];
     for (int i = 0; i < box.length; i++) {
       var logMap = box.getAt(i); //This value is typically a map representation of the data stored at the specified index in the Hive box.
@@ -76,7 +76,7 @@ class HiveMethods implements CallLogInterface {
   @override
   deleteLogs(int logId) async {
     await init();
-    var box = await Hive.openBox(hive_box);
+    var box = await Hive.openBox(hiveBox);
     await box.deleteAt(logId);
     debugPrint("deleted");
   }

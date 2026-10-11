@@ -92,7 +92,7 @@ class AuthMethods {
     try {
       await firestore.collection('Users').doc(uid).update({
         'notification_token': '',
-        'state': Utils.stateToNum(UserState.Offline),
+        'state': Utils.stateToNum(UserState.offline),
       }).timeout(const Duration(seconds: 5));
     } catch (e) {
       debugPrint('Could not clear session on logout: $e');

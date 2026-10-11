@@ -103,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen>  with WidgetsBindingObserver{
     await userProvider.refreshUser();
     if (_disposed) return;
     if (userProvider.getUser != null) {
-      authMethods.setUserState(userId: userProvider.getUser!.uid, userState: UserState.Online);
+      authMethods.setUserState(userId: userProvider.getUser!.uid, userState: UserState.online);
       LogRepository.initialize(isHive: true,dbName: userProvider.getUser!.uid);
       debugPrint('${userProvider.getUser!.state}');
 
@@ -132,16 +132,16 @@ class _HomeScreenState extends State<HomeScreen>  with WidgetsBindingObserver{
     super.didChangeAppLifecycleState(state);
     switch(state){
       case AppLifecycleState.resumed:
-        authMethods.setUserState(userId: currentUserid, userState: UserState.Online);
+        authMethods.setUserState(userId: currentUserid, userState: UserState.online);
             break;
       case AppLifecycleState.inactive:
-        authMethods.setUserState(userId: currentUserid, userState: UserState.Offline);
+        authMethods.setUserState(userId: currentUserid, userState: UserState.offline);
         break;
       case AppLifecycleState.paused:
-        authMethods.setUserState(userId: currentUserid, userState: UserState.Waiting);
+        authMethods.setUserState(userId: currentUserid, userState: UserState.waiting);
         break;
       case AppLifecycleState.detached:
-        authMethods.setUserState(userId: currentUserid, userState: UserState.Waiting);
+        authMethods.setUserState(userId: currentUserid, userState: UserState.waiting);
         break;
       case AppLifecycleState.hidden:
         // TODO: Handle this case.
