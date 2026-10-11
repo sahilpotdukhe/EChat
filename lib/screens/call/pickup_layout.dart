@@ -3,11 +3,9 @@ import 'package:echat/resources/call_methods.dart';
 import 'package:echat/models/call_model.dart';
 import 'package:echat/providers/user_provider.dart';
 import 'package:echat/screens/call/pickup_screen.dart';
-import 'package:echat/utils/scale_utils.dart';
+import 'package:echat/widgets/common/brand_logo.dart';
 import 'package:flutter/material.dart';
-import 'package:hexcolor/hexcolor.dart';
 import 'package:provider/provider.dart';
-import 'package:lottie/lottie.dart';
 
 class PickupLayout extends StatelessWidget {
   final Widget scaffold;
@@ -17,7 +15,6 @@ class PickupLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    ScaleUtils.init(context);
     final UserProvider userProvider = Provider.of<UserProvider>(context);
     return (userProvider.getUser != null)
         ? StreamBuilder<DocumentSnapshot>(
@@ -39,38 +36,17 @@ class PickupLayout extends StatelessWidget {
               }
               return scaffold;
             })
-        : Scaffold(
-            backgroundColor: Colors.black,
-            body: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "Welcome to\n EChat",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 32*ScaleUtils.scaleFactor,
-                      fontWeight: FontWeight.bold,
-                    fontFamily: 'Poppins'
-                  ),
-                ),
-                Center(
-                  child: Lottie.asset('assets/reload_app.json'),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
-                    color: HexColor("3957ED"),
-                  ),
-                  child: Padding(
-                    padding:  EdgeInsets.fromLTRB(18.0*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 18*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale),
-                    child: Text(
-                      "Get Started",
-                      style: TextStyle(fontSize: 18*ScaleUtils.scaleFactor, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
+        // Shown for a moment at startup while your profile loads.
+        : const Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BrandLogo(size: 56, showName: false),
+                  SizedBox(height: 24),
+                  SizedBox.square(dimension: 24, child: CircularProgressIndicator(strokeWidth: 2.5)),
+                ],
+              ),
             ),
           );
   }
