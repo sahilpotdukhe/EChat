@@ -23,10 +23,17 @@ class PickupLayout extends StatelessWidget {
         ? StreamBuilder<DocumentSnapshot>(
             stream: callMethods.callStream(uid: userProvider.getUser!.uid),
             builder: (context, snapshot) {
+              // e.g. permission error while signing out: just show the app.
+              if (snapshot.hasError) return scaffold;
               if (snapshot.hasData && snapshot.data!.data() != null) {
                 CallModel callModel = CallModel.fromMap(
                     snapshot.data!.data() as Map<String, dynamic>);
-                if (!callModel.hasDialled) {
+                // Several screens use PickupLayout (home, and a chat pushed on
+                // top of it). Only the one on top rings, so a call isn't shown,
+                // timed out or logged as missed twice. This rebuilds when the
+                // top screen changes, so the call moves with the user.
+                final bool onTop = ModalRoute.of(context)?.isCurrent ?? true;
+                if (!callModel.hasDialled && onTop) {
                   return PickupScreen(callModel: callModel);
                 }
               }

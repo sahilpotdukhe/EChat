@@ -50,9 +50,37 @@ service cloud.firestore {
     // for both people; either person may hang up (delete both copies).
     match /Call/{uid} {
       allow read: if isMe(uid);
-      allow create, update: if signedIn()
-          && request.resource.data.caller_id == request.auth.uid
-          && (uid == request.resource.data.caller_id || uid == request.resource.data.receiver_id);
+      // The caller writes both docs (theirs and the receiver's).
+      function isCallerWrite() {
+        return signedIn()
+            && request.resource.data.caller_id == request.auth.uid
+            && (uid == request.resource.data.caller_id || uid == request.resource.data.receiver_id);
+      }
+      // Docs from old app builds have no created_at/accepted, so they count as old and unanswered.
+      function startedBefore(d) {
+        return resource.data.get('created_at', timestamp.value(0)) < request.time - d;
+      }
+      // A doc left behind: never answered for a minute, or "in a call" for
+      // 4 hours (an app crashed mid-call). Anything else means busy.
+      function isLeftOver() {
+        return (!resource.data.get('accepted', false) && startedBefore(duration.value(60, 's')))
+            || (resource.data.get('accepted', false) && startedBefore(duration.value(4, 'h')));
+      }
+      // The same caller re-writing the same call.
+      function isSameCall() {
+        return resource.data.caller_id == request.auth.uid
+            && resource.data.channel_id == request.resource.data.channel_id;
+      }
+      // Either side marking the call as picked up, touching nothing else.
+      function isAccepting() {
+        return signedIn()
+            && (request.auth.uid == resource.data.caller_id || request.auth.uid == resource.data.receiver_id)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['accepted'])
+            && request.resource.data.accepted == true;
+      }
+
+      allow create: if isCallerWrite();
+      allow update: if (isCallerWrite() && (isLeftOver() || isSameCall())) || isAccepting();
       // resource is null when the other side already deleted it.
       allow delete: if isMe(uid)
           || resource == null

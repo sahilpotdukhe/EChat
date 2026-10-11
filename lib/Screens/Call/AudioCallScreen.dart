@@ -28,6 +28,11 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
   String? _error;
   bool _micMuted = false;
   bool _speakerOn = false;
+  Timer? _noAnswerTimer;
+  // Set once this screen starts closing, so it is popped only once.
+  bool _closing = false;
+  // Receiver picked up (they may still be connecting to Agora).
+  bool _accepted = false;
 
   @override
   void initState() {
@@ -35,6 +40,22 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
     _session = AgoraCallSession(channelId: widget.callModel.channelId, video: false);
     _startCall();
     addPostFrameCallBack();
+    // Caller only: hang up if nobody answers within 45 seconds.
+    if (widget.callModel.hasDialled) {
+      _noAnswerTimer = Timer(const Duration(seconds: 45), _onNoAnswer);
+      _session.remoteUid.addListener(() {
+        if (_session.remoteUid.value != null) _noAnswerTimer?.cancel();
+      });
+    }
+  }
+
+  // Skipped once the receiver accepted: their token fetch can be slow when
+  // the token server is waking up, and they can still hang up themselves.
+  void _onNoAnswer() {
+    if (!mounted || _closing || _accepted || _session.remoteUid.value != null) return;
+    ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    _hangUp();
+    messenger.showSnackBar(SnackBar(content: Text('No answer')));
   }
 
   Future<void> _startCall() async {
@@ -54,24 +75,36 @@ class _AudioCallScreenState extends State<AudioCallScreen> {
   // Close this screen when the call document is deleted (the other side hung up).
   addPostFrameCallBack() {
     SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       UserProvider userProvider = Provider.of<UserProvider>(context, listen: false);
 
       callStreamSubscription = callMethods.callStream(uid: userProvider.getUser!.uid).listen((DocumentSnapshot documentSnapshot) {
-        if (documentSnapshot.data() == null && mounted) {
-          Navigator.pop(context);
+        Map? data = documentSnapshot.data() as Map?;
+        if (data == null) {
+          if (mounted && !_closing) {
+            _closing = true;
+            _noAnswerTimer?.cancel();
+            Navigator.pop(context);
+          }
+          return;
         }
+        _accepted = data['accepted'] == true;
       });
     });
   }
 
   @override
   void dispose() {
+    _noAnswerTimer?.cancel();
     callStreamSubscription?.cancel();
     _session.release();
     super.dispose();
   }
 
   Future<void> _hangUp() async {
+    if (_closing) return;
+    _closing = true;
+    _noAnswerTimer?.cancel();
     await callStreamSubscription?.cancel();
     await _session.release();
     callMethods.endCall(callModel: widget.callModel);
