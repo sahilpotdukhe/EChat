@@ -1,6 +1,9 @@
 import 'package:echat/utils/message_utils.dart';
 import 'package:echat/utils/utilities.dart';
+import 'package:echat/utils/theme_preference.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('getInitials', () {
@@ -42,6 +45,30 @@ void main() {
     test('order does not matter', () => expect(g('me', t.add(const Duration(minutes: 1)), 'me', t), isTrue));
     test('across midnight does not group', () {
       expect(g('me', DateTime(2026, 10, 11, 23, 59), 'me', DateTime(2026, 10, 12, 0, 1)), isFalse);
+    });
+  });
+
+  group('phoneKey', () {
+    test('country code and symbols are ignored', () => expect(Utils.phoneKey('+91 98765-43210'), '9876543210'));
+    test('leading zero is ignored', () => expect(Utils.phoneKey('098765 43210'), '9876543210'));
+    test('plain number', () => expect(Utils.phoneKey('9876543210'), '9876543210'));
+    test('too short to match', () => expect(Utils.phoneKey('12345'), ''));
+    test('empty', () => expect(Utils.phoneKey(''), ''));
+  });
+
+  group('ThemePreference', () {
+    test('defaults to following the phone', () async {
+      SharedPreferences.setMockInitialValues({});
+      expect(ThemePreference.read(await SharedPreferences.getInstance()), ThemeMode.system);
+    });
+    test('remembers a choice', () async {
+      SharedPreferences.setMockInitialValues({});
+      await ThemePreference.save(ThemeMode.dark);
+      expect(ThemePreference.read(await SharedPreferences.getInstance()), ThemeMode.dark);
+    });
+    test('an unknown stored value falls back to system', () async {
+      SharedPreferences.setMockInitialValues({'themeMode': 'purple'});
+      expect(ThemePreference.read(await SharedPreferences.getInstance()), ThemeMode.system);
     });
   });
 }

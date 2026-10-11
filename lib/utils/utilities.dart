@@ -18,6 +18,14 @@ class Utils{
     return (first + last).toUpperCase();
   }
 
+  /// A phone number reduced to its last 10 digits, so "+91 98765-43210",
+  /// "098765 43210" and "9876543210" all match. Fewer than 10 digits gives
+  /// "" (too short to match safely).
+  static String phoneKey(String raw) {
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    return digits.length < 10 ? '' : digits.substring(digits.length - 10);
+  }
+
   static int stateToNum(UserState userState){
     switch(userState){
       case UserState.offline:

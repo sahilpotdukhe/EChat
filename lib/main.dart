@@ -1,10 +1,10 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:echat/providers/app_provider.dart';
 import 'package:echat/providers/user_provider.dart';
 import 'package:echat/resources/auth_methods.dart';
 import 'package:echat/screens/on_board_screens.dart';
 import 'package:echat/theme/app_colors.dart';
 import 'package:echat/theme/app_theme.dart';
+import 'package:echat/utils/theme_preference.dart';
 import 'package:echat/utils/universal_variables.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -19,6 +19,7 @@ import 'package:shadcn_kit/shadcn_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 int? isViewed;
+ThemeMode savedThemeMode = ThemeMode.system;
 
 // Runs in a separate background isolate, so it must be a top-level function
 // kept by the compiler and must set up Firebase itself.
@@ -134,6 +135,7 @@ void main() async {
       .initializeApp(); // This line initializes Firebase services asynchronously.
   SharedPreferences prefs = await SharedPreferences.getInstance();
   isViewed = prefs.getInt("OnBoard");
+  savedThemeMode = ThemePreference.read(prefs);
   FlutterNativeSplash.remove();
   runApp(MyApp());
   //runApp(const MyApp());
@@ -158,14 +160,13 @@ class _MyAppState extends State<MyApp> {
       providers: [
         ChangeNotifierProvider(create: (_) => ImageUploadProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => AppProvider()),
         ChangeNotifierProvider(create: (_) => GoogleSignInProvider())
       ],
       child: ShadcnApp(
         title: 'EChat',
         light: AppColors.shadcnLight,
         dark: AppColors.shadcnDark,
-        initialMode: ThemeMode.system,
+        initialMode: savedThemeMode,
         materialThemeBuilder: AppTheme.build,
         routes: {
           '/searchScreen': (context) => SearchScreen()},

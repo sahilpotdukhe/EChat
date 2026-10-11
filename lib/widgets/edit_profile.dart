@@ -1,16 +1,18 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:echat/providers/app_provider.dart';
+import 'package:echat/models/user_model.dart';
 import 'package:echat/providers/user_provider.dart';
-import 'package:echat/utils/scale_utils.dart';
+import 'package:echat/utils/validators.dart';
+import 'package:echat/widgets/common/user_avatar.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_styled_toast/flutter_styled_toast.dart';
-import 'package:hexcolor/hexcolor.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:shadcn_kit/shadcn_kit.dart';
 
+/// Change your photo, name, phone number and gender.
 class EditProfile extends StatefulWidget {
   const EditProfile({super.key});
 
@@ -20,301 +22,208 @@ class EditProfile extends StatefulWidget {
 
 class _EditProfileState extends State<EditProfile> {
   final _formKey = GlobalKey<FormState>();
-  String? displayName;
-  String? gender = 'Male';
-  XFile? _image;
-  String? phoneNumber;
-  FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late final UserModel? _user = Provider.of<UserProvider>(context, listen: false).getUser;
+  late final _name = TextEditingController(text: _user?.name ?? '');
+  late final _phone = TextEditingController(text: _user?.phoneNumber ?? '');
+  late String? _gender = (_user?.gender.isEmpty ?? true) ? null : _user!.gender;
+  XFile? _newPhoto;
+  bool _saving = false;
 
   @override
-  void initState() {
-    Provider.of<UserProvider>(context, listen: false).refreshUser();
-    displayName = Provider.of<UserProvider>(context, listen: false).getUser?.name.toString();
-    gender = Provider.of<UserProvider>(context, listen: false).getUser?.gender.toString();
-    phoneNumber = Provider.of<UserProvider>(context, listen: false).getUser?.phoneNumber.toString();
-    // TODO: implement initState
-    super.initState();
+  void dispose() {
+    _name.dispose();
+    _phone.dispose();
+    super.dispose();
+  }
+
+  bool get _hasChanges =>
+      _newPhoto != null ||
+      _name.text.trim() != (_user?.name ?? '') ||
+      _phone.text.trim() != (_user?.phoneNumber ?? '') ||
+      (_gender ?? '') != (_user?.gender ?? '');
+
+  Future<void> _pickPhoto() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1024, imageQuality: 85);
+    if (picked != null && mounted) setState(() => _newPhoto = picked);
+  }
+
+  Future<void> _save() async {
+    final user = _user;
+    FocusScope.of(context).unfocus();
+    if (user == null || !_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    try {
+      final updates = <String, dynamic>{
+        'name': _name.text.trim(),
+        'phone_Number': _phone.text.trim(),
+        'gender': _gender ?? '',
+      };
+      if (_newPhoto != null) {
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('Users/${user.uid}/${DateTime.now().microsecondsSinceEpoch}.jpg');
+        await ref.putFile(File(_newPhoto!.path), SettableMetadata(contentType: 'image/jpeg'));
+        updates['profile_photo'] = await ref.getDownloadURL();
+      }
+      await FirebaseFirestore.instance.collection('Users').doc(user.uid).update(updates);
+      if (!mounted) return;
+      await Provider.of<UserProvider>(context, listen: false).refreshUser();
+      if (!mounted) return;
+      showShadcnToast(context, title: 'Profile updated', variant: ShadcnToastVariant.success);
+      Navigator.of(context).pop();
+    } catch (e) {
+      debugPrint('Profile update failed: $e');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showShadcnToast(context,
+          title: 'Couldn\'t save your changes',
+          description: 'Check your connection and try again.',
+          variant: ShadcnToastVariant.destructive);
+    }
+  }
+
+  // Leaving with unsaved edits asks first.
+  Future<void> _confirmLeave() async {
+    final discard = await showShadcnAlertDialog(
+      context,
+      title: 'Discard changes?',
+      description: 'Your edits haven\'t been saved.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing',
+      destructive: true,
+    );
+    if (discard == true && mounted) Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    ScaleUtils.init(context);
-    UserProvider userProvider = Provider.of<UserProvider>(context);
-    final appprovider = Provider.of<AppProvider>(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          "Edit Profile",
-          style: TextStyle(color: Colors.white),
-        ),
-        iconTheme: IconThemeData(
-          color: Colors.white, //change your color here
-        ),
-        centerTitle: true,
-        backgroundColor: HexColor("3957ED"),
-      ),
-      body: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).requestFocus(new FocusNode());
-        },
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            SizedBox(
-              height: 30*ScaleUtils.verticalScale,
-            ),
-            InkWell(
-              onTap: () {
-                selectImage(
-                    ImagePicker().pickImage(source: ImageSource.gallery));
-              },
-              child: Stack(
-                children: [
-                  Center(
-                    child: CircleAvatar(
-                      radius: 60*ScaleUtils.scaleFactor,
-                      child: CircleAvatar(
-                        radius: 60*ScaleUtils.scaleFactor,
-                        backgroundColor: Colors.transparent,
-                        backgroundImage: _displayChild(),
-                        //foregroundImage: NetworkImage(userModel!.profilePhoto),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          height: 90*ScaleUtils.verticalScale,
-                        ),
-                        Container(
-                          margin: EdgeInsets.only(right: 8*ScaleUtils.horizontalScale, top: 8*ScaleUtils.verticalScale),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: HexColor("3957ED"),
-                          ),
-                          child: Padding(
-                            padding: EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
-                            child: Icon(
-                              Icons.camera_alt,
-                              size: 30*ScaleUtils.scaleFactor,
-                              color: Colors.white,
+    final user = _user;
+    final t = context.shadcn;
+    return PopScope(
+      canPop: !_hasChanges || _saving,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmLeave();
+      },
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Edit profile')),
+        body: user == null
+            ? const ShadcnEmptyState(
+                icon: Icons.person_off_outlined,
+                title: 'Profile not loaded',
+                description: 'Go back and try again in a moment.',
+              )
+            : SingleChildScrollView(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(ShadcnSpacing.xl, ShadcnSpacing.lg, ShadcnSpacing.xl, ShadcnSpacing.xl3),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: Form(
+                      key: _formKey,
+                      onChanged: () => setState(() {}),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Center(child: _photo(user, t)),
+                          ShadcnGap.sm,
+                          Center(
+                            child: ShadcnButton(
+                              variant: ShadcnButtonVariant.link,
+                              onPressed: _saving ? null : _pickPhoto,
+                              child: Text(user.profilePhoto.isEmpty && _newPhoto == null ? 'Add a photo' : 'Change photo'),
                             ),
                           ),
-                        )
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Form(
-              key: _formKey,
-              child: Padding(
-                padding:  EdgeInsets.all(16.0*ScaleUtils.scaleFactor),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding:  EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
-                      child: TextFormField(
-                        initialValue: displayName,
-                        decoration: InputDecoration(
-                          hintText: 'Enter Your Name',
-                          labelText: 'Name',
-                          labelStyle: TextStyle(fontSize: 18.0*ScaleUtils.scaleFactor),
-                          floatingLabelStyle: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 20*ScaleUtils.scaleFactor,
-                              color: HexColor('3957ED')),
-                          border: OutlineInputBorder(),
-                          focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: HexColor('3957ED'), width: 2)),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide:
-                                BorderSide(color: HexColor('3957ED'), width: 2),
+                          ShadcnGap.xl,
+                          ShadcnInput(
+                            controller: _name,
+                            label: 'Full name',
+                            placeholder: 'Your name',
+                            leading: const Icon(Icons.person_outline_rounded),
+                            textCapitalization: TextCapitalization.words,
+                            textInputAction: TextInputAction.next,
+                            autofillHints: const [AutofillHints.name],
+                            validator: Validators.name,
+                            autovalidateMode: AutovalidateMode.onUserInteractionIfError,
+                            enabled: !_saving,
+                            style: const ShadcnInputStyle(height: 48, iconSize: 18),
                           ),
-                          suffixIcon:
-                              Icon(Icons.person, color: HexColor('3957ED')),
-                        ),
-                        onSaved: (value) {
-                          displayName = value;
-                        },
-                        validator: (value) {
-                          if (value!.isEmpty) {
-                            return 'Please Enter Name';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    SizedBox(height: 16.0*ScaleUtils.verticalScale),
-                    Padding(
-                      padding:  EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
-                      child: TextFormField(
-                        initialValue: phoneNumber,
-                        decoration: InputDecoration(
-                          hintText: 'Enter Your Phone number',
-                          labelText: 'Phone number',
-                          labelStyle: TextStyle(fontSize: 18.0*ScaleUtils.scaleFactor),
-                          floatingLabelStyle: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 20*ScaleUtils.scaleFactor,
-                              color: HexColor('3957ED')),
-                          border: OutlineInputBorder(),
-                          suffixIcon: Icon(Icons.phone_android_outlined,
-                              color: HexColor('3957ED')),
-                          focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: HexColor('3957ED'), width: 2)),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide:
-                                BorderSide(color: HexColor('3957ED'), width: 2),
+                          ShadcnGap.lg,
+                          ShadcnInput(
+                            controller: _phone,
+                            label: 'Phone number',
+                            placeholder: '10-digit mobile number',
+                            helperText: 'Friends who have your number can find you in their Contacts tab.',
+                            leading: const Icon(Icons.phone_outlined),
+                            keyboardType: TextInputType.phone,
+                            maxLength: 10,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            autofillHints: const [AutofillHints.telephoneNumberNational],
+                            validator: Validators.phone,
+                            autovalidateMode: AutovalidateMode.onUserInteractionIfError,
+                            enabled: !_saving,
+                            style: const ShadcnInputStyle(height: 48, iconSize: 18),
                           ),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            phoneNumber = value;
-                          });
-                        },
-                        onSaved: (value) {
-                          phoneNumber = value;
-                        },
-                        keyboardType: TextInputType.phone,
-                        maxLength: 10,
-                        validator: (value) {
-                          if (value!.isEmpty) {
-                            return 'Please Enter Phone No';
-                          } else if (value.length < 10) {
-                            return 'Enter 10 digit Phone number';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    Center(
-                      child: Padding(
-                        padding:  EdgeInsets.symmetric(vertical: 8.0*ScaleUtils.verticalScale),
-                        child: Text(
-                          'Gender',
-                          style: TextStyle(
-                            fontSize: 16.0*ScaleUtils.scaleFactor,
-                            color: HexColor('3957ED'),
-                            fontWeight: FontWeight.bold,
+                          ShadcnGap.xl,
+                          ShadcnRadioGroup<String>(
+                            label: 'Gender',
+                            direction: Axis.horizontal,
+                            value: _gender,
+                            onChanged: (value) => setState(() => _gender = value),
+                            options: const [
+                              ShadcnRadioOption(value: 'Male', label: 'Male'),
+                              ShadcnRadioOption(value: 'Female', label: 'Female'),
+                            ],
                           ),
-                        ),
-                      ),
-                    ),
-                    RadioGroup<String>(
-                      groupValue: gender,
-                      onChanged: (value) {
-                        setState(() {
-                          gender = value!;
-                        });
-                      },
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Radio<String>(value: 'Male'),
-                          Text('Male'),
-                          Radio<String>(value: 'Female'),
-                          Text('Female'),
+                          ShadcnGap.xl3,
+                          ShadcnButton(
+                            size: ShadcnButtonSize.lg,
+                            fullWidth: true,
+                            loading: _saving,
+                            onPressed: _hasChanges ? _save : null,
+                            child: const Text('Save changes'),
+                          ),
                         ],
                       ),
                     ),
-                    SizedBox(height: 16.0*ScaleUtils.verticalScale),
-                    (appprovider.isLoading)
-                        ? Center(child: CircularProgressIndicator())
-                        : Center(
-                            child: InkWell(
-                              onTap: () async {
-                                FocusScope.of(context)
-                                    .requestFocus(new FocusNode());
-                                _formKey.currentState!.save();
-                                if (_formKey.currentState!.validate()) {
-                                  appprovider.changeIsLoading();
-                                  if (_image != null) {
-                                    late String imageurl;
-                                    final FirebaseStorage storage =
-                                        FirebaseStorage.instance;
-                                    final picture =
-                                        '${DateTime.now().microsecondsSinceEpoch}.jpg';
-                                    final File imageFile = File(_image!.path);
-                                    UploadTask task = storage
-                                        .ref()
-                                        .child('Users/${userProvider.getUser!.uid}/$picture')
-                                        .putFile(imageFile, SettableMetadata(contentType: 'image/jpeg'));
-                                    TaskSnapshot snapshot = (await task
-                                        .whenComplete(() => task.snapshot));
-                                    await task.whenComplete(() async {
-                                      imageurl =
-                                          await snapshot.ref.getDownloadURL();
-                                    });
-                                    String image = imageurl;
-                                    _firestore
-                                        .collection("Users")
-                                        .doc(userProvider.getUser!.uid)
-                                        .update({'profile_photo': image});
-                                  }
-                                  _firestore
-                                      .collection("Users")
-                                      .doc(userProvider.getUser!.uid)
-                                      .update({
-                                    'phone_Number': phoneNumber,
-                                    'gender': gender,
-                                    'name': displayName,
-                                  });
-                                  userProvider.refreshUser();
-                                  await Future.delayed(Duration(seconds: 2));
-                                  appprovider.changeIsLoading();
-                                  if (!context.mounted) return;
-                                  showToast("Changes Saved", backgroundColor: Colors.green, context: context);
-                                  Navigator.pop(context);
-                                }
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
-                                  color: HexColor("30B319"),
-                                ),
-                                child: Padding(
-                                  padding:  EdgeInsets.all(14.0*ScaleUtils.scaleFactor),
-                                  child: Text(
-                                    "Save Changes",
-                                    style: TextStyle(
-                                        fontSize: 14*ScaleUtils.scaleFactor, color: Colors.white),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                  ],
+                  ),
                 ),
               ),
-            )
-          ],
-        ),
       ),
     );
   }
 
-  void selectImage(Future<XFile?> image) async {
-    XFile? tempImage = await image;
-    setState(() {
-      _image = tempImage;
-    });
-  }
-
-  _displayChild() {
-    final userprovider = Provider.of<UserProvider>(context);
-    if (_image == null) {
-      return (userprovider.getUser!.profilePhoto == '')
-          ? AssetImage('assets/user.jpg')
-          : NetworkImage(userprovider.getUser!.profilePhoto);
-    } else {
-      final File profileImage = File(_image!.path);
-      return FileImage(profileImage);
-    }
+  Widget _photo(UserModel user, ShadcnTheme t) {
+    const size = 104.0;
+    return Semantics(
+      button: true,
+      label: 'Change profile photo',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: _saving ? null : _pickPhoto,
+        child: Stack(
+          children: [
+            _newPhoto != null
+                ? ClipOval(
+                    child: Image.file(File(_newPhoto!.path), width: size, height: size, fit: BoxFit.cover),
+                  )
+                : UserAvatar(name: user.name, imageUrl: user.profilePhoto, size: size),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: t.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: t.background, width: 3),
+                ),
+                child: Icon(Icons.photo_camera_rounded, color: t.primaryForeground, size: 16),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

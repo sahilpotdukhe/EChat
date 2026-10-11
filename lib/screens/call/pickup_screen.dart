@@ -36,6 +36,8 @@ class _PickupScreenState extends State<PickupScreen> {
   // initializes and adds log to db
   addToLocalStorage({required String callStatus}) {
     CallLogModel callLogModel = CallLogModel(
+        callerId: widget.callModel.callerId,
+        receiverId: widget.callModel.receiverId,
         callerName: widget.callModel.callerName,
         callerPic: widget.callModel.callerPic,
         receiverName: widget.callModel.receiverName,
