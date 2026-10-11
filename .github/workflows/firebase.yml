@@ -1,5 +1,6 @@
-# Tests the security rules on every PR that touches the server side, and deploys
-# functions + database rules when those changes land on master.
+# Tests the security rules and the notification server on every PR that
+# touches them, and deploys the database rules when they land on master.
+# (The notification server itself is deployed by Vercel from git.)
 #
 # One-time setup: add a repository secret FIREBASE_SERVICE_ACCOUNT containing a
 # service-account JSON key for echat-888ef (Firebase console > Project settings >
@@ -13,7 +14,7 @@ name: Firebase
 on:
   pull_request:
     paths:
-      - "functions/**"
+      - "server/**"
       - "firebase-tests/**"
       - "firestore.rules"
       - "storage.rules"
@@ -22,7 +23,7 @@ on:
   push:
     branches: [master]
     paths:
-      - "functions/**"
+      - "server/**"
       - "firebase-tests/**"
       - "firestore.rules"
       - "storage.rules"
@@ -52,10 +53,8 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: npm install -g firebase-tools
-      - name: Check functions load
-        run: |
-          cd functions && npm ci
-          node --check index.js
+      - name: Notification server tests
+        run: cd server && npm ci && npm test
       - name: Security rule tests
         run: cd firebase-tests && npm ci && npm test
 

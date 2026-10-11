@@ -1,0 +1,181 @@
+// Runs against the Firestore emulator (npm test starts it). Auth and
+// messaging are fakes: "token-<uid>" signs in as <uid>, sends are recorded.
+
+const {test, before, after, beforeEach} = require("node:test");
+const assert = require("node:assert/strict");
+const {initializeApp} = require("firebase-admin/app");
+const {getFirestore, Timestamp} = require("firebase-admin/firestore");
+const {createApp} = require("../src/app");
+
+initializeApp({projectId: "demo-echat"});
+const db = getFirestore();
+
+const sent = [];
+const auth = {
+  verifyIdToken: async (token) => {
+    if (!token.startsWith("token-")) throw new Error("bad token");
+    return {uid: token.slice("token-".length)};
+  },
+};
+const messaging = {
+  send: async (message) => {
+    if (message.token === "dead-token") {
+      throw Object.assign(new Error("gone"), {code: "messaging/registration-token-not-registered"});
+    }
+    sent.push(message);
+  },
+};
+const quietLogger = {info() {}, error() {}};
+
+let server;
+let baseUrl;
+
+before(async () => {
+  server = createApp({db, auth, messaging, logger: quietLogger}).listen(0);
+  await new Promise((resolve) => server.once("listening", resolve));
+  baseUrl = `http://127.0.0.1:${server.address().port}`;
+});
+
+after(() => server.close());
+
+beforeEach(async () => {
+  sent.length = 0;
+  await fetch("http://127.0.0.1:8080/emulator/v1/projects/demo-echat/databases/(default)/documents", {method: "DELETE"});
+  await db.doc("Users/alice").set({uid: "alice", name: "Alice", notification_token: "tok-alice"});
+  await db.doc("Users/bob").set({uid: "bob", name: "Bob", notification_token: "tok-bob", profile_photo: "https://x/b.jpg"});
+});
+
+function post(path, body, token) {
+  return fetch(baseUrl + path, {
+    method: "POST",
+    headers: {"content-type": "application/json", ...(token ? {authorization: `Bearer ${token}`} : {})},
+    body: JSON.stringify(body),
+  });
+}
+
+// Saves a message the way the app does: both copies, same id.
+async function saveMessage(from, to, extra = {}) {
+  const msg = {senderId: from, receiverId: to, type: "text", message: "hi", timestamp: Timestamp.now(), ...extra};
+  const id = db.collection("x").doc().id;
+  await db.doc(`messages/${from}/${to}/${id}`).set(msg);
+  await db.doc(`messages/${to}/${from}/${id}`).set(msg);
+  return id;
+}
+
+async function startCall(from, to) {
+  const call = {caller_id: from, receiver_id: to, channel_id: "room1", callType: "videoCall", accepted: false};
+  await db.doc(`Call/${from}`).set({...call, has_dialled: true});
+  await db.doc(`Call/${to}`).set({...call, has_dialled: false});
+}
+
+test("health check", async () => {
+  const res = await fetch(`${baseUrl}/health`);
+  assert.equal(res.status, 200);
+});
+
+test("message: notifies the receiver with the sender's real name", async () => {
+  const id = await saveMessage("alice", "bob");
+  const res = await post("/notify/message", {messageId: id, receiverId: "bob"}, "token-alice");
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {sent: true});
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].token, "tok-bob");
+  assert.equal(sent[0].notification.title, "Alice");
+  assert.equal(sent[0].notification.body, "hi");
+  assert.equal(sent[0].android.notification.channelId, "message_channel");
+});
+
+test("message: second request for the same message sends nothing", async () => {
+  const id = await saveMessage("alice", "bob");
+  await post("/notify/message", {messageId: id, receiverId: "bob"}, "token-alice");
+  const res = await post("/notify/message", {messageId: id, receiverId: "bob"}, "token-alice");
+  assert.deepEqual(await res.json(), {sent: false, reason: "already notified"});
+  assert.equal(sent.length, 1);
+});
+
+test("message: file types get a readable body", async () => {
+  const id = await saveMessage("alice", "bob", {type: "docx", fileName: "notes.docx"});
+  await post("/notify/message", {messageId: id, receiverId: "bob"}, "token-alice");
+  assert.equal(sent[0].notification.body, "📎 notes.docx");
+});
+
+test("message: no sign-in token is refused", async () => {
+  const id = await saveMessage("alice", "bob");
+  const res = await post("/notify/message", {messageId: id, receiverId: "bob"});
+  assert.equal(res.status, 401);
+  assert.equal(sent.length, 0);
+});
+
+test("message: forged token is refused", async () => {
+  const id = await saveMessage("alice", "bob");
+  const res = await post("/notify/message", {messageId: id, receiverId: "bob"}, "forged");
+  assert.equal(res.status, 401);
+});
+
+test("message: someone else can't trigger it", async () => {
+  const id = await saveMessage("alice", "bob");
+  // eve isn't the sender, and messages/bob/eve/<id> doesn't exist
+  const res = await post("/notify/message", {messageId: id, receiverId: "bob"}, "token-eve");
+  assert.equal(res.status, 404);
+  assert.equal(sent.length, 0);
+});
+
+test("message: receiver can't notify themselves about a message they got", async () => {
+  const id = await saveMessage("alice", "bob");
+  const res = await post("/notify/message", {messageId: id, receiverId: "alice"}, "token-bob");
+  assert.equal(res.status, 403);
+  assert.equal(sent.length, 0);
+});
+
+test("message: unknown message is 404, bad input is 400", async () => {
+  assert.equal((await post("/notify/message", {messageId: "nope", receiverId: "bob"}, "token-alice")).status, 404);
+  assert.equal((await post("/notify/message", {messageId: "../x", receiverId: "bob"}, "token-alice")).status, 400);
+  assert.equal((await post("/notify/message", {}, "token-alice")).status, 400);
+});
+
+test("message: receiver without a token is skipped quietly", async () => {
+  await db.doc("Users/bob").update({notification_token: ""});
+  const id = await saveMessage("alice", "bob");
+  const res = await post("/notify/message", {messageId: id, receiverId: "bob"}, "token-alice");
+  assert.deepEqual(await res.json(), {sent: false});
+});
+
+test("message: dead token is cleared from the profile", async () => {
+  await db.doc("Users/bob").update({notification_token: "dead-token"});
+  const id = await saveMessage("alice", "bob");
+  const res = await post("/notify/message", {messageId: id, receiverId: "bob"}, "token-alice");
+  assert.deepEqual(await res.json(), {sent: false});
+  assert.equal((await db.doc("Users/bob").get()).get("notification_token"), "");
+});
+
+test("call: rings the receiver once", async () => {
+  await startCall("alice", "bob");
+  const res = await post("/notify/call", {receiverId: "bob"}, "token-alice");
+  assert.deepEqual(await res.json(), {sent: true});
+  assert.equal(sent[0].notification.title, "Incoming Call");
+  assert.equal(sent[0].notification.body, "Alice");
+  assert.equal(sent[0].android.notification.channelId, "call_channel");
+  assert.equal(sent[0].data.callType, "videoCall");
+
+  const again = await post("/notify/call", {receiverId: "bob"}, "token-alice");
+  assert.deepEqual(await again.json(), {sent: false, reason: "already notified"});
+  assert.equal(sent.length, 1);
+});
+
+test("call: can't ring someone for a call you didn't start", async () => {
+  await startCall("alice", "bob");
+  const res = await post("/notify/call", {receiverId: "bob"}, "token-eve");
+  assert.equal(res.status, 403);
+  assert.equal(sent.length, 0);
+});
+
+test("call: caller's own doc (has_dialled true) is refused", async () => {
+  await startCall("alice", "bob");
+  const res = await post("/notify/call", {receiverId: "alice"}, "token-alice");
+  assert.equal(res.status, 403);
+});
+
+test("call: no call is 404", async () => {
+  const res = await post("/notify/call", {receiverId: "bob"}, "token-alice");
+  assert.equal(res.status, 404);
+});

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/models/contact_model.dart';
 import 'package:echat/models/message_model.dart';
+import 'package:echat/resources/notification_service.dart';
 
 class ChatFirebaseMethods{
   FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -29,6 +30,10 @@ class ChatFirebaseMethods{
     batch.set(senderCopy, map);
     batch.set(receiverCopy, map);
     await batch.commit();
+
+    // Not awaited: a slow or unreachable notification server must not delay
+    // or fail the message itself.
+    NotificationService.notifyMessage(messageId: senderCopy.id, receiverId: messageModel.receiverId);
 
     await addToContacts(senderId: messageModel.senderId, receiverId: messageModel.receiverId);
   }

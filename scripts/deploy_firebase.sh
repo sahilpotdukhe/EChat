@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# Deploys EChat's server side: push-notification functions and security rules.
+# Deploys EChat's Firebase security rules (works on the free Spark plan).
+# Push notifications are sent by server/ on Vercel, which deploys itself from
+# git (see server/vercel.json), not by this script.
 #
-#   scripts/deploy_firebase.sh                 # tests, then functions + database rules
+#   scripts/deploy_firebase.sh                 # tests, then database rules
 #   scripts/deploy_firebase.sh --with-storage  # also storage rules (only once the new
 #                                              # app build is out: older builds upload to
 #                                              # paths these rules block)
-#   scripts/deploy_firebase.sh --skip-tests    # deploy without running the rule tests
-#
-# Never passes --force: if a deploy would delete functions that exist in the
-# project but not in this repo, Firebase stops and asks (or fails in CI).
+#   scripts/deploy_firebase.sh --skip-tests    # deploy without running the tests
 
 set -euo pipefail
 
@@ -59,23 +58,19 @@ Log in with the Google account that owns the project, then rerun:
 fi
 echo "OK"
 
-step "Installing function dependencies"
-(cd functions && npm ci --silent)
-node --check functions/index.js
-
 if ! $SKIP_TESTS; then
   step "Running security rule tests (local emulator)"
   (cd firebase-tests && npm ci --silent && npm test --silent) || fail "Rule tests failed, nothing was deployed."
+  step "Running notification server tests (local emulator)"
+  (cd server && npm ci --silent && npm test --silent) || fail "Server tests failed, nothing was deployed."
 fi
 
-TARGETS="functions,firestore:rules"
+TARGETS="firestore:rules"
 $WITH_STORAGE && TARGETS="$TARGETS,storage"
 
 step "Deploying $TARGETS"
 if ! firebase deploy --only "$TARGETS" --project "$PROJECT_ID"; then
-  fail "Deploy failed. If the error mentions the Blaze plan, upgrade the project at
-    https://console.firebase.google.com/project/$PROJECT_ID/usage/details
-and run this script again."
+  fail "Deploy failed, see the error above."
 fi
 
 step "Done"

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/models/call_model.dart';
+import 'package:echat/resources/notification_service.dart';
 import 'package:flutter/foundation.dart';
 
 /// started: both call docs written. busy: the server refused because the
@@ -31,6 +32,8 @@ class CallMethods{
     try{
       // Offline, commit() never completes, so give up after 10 seconds.
       await batch.commit().timeout(const Duration(seconds: 10));
+      // Rings the receiver's phone if the app isn't open; not awaited.
+      NotificationService.notifyCall(receiverId: callModel.receiverId);
       return CallResult.started;
     } on FirebaseException catch(e){
       // The rules refuse to overwrite a call that is still live.

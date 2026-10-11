@@ -23,7 +23,7 @@ int? isViewed;
 Future<void> backgroundHandler(RemoteMessage message) async{
   await Firebase.initializeApp();
   // Data-only messages have no notification part; fall back to the data fields
-  // (sent by functions/index.js) instead of crashing.
+  // (sent by server/src/app.js) instead of crashing.
   final bool isCall = message.data['type'] == 'call' ||
       message.notification?.title == 'Incoming Call';
   String? title = message.notification?.title ?? (isCall ? 'Incoming Call' : null);
