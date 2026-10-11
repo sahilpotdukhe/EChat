@@ -49,7 +49,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     if (isVerified) timer?.cancel();
     if (isVerified) {
-      authMethods.setUserProfile(
+      await authMethods.setUserProfile(
           name: name.text,
           email: email.text,
           profilePic: 'https://firebasestorage.googleapis.com/v0/b/echat-888ef.appspot.com/o/user.jpg?alt=media&token=6f598b3e-9c10-49ee-8a68-49468b32bddf',

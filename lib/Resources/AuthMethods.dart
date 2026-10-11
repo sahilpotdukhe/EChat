@@ -31,16 +31,18 @@ class AuthMethods {
     return currentUser;
   }
 
-  Future<UserModel> getUserDetails() async{
+  // Null when signed out or the profile doc doesn't exist (yet).
+  Future<UserModel?> getUserDetails() async{
     User? currentUser = await getCurrentUser();
-
-    DocumentSnapshot documentSnapshot = await firestore.collection("Users").doc(currentUser!.uid).get();
-    return UserModel.fromMap(documentSnapshot.data() as Map<String,dynamic>);
+    if (currentUser == null) return null;
+    return getUserDetailsById(currentUser.uid);
   }
 
-  Future<UserModel> getUserDetailsById(id) async{
+  // Null when there is no profile doc for this id (e.g. a deleted account).
+  Future<UserModel?> getUserDetailsById(String id) async{
       DocumentSnapshot documentSnapshot = await firestore.collection("Users").doc(id).get();
-      return UserModel.fromMap(documentSnapshot.data() as Map<String,dynamic>);
+      final data = documentSnapshot.data() as Map<String, dynamic>?;
+      return data == null ? null : UserModel.fromMap(data);
   }
 
   Future<User?> createAccountbyEmail(String email, String password, BuildContext context) async{
@@ -96,29 +98,25 @@ class AuthMethods {
     }
   }
 
-  void setUserProfile({String? name,String? email, var mobilenumber, var profilePic,String? authType}) async {
-    String username = Utils.getUsername(email!);
-    String? initialToken = await FirebaseMessaging.instance.getToken();
-    print("Initial Token Sign up screen ${initialToken}");
-
-    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async{
-      print("New Token Sign up screen ${newToken}");
-    });
-    await firestore.collection("Users").doc(_auth.currentUser!.uid)
+  Future<void> setUserProfile({String? name,String? email, var mobilenumber, var profilePic,String? authType}) async {
+    final User? currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+    String username = Utils.getUsername(email ?? '');
+    await firestore.collection("Users").doc(currentUser.uid)
         .set({
-      "name": name,
-      "email": email,
-      "uid": _auth.currentUser!.uid,
-      "profile_photo": profilePic,
+      "name": name ?? '',
+      "email": email ?? '',
+      "uid": currentUser.uid,
+      "profile_photo": profilePic ?? '',
       "status": "",
       "state": 0,
       "username": username,
       "gender": '',
-      "phone_Number": mobilenumber,
+      "phone_Number": mobilenumber ?? '',
       "auth_type": authType,
-      "notification_token": initialToken
+      "notification_token": "",
     });
-    await updateToken(_auth.currentUser!.uid, initialToken!);
+    await saveNotificationToken(currentUser.uid);
   }
 
   Future<bool> checkAlreadyRegistered(String email) async {
@@ -134,6 +132,19 @@ class AuthMethods {
     await firestore.collection('Users').doc(userId).update({
       'notification_token': token,
     });
+  }
+
+  // Saves this phone's push token on the user's profile. Some devices have no
+  // token (emulators without Play services, iPhones without push set up); then
+  // the user just won't get notifications instead of the app crashing.
+  Future<void> saveNotificationToken(String userId) async {
+    try {
+      final String? token = await FirebaseMessaging.instance.getToken();
+      if (token == null || token.isEmpty) return;
+      await updateToken(userId, token);
+    } catch (e) {
+      debugPrint('Could not save notification token: $e');
+    }
   }
 
   // Future googleLogOut() async {
@@ -203,13 +214,12 @@ class GoogleSignInProvider extends ChangeNotifier {
           .collection('Users')
           .doc(FirebaseAuth.instance.currentUser!.uid)
           .get();
+      // Wait for the profile to exist before the caller opens the home screen,
+      // which reads it straight away.
       if (userDocs.data() == null) {
-        authMethods.setUserProfile(name: _user?.displayName, email: _user?.email,mobilenumber: '',profilePic:_user?.photoUrl,authType: "googleAuth");
+        await authMethods.setUserProfile(name: _user?.displayName, email: _user?.email,mobilenumber: '',profilePic:_user?.photoUrl,authType: "googleAuth");
       }else{
-        User? currentUser = FirebaseAuth.instance.currentUser;
-        String? alreadyInitialToken = await FirebaseMessaging.instance.getToken();
-        print("Initial Token else already exists ${alreadyInitialToken}");
-        authMethods.updateToken(currentUser!.uid, alreadyInitialToken!);
+        await authMethods.saveNotificationToken(userDocs.id);
       }
 
 

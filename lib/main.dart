@@ -17,10 +17,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 int? isViewed;
 
+// Runs in a separate background isolate, so it must be a top-level function
+// kept by the compiler and must set up Firebase itself.
+@pragma('vm:entry-point')
 Future<void> backgroundHandler(RemoteMessage message) async{
-  String? title= message.notification!.title;
-  String? body = message.notification!.body;
-  if(title == 'Incoming Call'){
+  await Firebase.initializeApp();
+  // Data-only messages have no notification part; fall back to the data fields
+  // (sent by functions/index.js) instead of crashing.
+  final bool isCall = message.data['type'] == 'call' ||
+      message.notification?.title == 'Incoming Call';
+  String? title = message.notification?.title ?? (isCall ? 'Incoming Call' : null);
+  String? body = message.notification?.body;
+  if (title == null && body == null) return;
+  if(isCall){
     AwesomeNotifications().createNotification(
         content: NotificationContent(
           id: 123,

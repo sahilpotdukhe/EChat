@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// Matches how the app reads and writes today (see lib/Resources/*Methods.dart).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isMe(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Profiles. Every signed-in user can read them (needed for search and the
+    // chat list); only the owner can change their own, and can't change its uid.
+    match /Users/{uid} {
+      allow read: if signedIn();
+      allow create, update: if isMe(uid)
+          && request.resource.data.get('uid', uid) == uid;
+      allow delete: if false;
+
+      // Users/{owner}/Contacts/{other}. Sending a message adds each person to the
+      // other's list, so either of the two people may create the entry.
+      match /Contacts/{contactId} {
+        allow list: if isMe(uid);
+        allow get: if isMe(uid) || isMe(contactId);
+        allow create: if (isMe(uid) || isMe(contactId))
+            && request.resource.data.contact_id == contactId;
+        allow update: if false;
+        allow delete: if isMe(uid);
+      }
+    }
+
+    // messages/{owner}/{peer}/{msg}: the owner's copy of their chat with peer.
+    // The sender writes both copies, so a message is only allowed when the
+    // signed-in user is its sender and the path belongs to those two people.
+    match /messages/{ownerId}/{peerId}/{messageId} {
+      allow read: if isMe(ownerId);
+      allow create: if signedIn()
+          && request.resource.data.senderId == request.auth.uid
+          && (
+            (ownerId == request.auth.uid && peerId == request.resource.data.receiverId)
+            || (peerId == request.auth.uid && ownerId == request.resource.data.receiverId)
+          );
+      allow update, delete: if false;
+    }
+
+    // Call/{uid}: the call currently ringing for uid. The caller writes a copy
+    // for both people; either person may hang up (delete both copies).
+    match /Call/{uid} {
+      allow read: if isMe(uid);
+      allow create, update: if signedIn()
+          && request.resource.data.caller_id == request.auth.uid
+          && (uid == request.resource.data.caller_id || uid == request.resource.data.receiver_id);
+      // resource is null when the other side already deleted it.
+      allow delete: if isMe(uid)
+          || resource == null
+          || resource.data.caller_id == request.auth.uid
+          || resource.data.receiver_id == request.auth.uid;
+    }
+
+    // Anything not listed above is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
