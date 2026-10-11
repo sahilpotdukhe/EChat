@@ -10,7 +10,7 @@ class UserProvider with ChangeNotifier{
 
   Future<void> refreshUser() async{
     _userModel = await authMethods.getUserDetails();
-    print(_userModel);
+    debugPrint('$_userModel');
     notifyListeners();
   }
 }

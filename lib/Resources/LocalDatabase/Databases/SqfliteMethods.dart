@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 
 import 'package:echat/Models/CallLogModel.dart';
@@ -33,7 +34,7 @@ class SqfliteMethods implements CallLogInterface{
     if (_db != null && _db!.isOpen) {
       return _db!;
     }
-    print("db was null,now awaiting it");
+    debugPrint("db was null,now awaiting it");
     _db = await init();
     return _db!;
   }
@@ -57,14 +58,14 @@ class SqfliteMethods implements CallLogInterface{
   _onCreateTable(Database db, int version) async{
     String createTableQuery = "CREATE TABLE $tableName ($callLogId INTEGER PRIMARY KEY AUTOINCREMENT,$callerName TEXT,$callerPic TEXT,$receiverName TEXT, $receiverPic TEXT, $callStatus TEXT,$timestamp TEXT)";
     await db.execute(createTableQuery);
-    print("Table created");
+    debugPrint("Table created");
   }
 
   @override
   addLogs(CallLogModel callLogModel) async{
     var dbClient = await db;
     await dbClient.insert(tableName, callLogModel.toMap(callLogModel)); //This method helps insert a map of values into the specified table and returns the id of the last inserted row.
-    print("Call Dialled from Sqflite");
+    debugPrint("Call Dialled from Sqflite");
   }
 
   // dbName
