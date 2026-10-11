@@ -28,15 +28,17 @@ class _ContactPageState extends State<ContactPage> {
 
   Future<void> getUser() async{
     await Future.delayed(Duration.zero);
+    if (!mounted) return;
     userProvider = Provider.of<UserProvider>(context, listen: false);
     await userProvider.refreshUser();
+    if (!mounted) return;
     if (userProvider.getUser != null) {
       UserModel? currentUser = userProvider.getUser;
       setState(() {
         currentUserModel = currentUser!;
       });
     } else {
-      print('User is null');
+      debugPrint('User is null');
     }
   }
 

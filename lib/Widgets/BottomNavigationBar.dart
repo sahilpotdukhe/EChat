@@ -16,14 +16,14 @@ import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
-class BotttomNavigationBar extends StatefulWidget {
-  const BotttomNavigationBar({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<BotttomNavigationBar> createState() => _BotttomNavigationBarState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _BotttomNavigationBarState extends State<BotttomNavigationBar>  with WidgetsBindingObserver{
+class _HomeScreenState extends State<HomeScreen>  with WidgetsBindingObserver{
   late UserProvider userProvider;
   AuthMethods authMethods = AuthMethods();
   bool _disposed = false;
@@ -83,14 +83,14 @@ class _BotttomNavigationBarState extends State<BotttomNavigationBar>  with Widge
       AwesomeNotifications().setListeners(
           onActionReceivedMethod: (receivedAction) async{
             if(receivedAction.buttonKeyPressed == "Accept"){
-              print("Call Accepted");
+              debugPrint("Call Accepted");
             }else if(receivedAction.buttonKeyPressed == "Reject"){
-              print("Call Rejected");
+              debugPrint("Call Rejected");
             }else if(receivedAction.buttonKeyPressed == "Reply"){
-              print("Message replied");
+              debugPrint("Message replied");
             }else{
               await AwesomeNotifications().dismiss(receivedAction.id!);
-              print("Clicked on notification");
+              debugPrint("Clicked on notification");
             }
           });
     });
@@ -98,17 +98,17 @@ class _BotttomNavigationBarState extends State<BotttomNavigationBar>  with Widge
 
   Future<void> initializeUser() async {
     await Future.delayed(Duration.zero); // This ensures that the context is available
-    if (_disposed) return;
+    if (_disposed || !mounted) return;
     userProvider = Provider.of<UserProvider>(context, listen: false);
     await userProvider.refreshUser();
     if (_disposed) return;
     if (userProvider.getUser != null) {
       authMethods.setUserState(userId: userProvider.getUser!.uid, userState: UserState.Online);
       LogRepository.initialize(isHive: true,dbName: userProvider.getUser!.uid);
-      print(userProvider.getUser!.state);
+      debugPrint('${userProvider.getUser!.state}');
 
     } else {
-      print('User is null');
+      debugPrint('User is null');
     }
     WidgetsBinding.instance.addObserver(this);
   }

@@ -55,6 +55,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           profilePic: 'https://firebasestorage.googleapis.com/v0/b/echat-888ef.appspot.com/o/user.jpg?alt=media&token=6f598b3e-9c10-49ee-8a68-49468b32bddf',
           authType: 'emailAuth',
           mobilenumber: mobile.text);
+      if (!mounted) return;
       AwesomeDialog(
         context: context,
         animType: AnimType.leftSlide,
@@ -75,7 +76,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ).show();
       // showToast('Account Created Successfully');
       await Future.delayed(Duration(seconds: 6));
-      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => BotttomNavigationBar()), (route) => false);
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => HomeScreen()), (route) => false);
     } else {
       // setState(() {
       //   _auth.currentUser=null;
@@ -385,13 +387,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       });
                                       authMethods.createAccountbyEmail(email.text, password.text, context)
                                           .then((user) async {
+                                        // Screen may have closed while creating the account.
+                                        if (!context.mounted) return;
                                         if (user != null) {
-                                          print(user);
+                                          debugPrint('$user');
                                           if (!isVerified) {
                                             showDialog(
                                                 context: context,
                                                 builder: (BuildContext context) {
-                                                  Future.delayed(Duration(seconds: 13), () {Navigator.of(context).pop(true);});
+                                                  Future.delayed(Duration(seconds: 13), () {
+                                                    // Close only this dialog, and only if the user
+                                                    // hasn't already closed it.
+                                                    if (context.mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+                                                      Navigator.of(context).pop(true);
+                                                    }
+                                                  });
                                                   return AlertDialog(
                                                     title: Center(
                                                       child: Column(
@@ -424,7 +434,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                                           style: TextStyle(),
                                                         ),
                                                         Text(
-                                                          '${email.text}',
+                                                          email.text,
                                                           style: TextStyle(
                                                               fontWeight:
                                                                   FontWeight
@@ -461,7 +471,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                             await user.sendEmailVerification();
                                             timer = Timer.periodic(Duration(seconds: 3),
                                                     (_) => checkEmailVerified(user));
-                                            print(FirebaseAuth.instance.currentUser!.displayName);
+                                            debugPrint('${FirebaseAuth.instance.currentUser!.displayName}');
                                             setState(() {
                                               _isLoading = false;
                                             });
@@ -495,7 +505,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                                               TextAlign.center,
                                                         ),
                                                         Text(
-                                                          '${email.text}',
+                                                          email.text,
                                                           textAlign:
                                                               TextAlign.center,
                                                           style: TextStyle(
@@ -567,28 +577,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   }
                                   return;
                                 }
-
-
-                                // String? initialToken = await FirebaseMessaging.instance.getToken();
-                                // print("Initial Token Google sign up ${initialToken}");
-                                // FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async{
-                                //   print("New Token Google sign up ${newToken}");
-                                //
-                                // });
-                                // final user = FirebaseAuth.instance.currentUser;
-                                // await FirebaseFirestore.instance.collection("Users").doc(user!.uid).update({
-                                //   "notification_token": initialToken,
-                                // });
-                                // authMethods.updateToken(user.uid , initialToken!);
+                                if (!context.mounted) return;
                                 Navigator.pushReplacement(context,
                                     MaterialPageRoute(builder: (context) {
-                                      return BotttomNavigationBar();
+                                      return HomeScreen();
                                     }));
                                 setState(() {
                                   isPressed = false;
                                 });
                               }catch(e){
-                                print(e);
+                                debugPrint('$e');
                               }
                             }
                         ),

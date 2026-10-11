@@ -255,10 +255,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                     showDialog(
                                         context: context,
                                         builder: (BuildContext context) {
-                                          Future.delayed(Duration(seconds: 13),
-                                              () {
-                                            Navigator.of(context).pop(true);
-                                          });
+                                          Future.delayed(Duration(seconds: 13), () {
+                                                    // Close only this dialog, and only if the user
+                                                    // hasn't already closed it.
+                                                    if (context.mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+                                                      Navigator.of(context).pop(true);
+                                                    }
+                                                  });
                                           return AlertDialog(
                                             title: Center(
                                               child: Column(
@@ -290,7 +293,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                   style: TextStyle(),
                                                 ),
                                                 Text(
-                                                  '${email.text}',
+                                                  email.text,
                                                   style: TextStyle(
                                                       fontWeight:
                                                           FontWeight.bold),
@@ -393,15 +396,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 .logInByEmail(
                                                     email.text, pass.text)
                                                 .then((user) async {
+                                              // Screen may have closed while signing in.
+                                              if (!context.mounted) return;
                                               if (user != null) {
-                                                print(user);
+                                                debugPrint('$user');
                                                 await authMethods
                                                     .saveNotificationToken(user.uid);
+                                                if (!context.mounted) return;
                                                 Navigator.pushAndRemoveUntil(
                                                     context,
                                                     MaterialPageRoute(
                                                         builder: (context) =>
-                                                            BotttomNavigationBar()),
+                                                            HomeScreen()),
                                                     (route) => false);
                                                 setState(() {
                                                   _isLoading = false;
@@ -500,27 +506,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                     }
                                     return;
                                   }
-
-                                  // String? initialToken = await FirebaseMessaging.instance.getToken();
-                                  // print("Initial Token  Sign in screen ${initialToken}");
-                                  // FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async{
-                                  //   print("New Token  Sign in screen ${newToken}");
-                                  //
-                                  // });
-                                  // final user = FirebaseAuth.instance.currentUser;
-                                  // await FirebaseFirestore.instance.collection("Users").doc(user!.uid).update({
-                                  //   "notification_token": initialToken,
-                                  // });
-                                  // authMethods.updateToken(user.uid, initialToken!);
+                                  if (!context.mounted) return;
                                   Navigator.pushReplacement(context,
                                       MaterialPageRoute(builder: (context) {
-                                    return BotttomNavigationBar();
+                                    return HomeScreen();
                                   }));
                                   setState(() {
                                     isPressed = false;
                                   });
                                 } catch (e) {
-                                  print(e);
+                                  debugPrint('$e');
                                 }
                               }),
                               SizedBox(height: 20*ScaleUtils.verticalScale),

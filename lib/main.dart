@@ -79,13 +79,13 @@ Future<void> backgroundHandler(RemoteMessage message) async{
   AwesomeNotifications().setListeners(
       onActionReceivedMethod: (receivedAction) async{
         if(receivedAction.buttonKeyPressed == "Accept"){
-          print("Call Accepted");
+          debugPrint("Call Accepted");
         }else if(receivedAction.buttonKeyPressed == "Reject"){
-          print("Call Rejected");
+          debugPrint("Call Rejected");
         }else if(receivedAction.buttonKeyPressed == "Reply"){
-          print("Message replied");
+          debugPrint("Message replied");
         }else{
-          print("Clicked on notification");
+          debugPrint("Clicked on notification");
           await AwesomeNotifications().dismiss(receivedAction.id!);
         }
 
@@ -94,6 +94,10 @@ Future<void> backgroundHandler(RemoteMessage message) async{
 
 
 void main() async {
+  // Must run before any plugin (notifications, Firebase) is used.
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  // Keep the splash only as long as startup actually takes.
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   AwesomeNotifications().initialize(null, [
     NotificationChannel(
         channelKey: "call_channel",
@@ -123,15 +127,11 @@ void main() async {
   ]);
   FirebaseMessaging.onBackgroundMessage(backgroundHandler);
 
-  //This line ensures that the Flutter framework is initialized before proceeding further. This is necessary to use Flutter widgets and services.
-  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
-  await Future.delayed(Duration(seconds: 3));
-  FlutterNativeSplash.remove();
   await Firebase
       .initializeApp(); // This line initializes Firebase services asynchronously.
   SharedPreferences prefs = await SharedPreferences.getInstance();
   isViewed = prefs.getInt("OnBoard");
+  FlutterNativeSplash.remove();
   runApp(MyApp());
   //runApp(const MyApp());
 }
@@ -171,7 +171,7 @@ class _MyAppState extends State<MyApp> {
           builder: (context, AsyncSnapshot<User?> snapshot) {
             // snapshot: An AsyncSnapshot object that contains the latest data received from the future. and the snapshot contains data of type User
             if (snapshot.hasData) {
-              return BotttomNavigationBar();
+              return HomeScreen();
             } else {
               return isViewed != 0 ? OnBoardScreens() : Authenticate();
             }

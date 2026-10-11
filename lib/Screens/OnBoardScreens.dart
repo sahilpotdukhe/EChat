@@ -70,6 +70,7 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
           TextButton(
               onPressed: () async{
                 await _storeOnBoardInfo();
+                if (!context.mounted) return;
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=> LoginScreen()));
               },
               child: Text("Skip",
@@ -145,6 +146,7 @@ class _OnBoardScreensState extends State<OnBoardScreens> {
                     onTap: () async{
                       if(index == screens.length -1 ){
                         await _storeOnBoardInfo();
+                        if (!context.mounted) return;
                         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=> LoginScreen()));
                       }
                       _pageController.nextPage(duration: Duration(microseconds: 500), curve: Curves.bounceIn);
