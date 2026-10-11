@@ -1,0 +1,13 @@
+{
+  "name": "echat-firebase-tests",
+  "private": true,
+  "type": "module",
+  "description": "Checks firestore.rules and storage.rules against the local Firebase emulators",
+  "scripts": {
+    "test": "cd .. && firebase emulators:exec --only firestore,storage --project demo-echat 'node firebase-tests/rules.test.mjs'"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.0",
+    "firebase": "^11.0.0"
+  }
+}

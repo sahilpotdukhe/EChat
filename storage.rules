@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// Each user can only upload into their own folder. Files shared in chat are
+// opened through download links, which keep working without these read rules.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isMe(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function underMB(mb) {
+      return request.resource.size < mb * 1024 * 1024;
+    }
+
+    // Photos, videos and PDFs sent in chat.
+    match /Media/{uid}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if isMe(uid) && underMB(100);
+    }
+
+    // Video preview pictures.
+    match /thumbnails/{uid}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if isMe(uid) && isImage() && underMB(5);
+    }
+
+    // Profile pictures.
+    match /Users/{uid}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if isMe(uid) && isImage() && underMB(10);
+    }
+  }
+}
