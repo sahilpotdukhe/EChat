@@ -139,8 +139,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     ? null
                     : () {
                         CallUtilities.dial(
-                            from_Caller: sender!,
-                            to_receiver: widget.receiver,
+                            fromCaller: sender!,
+                            toReceiver: widget.receiver,
                             context: context,
                             callType: 'audioCall');
                       },
@@ -153,8 +153,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     ? null
                     : () {
                         CallUtilities.dial(
-                            from_Caller: sender!,
-                            to_receiver: widget.receiver,
+                            fromCaller: sender!,
+                            toReceiver: widget.receiver,
                             context: context,
                             callType: 'videoCall');
                       },
@@ -270,7 +270,7 @@ class _ChatScreenState extends State<ChatScreen> {
             SizedBox(
               height: 10*ScaleUtils.verticalScale,
             ),
-            (imageUploadProvider.getViewState == ViewState.LOADING)
+            (imageUploadProvider.getViewState == ViewState.loading)
                 ? Container(
                     alignment: Alignment.centerRight,
                     child: Container(
@@ -290,7 +290,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           (imageUploadProvider.getViewState ==
-                                  ViewState.LOADING)
+                                  ViewState.loading)
                               ? CircularProgressIndicator(
                                   color: Colors.white,
                                 )

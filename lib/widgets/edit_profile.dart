@@ -240,11 +240,11 @@ class _EditProfileState extends State<EditProfile> {
                                         FirebaseStorage.instance;
                                     final picture =
                                         '${DateTime.now().microsecondsSinceEpoch}.jpg';
-                                    final File _imagep = File(_image!.path);
+                                    final File imageFile = File(_image!.path);
                                     UploadTask task = storage
                                         .ref()
                                         .child('Users/${userProvider.getUser!.uid}/$picture')
-                                        .putFile(_imagep, SettableMetadata(contentType: 'image/jpeg'));
+                                        .putFile(imageFile, SettableMetadata(contentType: 'image/jpeg'));
                                     TaskSnapshot snapshot = (await task
                                         .whenComplete(() => task.snapshot));
                                     await task.whenComplete(() async {
@@ -313,8 +313,8 @@ class _EditProfileState extends State<EditProfile> {
           ? AssetImage('assets/user.jpg')
           : NetworkImage(userprovider.getUser!.profilePhoto);
     } else {
-      final File _imagex = File(_image!.path);
-      return FileImage(_imagex);
+      final File profileImage = File(_image!.path);
+      return FileImage(profileImage);
     }
   }
 }

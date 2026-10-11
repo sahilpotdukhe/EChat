@@ -11,7 +11,7 @@ class ImageUploadProvider with ChangeNotifier{
   // So, in summary, the first line initializes a private variable _viewState with an initial state of IDLE, and the second line provides a getter method
   // getViewState to retrieve the current state of the view. This setup allows external code to access the view state while keeping the internal _viewState
   // variable private to the class.
-  ViewState _viewState = ViewState.IDLE;
+  ViewState _viewState = ViewState.idle;
   String _thumbnail = "";
 
   ViewState get getViewState => _viewState;
@@ -23,12 +23,12 @@ class ImageUploadProvider with ChangeNotifier{
   }
 
   void setToLoading(){
-    _viewState = ViewState.LOADING;
+    _viewState = ViewState.loading;
     notifyListeners();
   }
 
   void setToIdle(){
-    _viewState = ViewState.IDLE;
+    _viewState = ViewState.idle;
     notifyListeners();
   }
 }

@@ -8,7 +8,7 @@ class CachedVideoPlayerScreen extends StatefulWidget {
   CachedVideoPlayerScreen({required this.videoUrl});
 
   @override
-  _CachedVideoPlayerScreenState createState() =>
+  State<CachedVideoPlayerScreen> createState() =>
       _CachedVideoPlayerScreenState();
 }
 

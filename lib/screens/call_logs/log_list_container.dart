@@ -243,34 +243,34 @@ class _LogListContainerState extends State<LogListContainer> {
   }
 
   getIcon(String callStatus) {
-    Icon _icon;
-    double _iconSize = 15;
+    Icon icon;
+    double iconSize = 15;
 
     switch (callStatus) {
       case "Dialled":
-        _icon = Icon(
+        icon = Icon(
           Icons.call_made,
-          size: _iconSize,
+          size: iconSize,
           color: Colors.green,
         );
         break;
       case "received":
-        _icon = Icon(
+        icon = Icon(
           Icons.call_received,
-          size: _iconSize,
+          size: iconSize,
           color: Colors.grey,
         );
         break;
       default:
-        _icon = Icon(
+        icon = Icon(
           Icons.call_missed,
-          size: _iconSize,
+          size: iconSize,
           color: Colors.red,
         );
     }
     return Container(
       margin: EdgeInsets.only(right: 5),
-      child: _icon,
+      child: icon,
     );
   }
 }

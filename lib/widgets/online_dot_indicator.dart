@@ -15,9 +15,9 @@ class OnlineDotIndicator extends StatelessWidget {
     ScaleUtils.init(context);
     getColor(int state){
       switch(Utils.numToState(state)){
-        case UserState.Offline:
+        case UserState.offline:
           return Colors.orange;
-        case UserState.Online:
+        case UserState.online:
           return Colors.green;
         default:
           return Colors.red;

@@ -11,15 +11,15 @@ import 'package:flutter/material.dart';
 class CallUtilities {
   static CallMethods callMethods = CallMethods();
 
-  static Future<CallModel> dial({required UserModel from_Caller, required UserModel to_receiver, required BuildContext context,required String callType}) async {
+  static Future<CallModel> dial({required UserModel fromCaller, required UserModel toReceiver, required BuildContext context,required String callType}) async {
 
     CallModel callModel = CallModel(
-      callerId: from_Caller.uid,
-      callerName: from_Caller.name,
-      callerPic: from_Caller.profilePhoto,
-      receiverId: to_receiver.uid,
-      receiverName: to_receiver.name,
-      receiverPic: to_receiver.profilePhoto,
+      callerId: fromCaller.uid,
+      callerName: fromCaller.name,
+      callerPic: fromCaller.profilePhoto,
+      receiverId: toReceiver.uid,
+      receiverName: toReceiver.name,
+      receiverPic: toReceiver.profilePhoto,
       // Random 20-character id: unique per call and not guessable,
       // so nobody can join someone else's call room.
       channelId: FirebaseFirestore.instance.collection('Call').doc().id,
@@ -27,10 +27,10 @@ class CallUtilities {
     );
 
     CallLogModel callLogModel = CallLogModel(
-        callerName: from_Caller.name,
-        callerPic: from_Caller.profilePhoto,
-        receiverName: to_receiver.name,
-        receiverPic: to_receiver.profilePhoto,
+        callerName: fromCaller.name,
+        callerPic: fromCaller.profilePhoto,
+        receiverName: toReceiver.name,
+        receiverPic: toReceiver.profilePhoto,
         callStatus: "Dialled",
         timestamp: DateTime.now().toString(),
         callType: callType
@@ -46,7 +46,7 @@ class CallUtilities {
 
     if (result == CallResult.busy) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("${to_receiver.name} is on another call")));
+          SnackBar(content: Text("${toReceiver.name} is on another call")));
     } else if (result == CallResult.failed) {
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Couldn't start the call. Check your connection.")));

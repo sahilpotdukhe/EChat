@@ -75,8 +75,8 @@ class ReceiverDetails extends StatelessWidget {
                             InkWell(
                               onTap: () {
                                 CallUtilities.dial(
-                                    from_Caller: senderModel,
-                                    to_receiver: receiverModel,
+                                    fromCaller: senderModel,
+                                    toReceiver: receiverModel,
                                     context: context,
                                     callType: 'audioCall');
                               },
@@ -103,8 +103,8 @@ class ReceiverDetails extends StatelessWidget {
                             InkWell(
                               onTap: () {
                                 CallUtilities.dial(
-                                    from_Caller: senderModel,
-                                    to_receiver: receiverModel,
+                                    fromCaller: senderModel,
+                                    toReceiver: receiverModel,
                                     context: context,
                                     callType: 'videoCall');
                               },
