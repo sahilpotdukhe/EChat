@@ -1,4 +1,4 @@
-import 'package:echat/Utils/MessageUtils.dart';
+import 'package:echat/utils/message_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

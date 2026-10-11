@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Matches how the app reads and writes today (see lib/Resources/*Methods.dart).
+// Matches how the app reads and writes today (see lib/resources/*_methods.dart).
 service cloud.firestore {
   match /databases/{database}/documents {
 
