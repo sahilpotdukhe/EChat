@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 class CallUtilities {
   static CallMethods callMethods = CallMethods();
 
-  static Future<CallModel> dial({required UserModel from_Caller, required UserModel to_receiver, context,required String callType}) async {
+  static Future<CallModel> dial({required UserModel from_Caller, required UserModel to_receiver, required BuildContext context,required String callType}) async {
 
     CallModel callModel = CallModel(
       callerId: from_Caller.uid,
@@ -36,24 +36,25 @@ class CallUtilities {
         callType: callType
     );
 
-    bool callMade = await callMethods.makeCall(callModel: callModel);
-
-    print("vfbr");
-    print("Receivername: ${to_receiver.name}");
-    print("Rexeiver url ${to_receiver.profilePhoto}");
-    print("CallerName: ${from_Caller.name}");
-    print("Caller url ${from_Caller.profilePhoto}");
+    CallResult result = await callMethods.makeCall(callModel: callModel);
     callModel.hasDialled = true;
 
-    if (callMade) {
-      LogRepository.addLogs(callLogModel);
-      print("CallUtils ${callModel.channelId}");
+    // Only calls that actually went out go into the call history.
+    if (result == CallResult.started) LogRepository.addLogs(callLogModel);
+
+    if (!context.mounted) return callModel;
+
+    if (result == CallResult.busy) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("${to_receiver.name} is on another call")));
+    } else if (result == CallResult.failed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Couldn't start the call. Check your connection.")));
+    } else {
       // The incoming-call notification is sent by the notifyIncomingCall Cloud Function.
       if(callType=='videoCall'){
-        print("vfbr");
         Navigator.push(context, MaterialPageRoute(builder: (context) => CallScreen(callModel: callModel)));
       }else if(callType == "audioCall"){
-        print("vfbr");
         Navigator.push(context, MaterialPageRoute(builder: (context) => AudioCallScreen(callModel: callModel)));
       }
     }

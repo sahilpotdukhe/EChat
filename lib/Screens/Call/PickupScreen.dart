@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Models/CallLogModel.dart';
 import 'package:echat/Models/UserModel.dart';
 import 'package:echat/Resources/AuthMethods.dart';
@@ -26,6 +29,9 @@ class _PickupScreenState extends State<PickupScreen> {
   final AuthMethods authMethods = AuthMethods();
   String callerEmail = "";
   UserModel? callerModel;
+  final CallMethods callMethods = CallMethods();
+  Timer? _ringTimer;
+  static const Duration _ringTimeout = Duration(seconds: 45);
 
   // initializes and adds log to db
   addToLocalStorage({required String callStatus}) {
@@ -45,6 +51,34 @@ class _PickupScreenState extends State<PickupScreen> {
     // TODO: implement initState
     getUser();
     super.initState();
+    _startRinging();
+  }
+
+  @override
+  void didUpdateWidget(covariant PickupScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A new call replaced an old one while this screen was showing.
+    if (oldWidget.callModel.channelId != widget.callModel.channelId) {
+      _startRinging();
+    }
+  }
+
+  // Rings for at most 45 seconds. A call that is already older than that
+  // (caller's app died, or this app was opened much later) is ended right away.
+  // createdAt is null for calls from old app builds: the timer covers those.
+  void _startRinging() {
+    _ringTimer?.cancel();
+    Timestamp? createdAt = widget.callModel.createdAt;
+    if (createdAt != null &&
+        DateTime.now().difference(createdAt.toDate()) > _ringTimeout) {
+      callMethods.endCall(callModel: widget.callModel);
+      return;
+    }
+    _ringTimer = Timer(_ringTimeout, () {
+      // Nobody answered. Deleting the docs closes this screen, and dispose()
+      // logs the missed call.
+      if (isCallMissed) callMethods.endCall(callModel: widget.callModel);
+    });
   }
 
   getUser() async{
@@ -58,6 +92,7 @@ class _PickupScreenState extends State<PickupScreen> {
   @override
   void dispose() {
     // TODO: implement dispose
+    _ringTimer?.cancel();
     super.dispose();
     if(isCallMissed){
       addToLocalStorage(callStatus: "missed");
@@ -68,7 +103,6 @@ class _PickupScreenState extends State<PickupScreen> {
   @override
   Widget build(BuildContext context) {
     ScaleUtils.init(context);
-    CallMethods callMethods = CallMethods();
     return  Scaffold(
       backgroundColor: UniversalVariables.blackColor,
       body: SafeArea(
@@ -127,6 +161,7 @@ class _PickupScreenState extends State<PickupScreen> {
               onTap: (){
                 // Caller's profile still loading (or gone): nothing to open yet.
                 if (callerModel == null) return;
+                _ringTimer?.cancel();
                 isCallMissed = false;
                 addToLocalStorage(callStatus: "received");
                 callMethods.endCall(callModel: widget.callModel);
@@ -151,6 +186,7 @@ class _PickupScreenState extends State<PickupScreen> {
               children: [
                 InkWell(
                   onTap: (){
+                    _ringTimer?.cancel();
                     isCallMissed = false;
                     addToLocalStorage(callStatus: "received");
                     callMethods.endCall(callModel: widget.callModel);
@@ -167,8 +203,11 @@ class _PickupScreenState extends State<PickupScreen> {
                 ),
                 InkWell(
                   onTap: (){
+                    _ringTimer?.cancel();
                     isCallMissed = false;
                     addToLocalStorage(callStatus: "received");
+                    // Tells the caller (and the server rules) this call is live.
+                    callMethods.markAccepted(callModel: widget.callModel);
                     if(widget.callModel.callType=="videoCall"){
                       Navigator.push(context, MaterialPageRoute(builder: (context) => CallScreen(callModel: widget.callModel,),),);
                     }else if(widget.callModel.callType=="audioCall"){

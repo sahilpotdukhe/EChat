@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
@@ -67,8 +68,15 @@ class AgoraCallSession {
   }
 
   Future<String> _fetchToken() async {
-    final response = await get(Uri.parse(
-        '$_tokenServer?channelName=${Uri.encodeQueryComponent(channelId)}'));
+    final Response response;
+    try {
+      // The free-tier server can take a while to wake up, but not forever.
+      response = await get(Uri.parse(
+              '$_tokenServer?channelName=${Uri.encodeQueryComponent(channelId)}'))
+          .timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      throw Exception('Token server did not respond within 30 seconds');
+    }
     if (response.statusCode != 200) {
       throw Exception('Token server returned ${response.statusCode}');
     }

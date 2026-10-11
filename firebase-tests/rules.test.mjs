@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import {initializeTestEnvironment, assertSucceeds, assertFails} from "@firebase/rules-unit-testing";
-import {doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, Timestamp} from "firebase/firestore";
+import {doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, Timestamp, writeBatch, serverTimestamp} from "firebase/firestore";
 import {ref, uploadBytes, getBytes} from "firebase/storage";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -23,8 +23,25 @@ async function t(name, p) {
 
 const msg = (from, to) => ({senderId: from, receiverId: to, type: "text", message: "hi", timestamp: Timestamp.now(),
   photoUrl: "", videoUrl: "", thumbnailUrl: "", pdfUrl: "", pdfName: ""});
-const call = (from, to, dialled) => ({caller_id: from, caller_name: "A", caller_pic: "", receiver_id: to,
-  receiver_name: "B", receiver_pic: "", channel_id: "x", has_dialled: dialled, callType: "audioCall"});
+const call = (from, to, dialled, extra = {}) => ({caller_id: from, caller_name: "A", caller_pic: "", receiver_id: to,
+  receiver_name: "B", receiver_pic: "", channel_id: "x", has_dialled: dialled, callType: "audioCall", ...extra});
+// Same as makeCall: both docs in one batch, created_at set by the server.
+const dial = (db, from, to, channel) => {
+  const b = writeBatch(db);
+  const extra = {channel_id: channel, created_at: serverTimestamp(), accepted: false};
+  b.set(doc(db, `Call/${from}`), call(from, to, true, extra));
+  b.set(doc(db, `Call/${to}`), call(from, to, false, extra));
+  return b.commit();
+};
+// Put docs in place directly, as if written earlier.
+const seed = (docs) => env.withSecurityRulesDisabled(async (ctx) => {
+  for (const [path, data] of Object.entries(docs)) await setDoc(doc(ctx.firestore(), path), data);
+});
+const clearCalls = () => env.withSecurityRulesDisabled(async (ctx) => {
+  for (const u of ["alice", "bob", "eve"]) await deleteDoc(doc(ctx.firestore(), `Call/${u}`));
+});
+const ago = (ms) => Timestamp.fromMillis(Date.now() - ms);
+const MIN = 60 * 1000, HOUR = 60 * MIN;
 
 console.log("Users");
 await t("alice creates own profile", assertSucceeds(setDoc(doc(alice, "Users/alice"), {uid: "alice", name: "A", email: "a@x"})));
@@ -58,15 +75,43 @@ await t("eve CANNOT list bob's contacts", assertFails(getDocs(collection(eve, "U
 await t("eve CANNOT add alice into bob's list", assertFails(setDoc(doc(eve, "Users/bob/Contacts/alice"), {contact_id: "alice"})));
 
 console.log("Calls (same as makeCall / endCall)");
-await t("alice writes her call doc", assertSucceeds(setDoc(doc(alice, "Call/alice"), call("alice", "bob", true))));
-await t("alice writes bob's call doc", assertSucceeds(setDoc(doc(alice, "Call/bob"), call("alice", "bob", false))));
+await t("alice calls bob (batch, both docs)", assertSucceeds(dial(alice, "alice", "bob", "c1")));
 await t("bob reads his call doc", assertSucceeds(getDoc(doc(bob, "Call/bob"))));
 await t("eve CANNOT read bob's call (room id)", assertFails(getDoc(doc(eve, "Call/bob"))));
 await t("eve CANNOT fake a call from alice", assertFails(setDoc(doc(eve, "Call/bob"), call("alice", "bob", false))));
+await t("alice re-writes the same call", assertSucceeds(dial(alice, "alice", "bob", "c1")));
+await t("eve CANNOT call bob while he's ringing (busy)", assertFails(dial(eve, "eve", "bob", "c2")));
+await t("eve CANNOT mark alice's call accepted", assertFails(updateDoc(doc(eve, "Call/bob"), {accepted: true})));
+await t("bob CANNOT change other fields while accepting", assertFails(updateDoc(doc(bob, "Call/bob"), {accepted: true, channel_id: "evil"})));
+await t("bob marks his doc accepted", assertSucceeds(updateDoc(doc(bob, "Call/bob"), {accepted: true})));
+await t("bob marks alice's doc accepted", assertSucceeds(updateDoc(doc(bob, "Call/alice"), {accepted: true})));
+await t("eve CANNOT call bob during his call (busy)", assertFails(dial(eve, "eve", "bob", "c2")));
 await t("eve CANNOT hang up alice's call", assertFails(deleteDoc(doc(eve, "Call/alice"))));
 await t("bob (receiver) hangs up caller's doc", assertSucceeds(deleteDoc(doc(bob, "Call/alice"))));
 await t("bob hangs up his own doc", assertSucceeds(deleteDoc(doc(bob, "Call/bob"))));
 await t("deleting an already-gone doc is fine", assertSucceeds(deleteDoc(doc(alice, "Call/bob"))));
+
+await clearCalls();
+await t("eve calls bob", assertSucceeds(dial(eve, "eve", "bob", "c3")));
+await t("alice CANNOT call bob, eve's call is fresh (busy)", assertFails(dial(alice, "alice", "bob", "c4")));
+await t("bob CANNOT call alice while he's ringing (busy)", assertFails(dial(bob, "bob", "alice", "c5")));
+
+await clearCalls();
+await seed({"Call/bob": call("eve", "bob", false, {channel_id: "old", created_at: ago(2 * MIN), accepted: false})});
+await t("unanswered call 2 min old can be overwritten", assertSucceeds(dial(alice, "alice", "bob", "c6")));
+
+await clearCalls();
+await seed({"Call/bob": call("eve", "bob", false, {channel_id: "old"})});
+await t("old-app call doc (no created_at) can be overwritten", assertSucceeds(dial(alice, "alice", "bob", "c7")));
+
+await clearCalls();
+await seed({"Call/bob": call("eve", "bob", false, {channel_id: "old", created_at: ago(2 * MIN), accepted: true})});
+await t("accepted call 2 min old CANNOT be overwritten", assertFails(dial(alice, "alice", "bob", "c8")));
+
+await clearCalls();
+await seed({"Call/bob": call("eve", "bob", false, {channel_id: "old", created_at: ago(5 * HOUR), accepted: true})});
+await t("accepted call 5 h old can be overwritten", assertSucceeds(dial(alice, "alice", "bob", "c9")));
+await clearCalls();
 
 console.log("Everything else");
 await t("unknown collection is closed", assertFails(setDoc(doc(alice, "Other/x"), {a: 1})));
