@@ -3,6 +3,8 @@ import 'package:echat/providers/app_provider.dart';
 import 'package:echat/providers/user_provider.dart';
 import 'package:echat/resources/auth_methods.dart';
 import 'package:echat/screens/on_board_screens.dart';
+import 'package:echat/theme/app_colors.dart';
+import 'package:echat/theme/app_theme.dart';
 import 'package:echat/utils/universal_variables.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -13,6 +15,7 @@ import 'package:echat/screens/search_screen.dart';
 import 'package:echat/screens/home_screen.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:provider/provider.dart';
+import 'package:shadcn_kit/shadcn_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 int? isViewed;
@@ -158,10 +161,12 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (_) => AppProvider()),
         ChangeNotifierProvider(create: (_) => GoogleSignInProvider())
       ],
-      child: MaterialApp(
-        title: 'ECHAT',
-        debugShowCheckedModeBanner: false,
-        initialRoute: '/',
+      child: ShadcnApp(
+        title: 'EChat',
+        light: AppColors.shadcnLight,
+        dark: AppColors.shadcnDark,
+        initialMode: ThemeMode.system,
+        materialThemeBuilder: AppTheme.build,
         routes: {
           '/searchScreen': (context) => SearchScreen()},
         home: FutureBuilder(

@@ -36,7 +36,6 @@ dependencies:
   google_sign_in:
   firebase_core:
   flutter_styled_toast:
-  curved_navigation_bar:
   intl:
   firebase_storage:
   image_picker:
@@ -65,6 +64,14 @@ dependencies:
   path: ^1.9.1
   fc_native_video_thumbnail: ^3.0.1
   url_launcher: ^6.3.3
+  # Shared shadcn-style components: github.com/sahilpotdukhe/shadcn_kit
+  # (private). Uses the `github-personal` SSH host from ~/.ssh/config.
+  # Bump `ref` to a newer tag to take kit updates. To edit the kit locally,
+  # see pubspec_overrides.yaml.example.
+  shadcn_kit:
+    git:
+      url: git@github-personal:sahilpotdukhe/shadcn_kit.git
+      ref: v0.2.0
 
 dev_dependencies:
   flutter_test:

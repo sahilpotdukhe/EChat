@@ -1,13 +1,17 @@
+import 'package:echat/enums/user_state.dart';
+import 'package:echat/models/user_model.dart';
 import 'package:echat/resources/auth_methods.dart';
-import 'package:echat/screens/chat_list/widgets/chat_list_widgets.dart';
-import 'package:echat/screens/chat/chat_quiet_box.dart';
 import 'package:echat/screens/chat/chat_screen.dart';
-import 'package:echat/utils/scale_utils.dart';
+import 'package:echat/utils/responsive.dart';
+import 'package:echat/utils/utilities.dart';
+import 'package:echat/widgets/common/app_search_field.dart';
+import 'package:echat/widgets/common/skeleton.dart';
+import 'package:echat/widgets/common/user_avatar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:echat/models/user_model.dart';
-import 'package:echat/utils/universal_variables.dart';
+import 'package:shadcn_kit/shadcn_kit.dart';
 
+/// Find someone on EChat by name or username and start chatting.
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -16,127 +20,157 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  AuthMethods authMethods = AuthMethods();
-  List<UserModel> userList = [];
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  String query = "";
-  TextEditingController searchController = TextEditingController();
+  final _controller = TextEditingController();
+  List<UserModel>? _users;
+  bool _failed = false;
+  String _query = '';
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    User? currentUser = _auth.currentUser;
-    authMethods.fetchAllUsers(currentUser!).then((List<UserModel> list) {// When you use the exclamation mark(!), you’re telling the Dart analyzer that you’re confident the value will not be null at runtime.
-      setState(() {
-        userList = list;
-      });
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _failed = false;
+      _users = null;
     });
+    final me = FirebaseAuth.instance.currentUser;
+    if (me == null) return;
+    try {
+      final list = await AuthMethods().fetchAllUsers(me);
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      if (mounted) setState(() => _users = list);
+    } catch (e) {
+      debugPrint('$e');
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  List<UserModel> get _matches {
+    final q = _query.trim().toLowerCase();
+    final users = _users ?? const [];
+    if (q.isEmpty) return users;
+    return users
+        .where((u) => u.name.toLowerCase().contains(q) || u.username.toLowerCase().contains(q))
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    ScaleUtils.init(context);
     return Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(
-          backgroundColor: UniversalVariables.appThemeColor,
-          iconTheme: IconThemeData(
-            color: Colors.white, //change your color here
-          ),
-          title: TextField(
-            style: TextStyle(color: Colors.white),
-            controller: searchController,
-            textInputAction: TextInputAction.search,
-
-            decoration: InputDecoration(
-                hintText: 'Search',
-                border: InputBorder.none,
-                hintStyle: TextStyle(fontSize: 18.0*ScaleUtils.scaleFactor, color: Colors.white),
-
+      appBar: AppBar(
+        titleSpacing: 0,
+        title: Padding(
+          padding: const EdgeInsets.only(right: ShadcnSpacing.lg),
+          child: ResponsiveCenter(
+            child: AppSearchField(
+              controller: _controller,
+              hint: 'Search by name or username',
+              autofocus: true,
+              onChanged: (v) => setState(() => _query = v),
+              onClear: () => setState(() => _query = ''),
             ),
-            onChanged: (val) {
-              setState(() {
-                query = val;
-                debugPrint(query);
-              });
-            },
           ),
-          actions: [
-            IconButton(
-                icon: Icon(
-                Icons.close,
-                  color: Colors.white,
-                ),
-                onPressed: () {
-                  WidgetsBinding.instance.addPostFrameCallback((_) => searchController.clear());
-                  setState(() {
-                    query="";
-                  });
-                },
-               )
-          ],
         ),
-        body:(query=="")?ChatQuietBox(screen: "search",) :Container(
-          padding: EdgeInsets.symmetric(horizontal: 10*ScaleUtils.horizontalScale),
-          child: buildSuggestions(query),
-        ));
+      ),
+      body: ResponsiveCenter(child: _body(context)),
+    );
   }
 
-  buildSuggestions(String query) {
-    final List<UserModel> suggestionList = query.isEmpty
-        ? []
-        //this block of code filters the userList based on whether either the username or the name of each UserModel object contains the query string. It returns a list of UserModel objects that match the criteria.
-        :userList.where((UserModel usermodel) { // userlist contains list of type UserModel
-            // these returns true when any of the user's username or name matches with the query and add it to list
-            String getUsername = usermodel.username.toLowerCase();
-            String getName = usermodel.name.toLowerCase();
-            String query0 = query.toLowerCase();
-            bool matchesUsername = getUsername.contains(query0);
-            bool matchesName = getName.contains(query0);
-            return (matchesUsername || matchesName);
-          }).toList();//This line closes the where method call and converts the filtered elements into a list. The toList() method is called on the result of the where operation, which returns a list containing only the elements that satisfy the condition specified in the anonymous function.
+  Widget _body(BuildContext context) {
+    if (_failed) {
+      return ShadcnEmptyState(
+        icon: Icons.cloud_off_rounded,
+        title: 'Couldn\'t load people',
+        description: 'Check your internet connection and try again.',
+        action: ShadcnButton(
+          variant: ShadcnButtonVariant.outline,
+          leading: const Icon(Icons.refresh_rounded),
+          onPressed: _load,
+          child: const Text('Retry'),
+        ),
+      );
+    }
+    if (_users == null) return const SkeletonList();
 
+    final matches = _matches;
+    if (matches.isEmpty) {
+      return _query.trim().isEmpty
+          ? const ShadcnEmptyState(
+              icon: Icons.group_outlined,
+              title: 'No one here yet',
+              description: 'When your friends join EChat, they\'ll show up here.',
+            )
+          : ShadcnEmptyState(
+              icon: Icons.search_off_rounded,
+              title: 'No results',
+              description: 'No one matches "${_query.trim()}". Check the spelling or try a username.',
+            );
+    }
+
+    final shadcn = context.shadcn;
     return ListView.builder(
-      itemCount: suggestionList.length,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.only(bottom: ShadcnSpacing.xl2),
+      itemCount: matches.length + 1,
       itemBuilder: (context, index) {
-        UserModel searchedUser = UserModel(
-            uid: suggestionList[index].uid,
-            name: suggestionList[index].name,
-            email: suggestionList[index].email,
-            username: suggestionList[index].username,
-            status: suggestionList[index].status,
-            state: suggestionList[index].state,
-            profilePhoto: suggestionList[index].profilePhoto,
-            gender: suggestionList[index].gender,
-            phoneNumber: suggestionList[index].phoneNumber,
-            authType: suggestionList[index].authType,
-            notificationToken: suggestionList[index].notificationToken
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(ShadcnSpacing.lg, ShadcnSpacing.lg, ShadcnSpacing.lg, ShadcnSpacing.sm),
+            child: ShadcnText(
+              _query.trim().isEmpty ? 'PEOPLE ON ECHAT' : '${matches.length} ${matches.length == 1 ? 'RESULT' : 'RESULTS'}',
+              variant: ShadcnTextVariant.muted,
+              style: const ShadcnTextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.8),
+            ),
+          );
+        }
+        final user = matches[index - 1];
+        return ShadcnListTile(
+          leading: UserAvatar(
+            name: user.name,
+            imageUrl: user.profilePhoto,
+            isOnline: Utils.numToState(user.state) == UserState.online,
+          ),
+          title: _Highlighted(text: user.name.isEmpty ? 'EChat user' : user.name, query: _query),
+          subtitle: Text(user.username.replaceFirst('echat:', '@')),
+          trailing: Icon(Icons.chat_bubble_outline_rounded, color: shadcn.primary, size: 22),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => ChatScreen(receiver: user)),
+          ),
         );
-
-        return ChatCustomTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.grey,
-              backgroundImage: NetworkImage(searchedUser.profilePhoto),
-            ),
-            title:Text(
-              searchedUser.name,
-              style: TextStyle(color: Colors.white,fontSize: 16*ScaleUtils.scaleFactor),
-            ),
-
-            icon: Container(),
-            subtitle:   Text(
-              searchedUser.username,
-              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
-            ),
-            trailing: Icon(Icons.message,color: Colors.white,),
-            margin: EdgeInsets.all(0),
-            mini: false,
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(receiver: searchedUser)));
-            },
-            onLongPress: () {});
       },
     );
+  }
+}
+
+/// Text with the part matching [query] in the brand color.
+class _Highlighted extends StatelessWidget {
+  final String text;
+  final String query;
+
+  const _Highlighted({required this.text, required this.query});
+
+  @override
+  Widget build(BuildContext context) {
+    final q = query.trim().toLowerCase();
+    final start = q.isEmpty ? -1 : text.toLowerCase().indexOf(q);
+    if (start < 0) return Text(text);
+    final end = start + q.length;
+    return Text.rich(TextSpan(children: [
+      TextSpan(text: text.substring(0, start)),
+      TextSpan(
+        text: text.substring(start, end),
+        style: TextStyle(color: context.shadcn.primary, fontWeight: FontWeight.w700),
+      ),
+      TextSpan(text: text.substring(end)),
+    ]));
   }
 }

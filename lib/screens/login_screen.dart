@@ -1,16 +1,15 @@
-
 import 'package:echat/resources/auth_methods.dart';
-import 'package:echat/screens/sign_up_screen.dart';
-import 'package:echat/utils/scale_utils.dart';
-import 'package:echat/utils/universal_variables.dart';
 import 'package:echat/screens/home_screen.dart';
-import 'package:echat/widgets/loading.dart';
+import 'package:echat/screens/sign_up_screen.dart';
+import 'package:echat/theme/app_colors.dart';
+import 'package:echat/utils/validators.dart';
+import 'package:echat/widgets/auth_layout.dart';
+import 'package:echat/widgets/common/busy_overlay.dart';
+import 'package:echat/widgets/google_sign_in_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:echat/widgets/google_sign_in_button.dart';
-import 'package:flutter_styled_toast/flutter_styled_toast.dart';
-import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
+import 'package:shadcn_kit/shadcn_kit.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,538 +19,184 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  bool _isHidden = true;
-  bool _isLoading = false;
-  final _loginkey = GlobalKey<FormState>();
-  bool isPressed = false;
-  final FirebaseAuth auth = FirebaseAuth.instance;
-  TextEditingController email = TextEditingController();
-  TextEditingController pass = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  late final _authMethods = AuthMethods();
 
-  AuthMethods authMethods = AuthMethods();
+  bool _isLoading = false;
+  bool _isGoogleLoading = false;
+  bool _isSendingReset = false;
+
+  bool get _busy => _isLoading || _isGoogleLoading;
 
   @override
   void dispose() {
-    // TODO: implement dispose
+    _email.dispose();
+    _password.dispose();
     super.dispose();
   }
 
-  void _togglepasswordview() {
-    setState(() {
-      _isHidden = !_isHidden;
-    });
+  void _goHome() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => HomeScreen()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _signIn() async {
+    FocusScope.of(context).unfocus();
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+
+    final user = await _authMethods.logInByEmail(_email.text.trim(), _password.text);
+    if (!mounted) return;
+    if (user != null) {
+      await _authMethods.saveNotificationToken(user.uid);
+      if (!mounted) return;
+      _goHome();
+      return;
+    }
+    setState(() => _isLoading = false);
+    showShadcnAlertDialog(
+      context,
+      icon: ShadcnIconBadge(Icons.error_outline_rounded, color: context.shadcn.destructive),
+      title: 'Couldn\'t sign you in',
+      description: 'The email or password is incorrect. Check them and try again.',
+      confirmLabel: 'Try again',
+      cancelLabel: null,
+    );
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      final googleProvider = Provider.of<GoogleSignInProvider>(context, listen: false);
+      final signedIn = await googleProvider.googleLogin(context);
+      if (!mounted) return;
+      if (signedIn == true) {
+        _goHome();
+        return;
+      }
+      setState(() => _isGoogleLoading = false);
+      // null means the user closed the Google picker: no error to show.
+      if (signedIn == false) {
+        showShadcnToast(context, title: 'Google sign-in failed. Please try again.', variant: ShadcnToastVariant.destructive);
+      }
+    } catch (e) {
+      debugPrint('$e');
+      if (mounted) setState(() => _isGoogleLoading = false);
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    final email = _email.text.trim();
+    if (!Validators.isEmail(email)) {
+      showShadcnAlertDialog(
+        context,
+        icon: const ShadcnIconBadge(Icons.info_outline_rounded),
+        title: 'Reset your password',
+        description: 'Type your account\'s email address in the email field above, '
+            'then tap "Forgot password?" again.',
+        confirmLabel: 'Got it',
+        cancelLabel: null,
+      );
+      return;
+    }
+    setState(() => _isSendingReset = true);
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (!mounted) return;
+      showShadcnAlertDialog(
+        context,
+        icon: ShadcnIconBadge(Icons.mark_email_read_outlined, color: context.colors.success),
+        title: 'Check your inbox',
+        description: 'We sent a password reset link to $email. '
+            'If you don\'t see it, look in your spam folder.',
+        confirmLabel: 'OK',
+        cancelLabel: null,
+      );
+    } catch (e) {
+      debugPrint('$e');
+      if (!mounted) return;
+      showShadcnToast(context, title: 'Couldn\'t send the reset email. Please try again.', variant: ShadcnToastVariant.destructive);
+    } finally {
+      if (mounted) setState(() => _isSendingReset = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-   ScaleUtils.init(context);
-    return Scaffold(
-      backgroundColor: UniversalVariables.appThemeColor,
-      body: Stack(
-        children: [
-          (isPressed)
-              ? Container(
-                  height: ScaleUtils.height,
-                  width: ScaleUtils.width,
-                  color: Colors.white,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Lottie.asset(
-                        'assets/google_loader.json',
-                      ),
-                      RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'Signing ',
-                              style: TextStyle(
-                                color: Colors.blue,
-                                // Set the color for the word "Signing"
-                                fontSize: 24 * ScaleUtils.scaleFactor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            TextSpan(
-                              text: 'In ',
-                              style: TextStyle(
-                                color: Colors.yellow.shade700,
-                                // Set the color for the word "in"
-                                fontSize: 24 * ScaleUtils.scaleFactor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            TextSpan(
-                              text: 'Please ',
-                              style: TextStyle(
-                                color: Colors.red,
-                                // Set the color for the word "Please"
-                                fontSize: 24 * ScaleUtils.scaleFactor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            TextSpan(
-                              text: 'wait',
-                              style: TextStyle(
-                                color: Colors.green,
-                                // Set the color for the word "wait"
-                                fontSize: 24 * ScaleUtils.scaleFactor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    ],
-                  ))
-              : ListView(
-                  shrinkWrap: true,
-                  children: [
-                    Container(
-                      height: 267 * ScaleUtils.verticalScale,
-                      child: Row(
-                        // mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          SizedBox(
-                            width: 30 * ScaleUtils.horizontalScale,
-                          ),
-                          Padding(
-                            padding: EdgeInsets.all(8.0 * ScaleUtils.scaleFactor),
-                            child: Text(
-                              "Hello\nSign in!",
-                              style: TextStyle(
-                                  fontSize: 26 * ScaleUtils.scaleFactor,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          Spacer(),
-                          Image.asset(
-                            'assets/login.png',
-                            width: 240 * ScaleUtils.horizontalScale,
-                          )
-                        ],
-                      ),
-                    ),
-                    Container(
-                      height: ScaleUtils.height - 267 * ScaleUtils.verticalScale,
-                      decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(50 * ScaleUtils.scaleFactor),
-                              topRight: Radius.circular(50 * ScaleUtils.scaleFactor))),
-                      child: Form(
-                        key: _loginkey,
-                        child: Container(
-                          margin: EdgeInsets.fromLTRB(38*ScaleUtils.horizontalScale,38*ScaleUtils.verticalScale,38*ScaleUtils.horizontalScale,0),
-                          decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius:
-                                  BorderRadius.circular(25 * ScaleUtils.scaleFactor)),
-                          child: ListView(
-                            padding: EdgeInsets.fromLTRB(
-                                0, 32 * ScaleUtils.verticalScale, 0, 32 * ScaleUtils.verticalScale),
-                            shrinkWrap: true,
-                            children: [
-                              TextFormField(
-                                controller: email,
-                                decoration: InputDecoration(
-                                    hintText: 'Enter Your Email',
-                                    labelText: 'Email',
-                                    floatingLabelStyle: TextStyle(
-                                        fontSize: 16 * ScaleUtils.scaleFactor,
-                                        fontWeight: FontWeight.w500,
-                                        color:
-                                            UniversalVariables.appThemeColor),
-                                    labelStyle: TextStyle(
-                                      fontSize: 16 * ScaleUtils.scaleFactor,
-                                    ),
-                                    border: OutlineInputBorder(),
-                                    focusedBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(
-                                            color: UniversalVariables
-                                                .appThemeColor,
-                                            width: 2 * ScaleUtils.horizontalScale)),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(
-                                          color:
-                                              UniversalVariables.appThemeColor,
-                                          width: 2 * ScaleUtils.horizontalScale),
-                                    ),
-                                    suffixIcon: Icon(
-                                      Icons.email,
-                                      color: UniversalVariables.appThemeColor,
-                                    )),
-                                keyboardType: TextInputType.emailAddress,
-                                validator: (value) {
-                                  if (value!.isEmpty) {
-                                    return 'Enter email address';
-                                  } else if (!RegExp(
-                                          r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?"
-                                          r"(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?)*$")
-                                      .hasMatch(value)) {
-                                    return 'Please enter a valid email address';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              SizedBox(
-                                height: 16 * ScaleUtils.verticalScale,
-                              ),
-                              TextFormField(
-                                controller: pass,
-                                decoration: InputDecoration(
-                                    hintText: 'Enter Password',
-                                    labelText: 'Password',
-                                    floatingLabelStyle: TextStyle(
-                                        fontSize: 16 * ScaleUtils.scaleFactor,
-                                        fontWeight: FontWeight.w500,
-                                        color:
-                                            UniversalVariables.appThemeColor),
-                                    labelStyle:
-                                        TextStyle(fontSize: 16 * ScaleUtils.scaleFactor),
-                                    border: OutlineInputBorder(),
-                                    focusedBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(
-                                            color: UniversalVariables
-                                                .appThemeColor,
-                                            width: 2 * ScaleUtils.horizontalScale)),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(
-                                          color:
-                                              UniversalVariables.appThemeColor,
-                                          width: 2 * ScaleUtils.horizontalScale),
-                                    ),
-                                    suffix: InkWell(
-                                      onTap: _togglepasswordview,
-                                      child: Icon(
-                                        _isHidden
-                                            ? Icons.visibility_off
-                                            : Icons.visibility,
-                                        color: UniversalVariables.appThemeColor,
-                                      ),
-                                    ),
-                                    errorMaxLines: 2),
-                                obscureText: _isHidden,
-                                validator: (value) {
-                                  if (value!.isEmpty) {
-                                    return 'Enter the Password';
-                                  } else if (!RegExp(
-                                          r'^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[!@#\$&*~]).{8,}$')
-                                      .hasMatch(value)) {
-                                    return 'Password must have atleast one Uppercase, one Lowercase, one special character, and one numeric value';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              SizedBox(
-                                height: 9 * ScaleUtils.verticalScale,
-                              ),
-                              InkWell(
-                                onTap: () {
-                                  if (email.text.isNotEmpty) {
-                                    auth.sendPasswordResetEmail(
-                                        email: email.text);
-                                    showDialog(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          Future.delayed(Duration(seconds: 13), () {
-                                                    // Close only this dialog, and only if the user
-                                                    // hasn't already closed it.
-                                                    if (context.mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
-                                                      Navigator.of(context).pop(true);
-                                                    }
-                                                  });
-                                          return AlertDialog(
-                                            title: Center(
-                                              child: Column(
-                                                children: [
-                                                  Lottie.asset(
-                                                      'assets/email.json',
-                                                      height:
-                                                          0.15 * ScaleUtils.verticalScale,
-                                                      width: 0.5 *
-                                                          ScaleUtils.horizontalScale),
-                                                  Text(
-                                                    'Password Reset',
-                                                    style: TextStyle(
-                                                        color: Colors.red,
-                                                        fontSize:
-                                                            22 * ScaleUtils.scaleFactor,
-                                                        fontWeight:
-                                                            FontWeight.bold),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            content: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
-                                                  'An email has been sent to ',
-                                                  textAlign: TextAlign.center,
-                                                  style: TextStyle(),
-                                                ),
-                                                Text(
-                                                  email.text,
-                                                  style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold),
-                                                ),
-                                                Text(
-                                                  'Click the link in the email to change password.',
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                                SizedBox(
-                                                  height: 10 * ScaleUtils.verticalScale,
-                                                ),
-                                                Text(
-                                                  'Didn\'t get the email?',
-                                                  textAlign: TextAlign.center,
-                                                  style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold),
-                                                ),
-                                                Text(
-                                                  'Check entered email or check spam folder.',
-                                                  textAlign: TextAlign.center,
-                                                  style: TextStyle(),
-                                                ),
-                                                TextButton(
-                                                    child: Text(
-                                                      'Retry',
-                                                      style: TextStyle(
-                                                        fontSize:
-                                                            20 * ScaleUtils.scaleFactor,
-                                                      ),
-                                                    ),
-                                                    onPressed: () {
-                                                      Navigator.pop(
-                                                          context, true);
-                                                    }),
-                                              ],
-                                            ),
-                                          );
-                                        });
-                                  } else {
-                                    showDialog(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return AlertDialog(
-                                              title: Center(
-                                                child: Text(
-                                                  'Error',
-                                                  style: TextStyle(
-                                                      color: Colors.red,
-                                                      fontSize:
-                                                          24 * ScaleUtils.scaleFactor,
-                                                      fontWeight:
-                                                          FontWeight.bold),
-                                                ),
-                                              ),
-                                              content: Text(
-                                                'Enter email in the email field or check if the email is valid.',
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                    fontSize: 16 * ScaleUtils.scaleFactor),
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                    child: Text('Retry'),
-                                                    onPressed: () {
-                                                      Navigator.pop(
-                                                          context, true);
-                                                    })
-                                              ]);
-                                        });
-                                  }
-                                },
-                                child: Text(
-                                  'Forgot Password?',
-                                  textAlign: TextAlign.end,
-                                  style: TextStyle(
-                                      color: UniversalVariables.appThemeColor,
-                                      fontSize: 16 * ScaleUtils.scaleFactor,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                              ),
-                              SizedBox(
-                                height: 29 * ScaleUtils.verticalScale,
-                              ),
-                              Center(
-                                child: (_isLoading)
-                                    ? Loading()
-                                    : ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              UniversalVariables.appThemeColor,
-                                        ),
-                                        onPressed: () {
-                                          if (_loginkey.currentState!
-                                              .validate()) {
-                                            setState(() {
-                                              _isLoading = true;
-                                            });
-                                            authMethods
-                                                .logInByEmail(
-                                                    email.text, pass.text)
-                                                .then((user) async {
-                                              // Screen may have closed while signing in.
-                                              if (!context.mounted) return;
-                                              if (user != null) {
-                                                debugPrint('$user');
-                                                await authMethods
-                                                    .saveNotificationToken(user.uid);
-                                                if (!context.mounted) return;
-                                                Navigator.pushAndRemoveUntil(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                        builder: (context) =>
-                                                            HomeScreen()),
-                                                    (route) => false);
-                                                setState(() {
-                                                  _isLoading = false;
-                                                });
-                                              } else {
-                                                setState(() {
-                                                  _isLoading = false;
-                                                });
-                                                {
-                                                  showDialog(
-                                                      context: context,
-                                                      builder: (BuildContext
-                                                          context) {
-                                                        return AlertDialog(
-                                                            title: Center(
-                                                              child: Text(
-                                                                'Error',
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                        .red,
-                                                                    fontSize: 24 *
-                                                                        ScaleUtils.scaleFactor,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold),
-                                                              ),
-                                                            ),
-                                                            content: Text(
-                                                              '       There is no user record \n corresponding to the identifier.',
-                                                              style: TextStyle(
-                                                                  fontSize: 16*ScaleUtils.scaleFactor),
-                                                            ),
-                                                            actions: [
-                                                              TextButton(
-                                                                  child: Text(
-                                                                      'Retry'),
-                                                                  onPressed:
-                                                                      () {
-                                                                    Navigator.pop(
-                                                                        context,
-                                                                        true);
-                                                                  })
-                                                            ]);
-                                                      });
-                                                }
-                                                showToast('Login failed');
-                                              }
-                                            });
-                                          }
-                                        },
-                                        child: Padding(
-                                          padding:  EdgeInsets.fromLTRB(
-                                              80*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 80*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale),
-                                          child: Text(
-                                            'SIGN IN',
-                                            style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 18*ScaleUtils.scaleFactor,
-                                                fontWeight: FontWeight.w600),
-                                          ),
-                                        ),
-                                      ),
-                              ),
-                              SizedBox(
-                                height: 20*ScaleUtils.verticalScale,
-                              ),
-                              Center(
-                                child: Text(
-                                  'OR',
-                                  style: TextStyle(
-                                      fontSize: 20*ScaleUtils.scaleFactor,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              SizedBox(
-                                height: 20*ScaleUtils.verticalScale,
-                              ),
-                              GoogleSignInButton(
-                            padding: EdgeInsets.all(4*ScaleUtils.scaleFactor),
-                                  elevation: 10, onPressed: () async {
-                                try {
-                                  setState(() {
-                                    isPressed = true;
-                                  });
-                                  final googleProvider =
-                                      Provider.of<GoogleSignInProvider>(context,
-                                          listen: false);
-                                  final signedIn = await googleProvider.googleLogin(context);
-                                  if (signedIn != true) {
-                                    setState(() {
-                                      isPressed = false;
-                                    });
-                                    if (signedIn == false && context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Google sign-in failed. Please try again.')));
-                                    }
-                                    return;
-                                  }
-                                  if (!context.mounted) return;
-                                  Navigator.pushReplacement(context,
-                                      MaterialPageRoute(builder: (context) {
-                                    return HomeScreen();
-                                  }));
-                                  setState(() {
-                                    isPressed = false;
-                                  });
-                                } catch (e) {
-                                  debugPrint('$e');
-                                }
-                              }),
-                              SizedBox(height: 20*ScaleUtils.verticalScale),
-                              Column(
-                                children: [
-                                  Text(
-                                    "Don't have account?",
-                                    style: TextStyle(
-                                        fontSize: 15*ScaleUtils.scaleFactor,
-                                        color: Colors.grey,
-                                        fontWeight: FontWeight.w500),
-                                  ),
-                                  MaterialButton(
-                                      child: Text(
-                                        "Sign up",
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18*ScaleUtils.scaleFactor),
-                                      ),
-                                      onPressed: () {
-                                        Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                                builder: (context) =>
-                                                    SignUpScreen()));
-                                      }),
-                                ],
-                              )
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-        ],
+    return BusyOverlay(
+      visible: _isGoogleLoading,
+      message: 'Signing you in…',
+      child: AuthLayout(
+        title: 'Welcome back',
+        subtitle: 'Sign in to pick up your conversations.',
+        illustration: 'assets/login.png',
+        form: AutofillGroup(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ShadcnInput(
+                  controller: _email,
+                  label: 'Email',
+                  placeholder: 'you@example.com',
+                  leading: const Icon(Icons.mail_outline_rounded),
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.email],
+                  autocorrect: false,
+                  validator: Validators.email,
+                  autovalidateMode: AutovalidateMode.onUserInteractionIfError,
+                  style: authInputStyle,
+                ),
+                ShadcnGap.lg,
+                ShadcnPasswordInput(
+                  controller: _password,
+                  label: 'Password',
+                  placeholder: 'Your password',
+                  leading: const Icon(Icons.lock_outline_rounded),
+                  textInputAction: TextInputAction.done,
+                  validator: Validators.requiredPassword,
+                  autovalidateMode: AutovalidateMode.onUserInteractionIfError,
+                  style: authInputStyle,
+                  onSubmitted: (_) => _busy ? null : _signIn(),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ShadcnButton(
+                    variant: ShadcnButtonVariant.link,
+                    loading: _isSendingReset,
+                    onPressed: _busy ? null : _resetPassword,
+                    child: const Text('Forgot password?'),
+                  ),
+                ),
+                ShadcnGap.sm,
+                ShadcnButton(
+                  size: ShadcnButtonSize.lg,
+                  fullWidth: true,
+                  loading: _isLoading,
+                  onPressed: _isGoogleLoading ? null : _signIn,
+                  child: const Text('Sign in'),
+                ),
+                ShadcnGap.xl2,
+                const ShadcnSeparator(label: 'or'),
+                ShadcnGap.xl2,
+                GoogleSignInButton(onPressed: _busy ? null : _signInWithGoogle),
+              ],
+            ),
+          ),
+        ),
+        footer: AuthFooterLink(
+          question: 'New to EChat?',
+          action: 'Create an account',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const SignUpScreen()),
+          ),
+        ),
       ),
     );
   }

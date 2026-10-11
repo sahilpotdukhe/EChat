@@ -10,10 +10,10 @@ import 'package:echat/widgets/new_user_details.dart';
 import 'package:echat/enums/user_state.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:echat/screens/contact_page.dart';
+import 'package:echat/utils/responsive.dart';
 import 'package:echat/utils/universal_variables.dart';
-import 'package:flutter/scheduler.dart';
+import 'package:echat/widgets/common/brand_logo.dart';
 import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -147,54 +147,114 @@ class _HomeScreenState extends State<HomeScreen>  with WidgetsBindingObserver{
         // TODO: Handle this case.
     }
   }
-  int page = 0;
-  GlobalKey<CurvedNavigationBarState> bottomNavigationKey = GlobalKey(); // The GlobalKey class is commonly used in Flutter to provide access to the state of a widget from outside of the widget itself.
+  static const _tabs = [
+    _Tab('Chats', Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded),
+    _Tab('Calls', Icons.call_outlined, Icons.call_rounded),
+    _Tab('People', Icons.group_outlined, Icons.group_rounded),
+    _Tab('Contacts', Icons.contacts_outlined, Icons.contacts_rounded),
+    _Tab('Profile', Icons.person_outline_rounded, Icons.person_rounded),
+  ];
+  static const _profileTab = 4;
+
+  int _page = 0;
+
+  // Tabs are built the first time they're opened and then kept, so switching
+  // back keeps their scroll position and doesn't reload everything. (Built
+  // lazily so e.g. Contacts doesn't ask for permission before it's opened.)
+  final Set<int> _visited = {0};
+
+  void _select(int index) {
+    if (index == _page) return;
+    setState(() {
+      _page = index;
+      _visited.add(index);
+    });
+  }
+
+  Widget _pageFor(int index) {
+    switch (index) {
+      case 0:
+        return ChatListScreen(onOpenProfile: () => _select(_profileTab));
+      case 1:
+        return CallLogsScreen();
+      case 2:
+        return AvailableUsers();
+      case 3:
+        return ContactPage();
+      default:
+        return NewUserDetails();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final useRail = !context.isCompact;
+    final pages = IndexedStack(
+      index: _page,
+      children: [
+        for (var i = 0; i < _tabs.length; i++)
+          _visited.contains(i) ? _pageFor(i) : const SizedBox.shrink(),
+      ],
+    );
+
     return PickupLayout(
-      scaffold: Scaffold(
-          backgroundColor: Colors.grey,
-          bottomNavigationBar: CurvedNavigationBar(
-            key: bottomNavigationKey,
-            index: 0,
-            items: const [
-              Icon(Icons.chat),
-              Icon(Icons.call),
-              Icon(Icons.person_search),
-              Icon(Icons.contacts),
-              Icon(Icons.person)
-            ],
-            height: 60,
-            color: Colors.white,
-            buttonBackgroundColor: Colors.white,
-            backgroundColor: UniversalVariables.appThemeColor,
-            animationCurve: Curves.easeInOut,
-            animationDuration: Duration(milliseconds: 300),
-            onTap: (index) {
-              setState(() {
-                page = index;
-              });
-            },
-            letIndexChange: (index) => true,
-          ),
-          body: getPage(page),
+      scaffold: PopScope(
+        // Back from another tab returns to Chats before leaving the app.
+        canPop: _page == 0,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _select(0);
+        },
+        child: Scaffold(
+          body: useRail
+              ? Row(
+                  children: [
+                    NavigationRail(
+                      selectedIndex: _page,
+                      onDestinationSelected: _select,
+                      labelType: NavigationRailLabelType.all,
+                      groupAlignment: -0.85,
+                      leading: const Padding(
+                        padding: EdgeInsets.only(top: 8, bottom: 16),
+                        child: BrandLogo(size: 40, showName: false),
+                      ),
+                      destinations: [
+                        for (final t in _tabs)
+                          NavigationRailDestination(
+                            icon: Icon(t.icon),
+                            selectedIcon: Icon(t.selectedIcon),
+                            label: Text(t.label),
+                          ),
+                      ],
+                    ),
+                    const VerticalDivider(width: 1),
+                    Expanded(child: pages),
+                  ],
+                )
+              : pages,
+          bottomNavigationBar: useRail
+              ? null
+              : NavigationBar(
+                  selectedIndex: _page,
+                  onDestinationSelected: _select,
+                  destinations: [
+                    for (final t in _tabs)
+                      NavigationDestination(
+                        icon: Icon(t.icon),
+                        selectedIcon: Icon(t.selectedIcon),
+                        label: t.label,
+                      ),
+                  ],
+                ),
         ),
+      ),
     );
   }
 }
 
-getPage(int page) {
-  switch (page) {
-    case 0:
-      return ChatListScreen();
-    case 1:
-      return CallLogsScreen();
-    case 2:
-      return AvailableUsers();
-    case 3:
-      return ContactPage();
-    case 4:
-      return NewUserDetails();
-  }
+class _Tab {
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+
+  const _Tab(this.label, this.icon, this.selectedIcon);
 }
