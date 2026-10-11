@@ -64,6 +64,7 @@ dependencies:
   pdfrx: ^2.6.5
   path: ^1.9.1
   fc_native_video_thumbnail: ^3.0.1
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:

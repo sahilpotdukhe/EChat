@@ -5,11 +5,10 @@ import 'package:echat/Resources/FirebaseStorageMethod.dart';
 import 'package:echat/Screens/Call/PickupLayout.dart';
 import 'package:echat/Screens/ChatList/ChatListScreenWidgets/ChatListWidgets.dart';
 import 'package:echat/Screens/ChatScreen/ChatQuietBox.dart';
+import 'package:echat/Screens/ChatScreen/MessageBubble.dart';
 import 'package:echat/Utils/CallUtilities.dart';
+import 'package:echat/Utils/MessageUtils.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
-import 'package:echat/Widgets/CachedVideoPlayer.dart';
-import 'package:echat/Widgets/FullImageWidget.dart';
-import 'package:echat/Widgets/PdfViewerScreen.dart';
 import 'package:echat/Widgets/ReceiverDetails.dart';
 import 'package:echat/enum/ViewState.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,12 +17,8 @@ import 'package:echat/Models/MessageModel.dart';
 import 'package:echat/Models/UserModel.dart';
 import 'package:echat/Provider/ImageUploadProvider.dart';
 import 'package:echat/Utils/UniversalVariables.dart';
-import 'package:echat/Widgets/CachedChatImage.dart';
 import 'package:echat/Widgets/ModalTile.dart';
-import 'package:hexcolor/hexcolor.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -47,13 +42,54 @@ class _ChatScreenState extends State<ChatScreen> {
   FirebaseStorageMethod firebaseStorageMethod = FirebaseStorageMethod();
   double uploadProgress = 0.0;
 
+  // Messages load newest-first, a page at a time; scrolling up loads more.
+  static const int _pageSize = 30;
+  int _messageLimit = _pageSize;
+  int _loadedCount = 0;
+  // Built once (and again only when loading more), not on every rebuild:
+  // a new query per keystroke would re-subscribe to Firestore each time.
+  late Stream<QuerySnapshot> _messagesStream;
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    User? currentUser = FirebaseAuth.instance.currentUser;
-    _currentUserId = currentUser!.uid;
+    _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    _messagesStream = _messagesQuery();
+    _scrollController.addListener(_loadMoreIfAtTop);
     initializeSender();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    messageController.dispose();
+    super.dispose();
+  }
+
+  Stream<QuerySnapshot> _messagesQuery() => FirebaseFirestore.instance
+      .collection("messages")
+      .doc(_currentUserId)
+      .collection(widget.receiver.uid)
+      .orderBy("timestamp", descending: true)
+      .limit(_messageLimit)
+      .snapshots();
+
+  // The list is reversed, so the oldest loaded message is at maxScrollExtent.
+  void _loadMoreIfAtTop() {
+    final position = _scrollController.position;
+    final bool nearTop = position.pixels >= position.maxScrollExtent - 200;
+    // Fewer messages than the limit means we already have the whole chat.
+    if (!nearTop || _loadedCount < _messageLimit) return;
+    setState(() {
+      _messageLimit += _pageSize;
+      _messagesStream = _messagesQuery();
+    });
+  }
+
+  void _showError(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
   Future<void> initializeSender() async {
@@ -67,7 +103,7 @@ class _ChatScreenState extends State<ChatScreen> {
         sender = userProvider.getUser;
       });
     } else {
-      print('User is null');
+      debugPrint('User is null');
     }
   }
 
@@ -159,70 +195,51 @@ class _ChatScreenState extends State<ChatScreen> {
         body: Column(
           children: [
             Flexible(
-                child: StreamBuilder(
-              stream: FirebaseFirestore.instance
-                  .collection("messages")
-                  .doc(_currentUserId)
-                  .collection(widget.receiver.uid)
-                  .orderBy("timestamp", descending: true)
-                  .snapshots(),
-              builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+                child: StreamBuilder<QuerySnapshot>(
+              stream: _messagesStream,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                      child: Text("Couldn't load messages",
+                          style: TextStyle(color: Colors.white)));
+                }
                 if (snapshot.data == null) {
                   return Center(child: CircularProgressIndicator());
                 }
-                if (snapshot.data!.docs.length == 0) {
+                final docs = snapshot.data!.docs;
+                _loadedCount = docs.length;
+                if (docs.isEmpty) {
                   return ChatQuietBox(
                     screen: "ChatScreen",
                   );
                 }
+                final bool hasOlder = docs.length >= _messageLimit;
+                final DateTime now = DateTime.now();
                 return ListView.builder(
-                  itemCount: snapshot.data!.docs.length,
+                  controller: _scrollController,
+                  itemCount: docs.length,
                   reverse: true,
                   itemBuilder: (context, index) {
-                    Timestamp currentMessageDate = snapshot.data!.docs[index][
-                        'timestamp']; //This line extracts the timestamp of the current message from the docs list in the snapshot.
-                    DateTime currentMessageDateTime =
-                        currentMessageDate.toDate();
-                    String messageDate = '';
+                    final MessageModel message = MessageModel.fromMap(
+                        docs[index].data() as Map<String, dynamic>);
+                    final DateTime messageTime = message.timestamp.toDate();
 
-                    // Get the current message's date
-                    DateTime? nextDateTime;
-                    //This block prepares to get the timestamp of the next message.
-                    if (index < snapshot.data!.docs.length - 1) {
-                      //It checks if the current message is not the last one in the list to avoid an index out of bounds error.
-                      Timestamp nextDate =
-                          snapshot.data!.docs[index + 1]['timestamp'];
-                      nextDateTime = nextDate.toDate();
+                    // The list is newest-first, so index + 1 is the previous message.
+                    // Show a date chip where the day changes. The oldest loaded
+                    // message only gets one if there is nothing older to load.
+                    bool startsNewDay;
+                    if (index == docs.length - 1) {
+                      startsNewDay = !hasOlder;
+                    } else {
+                      final previous = MessageModel.fromMap(
+                          docs[index + 1].data() as Map<String, dynamic>);
+                      startsNewDay = !MessageUtils.isSameDay(
+                          messageTime, previous.timestamp.toDate());
                     }
-
-                    // Compare the current message's date with the next message's date
-                    //This condition checks if the current message is the last one or if its date is different from the date of the next message.
-                    // If either of these conditions is true, it means the current message marks the start of a new date group.
-                    if (index == snapshot.data!.docs.length - 1 ||
-                        currentMessageDateTime.year != nextDateTime?.year ||
-                        currentMessageDateTime.month != nextDateTime?.month ||
-                        currentMessageDateTime.day != nextDateTime?.day) {
-                      // Messages are from a different day
-                      if (currentMessageDateTime.year == DateTime.now().year &&
-                          currentMessageDateTime.month ==
-                              DateTime.now().month &&
-                          currentMessageDateTime.day == DateTime.now().day) {
-                        messageDate = 'Today';
-                      } else if (currentMessageDateTime.year ==
-                              DateTime.now().year &&
-                          currentMessageDateTime.month ==
-                              DateTime.now().month &&
-                          currentMessageDateTime.day ==
-                              DateTime.now().day - 1) {
-                        messageDate = 'Yesterday';
-                      } else {
-                        messageDate = DateFormat('dd-MM-yyyy')
-                            .format(currentMessageDate.toDate());
-                      }
-                    }
+                    final bool isMe = message.senderId == _currentUserId;
                     return Column(
                       children: [
-                        if (messageDate.isNotEmpty)
+                        if (startsNewDay)
                           Padding(
                             padding: EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
                             child: Container(
@@ -232,7 +249,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                               padding: EdgeInsets.fromLTRB(10*ScaleUtils.horizontalScale, 4*ScaleUtils.verticalScale, 10*ScaleUtils.horizontalScale, 4*ScaleUtils.verticalScale),
                               child: Text(
-                                messageDate,
+                                MessageUtils.chatDateLabel(messageTime, now),
                                 style: TextStyle(
                                     fontSize: 15*ScaleUtils.scaleFactor,
                                     color: Colors.black),
@@ -240,17 +257,10 @@ class _ChatScreenState extends State<ChatScreen> {
                             ),
                           ),
                         Container(
-                            // Container for particular message either text message or Image message
-                            alignment: (snapshot.data!.docs[index]
-                                        ['senderId'] ==
-                                    _currentUserId)
+                            alignment: isMe
                                 ? Alignment.centerRight
                                 : Alignment.centerLeft,
-                            margin: EdgeInsets.fromLTRB(0, 0, 0, 0),
-                            child: (snapshot.data!.docs[index]['senderId'] ==
-                                    _currentUserId)
-                                ? senderLayout(snapshot.data!.docs[index])
-                                : receiverLayout(snapshot.data!.docs[index])),
+                            child: MessageBubble(message: message, isMe: isMe)),
                       ],
                     );
                   },
@@ -306,330 +316,18 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget senderLayout(DocumentSnapshot snapshot) {
-    Timestamp date = snapshot['timestamp'];
-    DateTime datenew = date.toDate();
-
-    return Container(
-      margin: EdgeInsets.fromLTRB(0, 12*ScaleUtils.verticalScale, 12*ScaleUtils.horizontalScale, 0),
-      constraints:
-          BoxConstraints(maxWidth: ScaleUtils.width * 0.75),
-      decoration: BoxDecoration(
-          gradient: UniversalVariables.appGradient,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(10*ScaleUtils.scaleFactor),
-            topRight: Radius.circular(10*ScaleUtils.scaleFactor),
-            bottomLeft: Radius.circular(10*ScaleUtils.scaleFactor),
-          )),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              (snapshot['type'] == 'text')
-                  ? Flexible(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(12*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 20*ScaleUtils.horizontalScale, 0),
-                        child: Text(
-                          snapshot['message'],
-                          style: TextStyle(color: Colors.white, fontSize: 15*ScaleUtils.scaleFactor),
-                        ),
-                      ),
-                    )
-                  : (snapshot['type'] == 'mp4') // Check if type is mp4
-                      ? GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CachedVideoPlayerScreen(
-                                    videoUrl: snapshot['photoUrl']),
-                              ),
-                            );
-                          },
-                          child: Padding(
-                            padding:  EdgeInsets.fromLTRB(8.0*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 8*ScaleUtils.horizontalScale, 0),
-                            child: Stack(
-                              children: [
-                                CachedChatImage(
-                                  imageUrl: snapshot['thumbnailUrl'],
-                                  height: 250*ScaleUtils.verticalScale,
-                                  width: 250*ScaleUtils.horizontalScale,
-                                  radius: 10*ScaleUtils.scaleFactor,
-                                  isRound: false,
-                                  fit: BoxFit.cover,
-                                ),
-                                Container(
-                                  width: 250*ScaleUtils.horizontalScale,
-                                  height: 250*ScaleUtils.verticalScale,
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.play_circle,
-                                      size: 70*ScaleUtils.scaleFactor,
-                                    ),
-                                  ),
-                                )
-                              ],
-                            ),
-                          ),
-                        )
-                      : (snapshot['type'] == 'pdf')
-                          ? Padding(
-                              padding:  EdgeInsets.fromLTRB(8.0*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 8*ScaleUtils.horizontalScale, 0),
-                              child: GestureDetector(
-                                onTap: () async {
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) => PdfViewerScreen(
-                                              pdfUrl: snapshot['pdfUrl'],
-                                              pdfName: snapshot['pdfName'])));
-                                },
-                                child: Container(
-                                  height: 250*ScaleUtils.verticalScale,
-                                  width: 250*ScaleUtils.horizontalScale,
-                                  color: Colors.white,
-                                  child: Padding(
-                                    padding:  EdgeInsets.all(14.0*ScaleUtils.scaleFactor),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Icon(
-                                          Icons.picture_as_pdf_outlined,
-                                          size: 100*ScaleUtils.scaleFactor,
-                                          color: Colors.red,
-                                        ),
-                                        Text(
-                                          snapshot['pdfName'],
-                                          textAlign: TextAlign.center,
-                                          overflow: TextOverflow.ellipsis,
-                                          maxLines: 2,
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 20*ScaleUtils.scaleFactor),
-                                        )
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                          : Padding(
-                              padding:  EdgeInsets.fromLTRB(8.0*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 8*ScaleUtils.horizontalScale, 0),
-                              child: GestureDetector(
-                                onTap: () {
-                                  Navigator.push(context,
-                                      MaterialPageRoute(builder: (_) {
-                                    return FullImageWidget(
-                                      imageUrl: snapshot['photoUrl'],
-                                    );
-                                  }));
-                                },
-                                child: Hero(
-                                  tag: "imageHero_${snapshot['photoUrl']}",
-                                  child: CachedChatImage(
-                                    imageUrl: snapshot['photoUrl'],
-                                    height: 250*ScaleUtils.verticalScale,
-                                    width: 250*ScaleUtils.horizontalScale,
-                                    radius: 10*ScaleUtils.scaleFactor,
-                                    isRound: false,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                            ),
-            ],
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding:  EdgeInsets.fromLTRB(8.0*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 8*ScaleUtils.horizontalScale, 4*ScaleUtils.verticalScale),
-                child: Text(
-                  DateFormat.jm().format(datenew),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13*ScaleUtils.scaleFactor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget receiverLayout(DocumentSnapshot snapshot) {
-    Timestamp date = snapshot['timestamp'];
-    DateTime datenew = date.toDate();
-    return Container(
-      margin: EdgeInsets.only(top: 12*ScaleUtils.verticalScale),
-      constraints:
-          BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-      decoration: BoxDecoration(
-          color: HexColor('aeb9cc'),
-          borderRadius: BorderRadius.only(
-            bottomRight: Radius.circular(10*ScaleUtils.scaleFactor),
-            topRight: Radius.circular(10*ScaleUtils.scaleFactor),
-            bottomLeft: Radius.circular(10*ScaleUtils.scaleFactor),
-          )),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              (snapshot['type'] == 'text')
-                  ? Flexible(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(12*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 20*ScaleUtils.horizontalScale, 0),
-                        child: Text(
-                          snapshot['message'],
-                          textAlign: TextAlign.start,
-                          style: TextStyle(color: Colors.black, fontSize: 15*ScaleUtils.scaleFactor),
-                        ),
-                      ),
-                    )
-                  : (snapshot['type'] == 'mp4') // Check if type is mp4
-                      ? GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CachedVideoPlayerScreen(
-                                    videoUrl: snapshot['photoUrl']),
-                              ),
-                            );
-                          },
-                          child: Padding(
-                            padding:  EdgeInsets.fromLTRB(8.0*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 8*ScaleUtils.horizontalScale, 0),
-                            child: Stack(
-                              children: [
-                                CachedChatImage(
-                                  imageUrl: snapshot['thumbnailUrl'],
-                                  height: 250*ScaleUtils.verticalScale,
-                                  width: 250*ScaleUtils.horizontalScale,
-                                  radius: 10*ScaleUtils.scaleFactor,
-                                  isRound: false,
-                                  fit: BoxFit.cover,
-                                ),
-                                Container(
-                                  width: 250*ScaleUtils.horizontalScale,
-                                  height: 250*ScaleUtils.verticalScale,
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.play_circle,
-                                      size: 70*ScaleUtils.scaleFactor,
-                                    ),
-                                  ),
-                                )
-                              ],
-                            ),
-                          ),
-                        )
-                      : (snapshot['type'] == 'pdf')
-                          ? Padding(
-                              padding:  EdgeInsets.fromLTRB(8.0*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 8*ScaleUtils.horizontalScale, 0),
-                              child: GestureDetector(
-                                onTap: () async {
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) => PdfViewerScreen(
-                                              pdfUrl: snapshot['pdfUrl'],
-                                              pdfName: snapshot['pdfName'])));
-                                },
-                                child: Container(
-                                  height: 250*ScaleUtils.verticalScale,
-                                  width: 250*ScaleUtils.horizontalScale,
-                                  color: Colors.white,
-                                  child: Padding(
-                                    padding:  EdgeInsets.all(14.0*ScaleUtils.scaleFactor),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Icon(
-                                          Icons.picture_as_pdf_outlined,
-                                          size: 100*ScaleUtils.scaleFactor,
-                                          color: Colors.red,
-                                        ),
-                                        Text(
-                                          snapshot['pdfName'],
-                                          textAlign: TextAlign.center,
-                                          overflow: TextOverflow.ellipsis,
-                                          maxLines: 2,
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 20*ScaleUtils.scaleFactor),
-                                        )
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                          : Padding(
-                              padding:  EdgeInsets.fromLTRB(8.0*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 8*ScaleUtils.horizontalScale, 0),
-                              child: GestureDetector(
-                                onTap: () {
-                                  Navigator.push(context,
-                                      MaterialPageRoute(builder: (_) {
-                                    return FullImageWidget(
-                                      imageUrl: snapshot['photoUrl'],
-                                    );
-                                  }));
-                                },
-                                child: Hero(
-                                  tag: "imageHero_${snapshot['photoUrl']}",
-                                  child: CachedChatImage(
-                                    imageUrl: snapshot['photoUrl'],
-                                    height: 250*ScaleUtils.verticalScale,
-                                    width: 250*ScaleUtils.horizontalScale,
-                                    radius: 10*ScaleUtils.scaleFactor,
-                                    isRound: false,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                            ),
-            ],
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding:  EdgeInsets.fromLTRB(8.0*ScaleUtils.horizontalScale, 8*ScaleUtils.verticalScale, 8*ScaleUtils.horizontalScale, 4*ScaleUtils.verticalScale),
-                child: Text(
-                  DateFormat.jm().format(datenew),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 13*ScaleUtils.scaleFactor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget chatControls(ImageUploadProvider imageUploadProvider) {
     void pickImageMethod({required ImageSource source}) async {
-      XFile? selectedImage = (await ImagePicker().pickImage(source: source));
-      firebaseStorageMethod.uploadImage(selectedImage, widget.receiver.uid,
-          _currentUserId, imageUploadProvider, (double progress) {
-        setState(() {
-          uploadProgress = progress;
-        });
-      });
+      final XFile? selectedImage = await ImagePicker().pickImage(source: source);
+      // Picker closed without choosing: nothing to upload.
+      if (selectedImage == null) return;
+      try {
+        await firebaseStorageMethod.uploadImage(selectedImage, widget.receiver.uid,
+            _currentUserId, imageUploadProvider, _onUploadProgress);
+      } catch (e) {
+        debugPrint('Image upload failed: $e');
+        _showError("Couldn't send the photo. Please try again.");
+      }
     }
 
     addMediaModel(BuildContext context) {
@@ -684,25 +382,26 @@ class _ChatScreenState extends State<ChatScreen> {
                           title: "Video",
                           subtitle: "Share Videos",
                           icon: Icons.play_circle,
-                          onTap: () async {
-                            await Permission.storage.status;
-                            if (await Permission.storage.isDenied) {
-                              await Permission.storage.request();
-                            } else {}
-                            _selectFile(imageUploadProvider);
+                          onTap: () {
                             Navigator.maybePop(context);
+                            _selectFile(imageUploadProvider, FileType.video);
                           }),
                       ModalTile(
                           title: "PDF",
                           subtitle: "Share Pdf",
                           icon: Icons.picture_as_pdf_outlined,
-                          onTap: () async {
-                            await Permission.storage.status;
-                            if (await Permission.storage.isDenied) {
-                              await Permission.storage.request();
-                            } else {}
-                            _selectFile(imageUploadProvider);
+                          onTap: () {
                             Navigator.maybePop(context);
+                            _selectFile(imageUploadProvider, FileType.custom,
+                                allowedExtensions: ['pdf']);
+                          }),
+                      ModalTile(
+                          title: "Document",
+                          subtitle: "Share any file",
+                          icon: Icons.attach_file,
+                          onTap: () {
+                            Navigator.maybePop(context);
+                            _selectFile(imageUploadProvider, FileType.any);
                           }),
                       ModalTile(
                           title: "Contact",
@@ -835,19 +534,38 @@ class _ChatScreenState extends State<ChatScreen> {
       isWriting = false;
     });
     messageController.text = "";
-    chatFirebaseMethods.addMessagetoDb(message, me, widget.receiver);
+    // Offline, the message shows straight away and is sent once back online;
+    // only a real failure (e.g. rejected by the server) lands in catchError.
+    chatFirebaseMethods.addMessagetoDb(message).catchError((Object e) {
+      debugPrint('Message failed to send: $e');
+      _showError("Message couldn't be sent: \"${_preview(text)}\"");
+    });
     // The push notification is sent by the notifyNewMessage Cloud Function.
   }
 
-  void _selectFile(ImageUploadProvider imageUploadProvider) async {
-    final List<PlatformFile> pickedFiles = await FilePicker.pickFiles();
-    final PlatformFile? pickedFile = pickedFiles.isEmpty ? null : pickedFiles.first;
-    firebaseStorageMethod.uploadAnyFile(
-        pickedFile, widget.receiver.uid, _currentUserId, imageUploadProvider,
-        (double progress) {
-      setState(() {
-        uploadProgress = progress;
-      });
+  String _preview(String text) =>
+      text.length > 30 ? '${text.substring(0, 30)}…' : text;
+
+  void _onUploadProgress(double progress) {
+    if (!mounted) return;
+    setState(() {
+      uploadProgress = progress;
     });
+  }
+
+  // The system file picker needs no storage permission.
+  Future<void> _selectFile(ImageUploadProvider imageUploadProvider, FileType type,
+      {List<String>? allowedExtensions}) async {
+    final List<PlatformFile> pickedFiles =
+        await FilePicker.pickFiles(type: type, allowedExtensions: allowedExtensions);
+    // Picker closed without choosing: nothing to upload.
+    if (pickedFiles.isEmpty) return;
+    try {
+      await firebaseStorageMethod.uploadAnyFile(pickedFiles.first, widget.receiver.uid,
+          _currentUserId, imageUploadProvider, _onUploadProgress);
+    } catch (e) {
+      debugPrint('File upload failed: $e');
+      _showError("Couldn't send the file. Please try again.");
+    }
   }
 }

@@ -3,39 +3,28 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Models/MessageModel.dart';
 import 'package:echat/Provider/ImageUploadProvider.dart';
+import 'package:echat/Resources/ChatFirebaseMethods.dart';
+import 'package:echat/Utils/MessageUtils.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fc_native_video_thumbnail/fc_native_video_thumbnail.dart';
 
-
+// Uploads chat media, then saves the message. Each user uploads into their own
+// folder (see storage.rules). The push notification is sent by the
+// notifyNewMessage Cloud Function. Both upload methods throw on failure so the
+// chat screen can tell the user; the "uploading" spinner is always cleared.
 class FirebaseStorageMethod{
 
-  FirebaseFirestore firestore = FirebaseFirestore.instance;
-  void uploadImage(XFile? image, String receiverId, String senderId, ImageUploadProvider imageUploadProvider, Function(double) onProgress) async {
+  final ChatFirebaseMethods _chatFirebaseMethods = ChatFirebaseMethods();
+
+  Future<void> uploadImage(XFile image, String receiverId, String senderId, ImageUploadProvider imageUploadProvider, Function(double) onProgress) async {
+    imageUploadProvider.setToLoading();
     try{
-      imageUploadProvider.setToLoading();
-
-      late String imageUrl;
-      FirebaseStorage storage = FirebaseStorage.instance;
       final picture = '$receiverId-${DateTime.now().microsecondsSinceEpoch}.jpg';
-
-      //For example, let's say you have an image file named "myImage.jpg" The full path to this image file would be:C:\Users\username\Pictures\myImage.jpg
-      final File imagep = File(image!.path);//  It appears that image is a variable holding information(metadata) about an image. The .path property retrieves the file path of the image which is in the metadata
-
-      // Each user uploads into their own folder (see storage.rules).
-      UploadTask task = storage.ref().child('Media/$senderId/$picture').putFile(imagep, SettableMetadata(contentType: 'image/jpeg')); //ref(): This method retrieves a reference to the root location of your Firebase Storage.
-      // putFile(imagep): This method is used to upload a file (imagep in this case) to the specified location in Firebase Storage.
-      task.snapshotEvents.listen((TaskSnapshot snapshot) {
-        double progress = snapshot.bytesTransferred / snapshot.totalBytes;
-        onProgress(progress);
-      });
-      TaskSnapshot snapshot = (await task.whenComplete(() => task.snapshot)); //it returns task.snapshot, which represents the final status of the upload task.
-      await task.whenComplete(() async {
-        imageUrl = await snapshot.ref.getDownloadURL();}
-      ); //snapshot.ref refers to the reference of the uploaded file in Firebase Storage, and getDownloadURL() retrieves the URL that can be used to download the file.
-
-
+      final Reference ref = FirebaseStorage.instance.ref().child('Media/$senderId/$picture');
+      final String imageUrl = await _upload(ref, File(image.path), onProgress, SettableMetadata(contentType: 'image/jpeg'));
 
       MessageModel messageModel = MessageModel.imageMessage(
           senderId: senderId,
@@ -45,111 +34,89 @@ class FirebaseStorageMethod{
           timestamp: Timestamp.now(),
           photoUrl: imageUrl
       );
-
-      Map<String, dynamic> map = messageModel.toMap() as Map<String, dynamic>;
+      await _chatFirebaseMethods.addMessagetoDb(messageModel);
+    } finally {
       imageUploadProvider.setToIdle();
-      // these is to store in the sender side
-      await firestore
-          .collection("messages")
-          .doc(messageModel.senderId)
-          .collection(messageModel.receiverId)
-          .add(map);
-
-      // these is to store in the receiver side
-      await firestore
-          .collection("messages")
-          .doc(messageModel.receiverId)
-          .collection(messageModel.senderId)
-          .add(map);
-      // The push notification is sent by the notifyNewMessage Cloud Function.
-    }catch(e){
-      print(e);
     }
   }
 
-  void uploadAnyFile(PlatformFile? pickedFile, String receiverId, String senderId, ImageUploadProvider imageUploadProvider, Function(double) onProgress) async {
+  Future<void> uploadAnyFile(PlatformFile pickedFile, String receiverId, String senderId, ImageUploadProvider imageUploadProvider, Function(double) onProgress) async {
+    final String? path = pickedFile.path;
+    if (path == null) throw Exception('The picked file has no path on this device');
 
-      imageUploadProvider.setToLoading();
+    imageUploadProvider.setToLoading();
+    try {
+      final File file = File(path);
+      final String fileName = pickedFile.name;
+      final String fileExtension = MessageUtils.fileExtension(fileName);
+      final MessageKind kind = MessageUtils.kindForType(fileExtension);
 
-      if(pickedFile != null){
-        File file = File(pickedFile.path!);
-        String fileName = pickedFile.name;
-        String fileExtension = fileName.split('.').last;
+      // Timestamp prefix keeps two files with the same name from overwriting each other.
+      final Reference ref = FirebaseStorage.instance.ref().child('Media/$senderId/${DateTime.now().microsecondsSinceEpoch}_$fileName');
+      final String downloadUrl = await _upload(ref, file, onProgress, null);
 
-        // Timestamp prefix keeps two files with the same name from overwriting each other.
-        Reference ref = FirebaseStorage.instance.ref().child('Media/$senderId/${DateTime.now().microsecondsSinceEpoch}_$fileName');
-        UploadTask uploadTask = ref.putFile(file);
-
-        uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-           double progress = snapshot.bytesTransferred / snapshot.totalBytes;
-           onProgress(progress);
-        });
-
-        TaskSnapshot taskSnapshot = await uploadTask.whenComplete((){});
-        String downloadUrl = await taskSnapshot.ref.getDownloadURL();
-
-
-
-        String thumbnailUrl = '';
-        String pdfUrl = '';
-        String pdfName = '';
-        if (fileExtension == 'mp4') {
-          thumbnailUrl = await _generateThumbnailandUpload(file.path, senderId);
-        }else if(fileExtension == 'pdf'){
-          pdfUrl = downloadUrl;
-          pdfName = fileName;
-        }
-
-        MessageModel messageModel = MessageModel(
-            senderId: senderId,
-            receiverId: receiverId,
-            type: fileExtension,
-            message: fileExtension,
-            timestamp: Timestamp.now(),
-            photoUrl: downloadUrl,
-            thumbnailUrl: thumbnailUrl,
-            pdfUrl: pdfUrl,
-            pdfName: pdfName
-        );
-
-        // The push notification is sent by the notifyNewMessage Cloud Function.
-        imageUploadProvider.setToIdle();
-
-        Map<String, dynamic> map = messageModel.toMap() as Map<String, dynamic>;
-        // these is to store in the sender side
-        await firestore
-            .collection("messages")
-            .doc(messageModel.senderId)
-            .collection(messageModel.receiverId)
-            .add(map);
-
-        // these is to store in the receiver side
-        await firestore
-            .collection("messages")
-            .doc(messageModel.receiverId)
-            .collection(messageModel.senderId)
-            .add(map);
+      String thumbnailUrl = '';
+      String pdfUrl = '';
+      String pdfName = '';
+      if (kind == MessageKind.video) {
+        thumbnailUrl = await _generateThumbnailandUpload(file.path, senderId);
+      }else if(kind == MessageKind.pdf){
+        pdfUrl = downloadUrl;
+        pdfName = fileName;
       }
+
+      // Files without an extension are stored as type 'file'.
+      final String type = fileExtension.isEmpty ? 'file' : fileExtension;
+      MessageModel messageModel = MessageModel(
+          senderId: senderId,
+          receiverId: receiverId,
+          type: type,
+          message: type,
+          timestamp: Timestamp.now(),
+          photoUrl: downloadUrl,
+          thumbnailUrl: thumbnailUrl,
+          pdfUrl: pdfUrl,
+          pdfName: pdfName,
+          fileName: fileName,
+      );
+      await _chatFirebaseMethods.addMessagetoDb(messageModel);
+    } finally {
+      imageUploadProvider.setToIdle();
+    }
+  }
+
+  // Uploads [file] to [ref], reporting progress (0..1), and returns its download URL.
+  Future<String> _upload(Reference ref, File file, Function(double) onProgress, SettableMetadata? metadata) async {
+    final UploadTask task = ref.putFile(file, metadata);
+    task.snapshotEvents.listen((TaskSnapshot snapshot) {
+      // totalBytes is 0 until the upload starts.
+      if (snapshot.totalBytes > 0) onProgress(snapshot.bytesTransferred / snapshot.totalBytes);
+    }, onError: (_) {}); // the error is thrown by `await task` below
+    final TaskSnapshot done = await task;
+    return done.ref.getDownloadURL();
   }
 
   // Builds the thumbnail from the local video file, then uploads it.
   // Returns '' if no thumbnail could be made, so the message still sends.
   Future<String> _generateThumbnailandUpload(String videoPath, String senderId) async {
-    final thumbnail = await FcNativeVideoThumbnail().saveThumbnailToBytes(
-      srcFile: videoPath,
-      width: 360,
-      height: 200,
-      format: 'jpeg',
-      quality: 90,
-    );
-    if (thumbnail == null) return '';
+    try {
+      final thumbnail = await FcNativeVideoThumbnail().saveThumbnailToBytes(
+        srcFile: videoPath,
+        width: 360,
+        height: 200,
+        format: 'jpeg',
+        quality: 90,
+      );
+      if (thumbnail == null) return '';
 
-    final Reference storageRef = FirebaseStorage.instance.ref().child('thumbnails/$senderId/${DateTime.now().microsecondsSinceEpoch}.jpg');
-    await storageRef.putData(thumbnail, SettableMetadata(contentType: 'image/jpeg'));
+      final Reference storageRef = FirebaseStorage.instance.ref().child('thumbnails/$senderId/${DateTime.now().microsecondsSinceEpoch}.jpg');
+      await storageRef.putData(thumbnail, SettableMetadata(contentType: 'image/jpeg'));
 
-    // Get the download URL of the uploaded thumbnail image
-    final String downloadURL = await storageRef.getDownloadURL();
-
-    return downloadURL;
+      // Get the download URL of the uploaded thumbnail image
+      return await storageRef.getDownloadURL();
+    } catch (e) {
+      debugPrint('Could not make a video thumbnail: $e');
+      return '';
+    }
   }
 }

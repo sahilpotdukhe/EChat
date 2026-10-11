@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Models/MessageModel.dart';
+import 'package:echat/Utils/MessageUtils.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -20,14 +21,19 @@ class LastMessageContainer extends StatelessWidget {
             var docList = snapshot.data?.docs;
 
             if (docList!.isNotEmpty) {
-              MessageModel messageModel = MessageModel.fromMap(docList.last.data() as Map<dynamic, dynamic>);
+              MessageModel messageModel = MessageModel.fromMap(docList.first.data() as Map<dynamic, dynamic>);
               Timestamp date = messageModel.timestamp;
               DateTime datenew = date.toDate();
               String time = DateFormat.jm().format(datenew);
               return SizedBox(
                 width:  (position == "subtitle")?MediaQuery.of(context).size.width -170*ScaleUtils.horizontalScale:60*ScaleUtils.horizontalScale,
                 child: Text(
-                  (position == "subtitle")? messageModel.message: time ,
+                  (position == "subtitle")
+                      ? MessageUtils.previewText(
+                          type: messageModel.type,
+                          message: messageModel.message,
+                          fileName: messageModel.fileName.isNotEmpty ? messageModel.fileName : messageModel.pdfName)
+                      : time,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: Colors.grey, fontSize: 14),

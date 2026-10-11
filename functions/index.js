@@ -27,14 +27,18 @@ function truncate(text) {
   return text.length > MAX_BODY_LENGTH ? `${text.slice(0, MAX_BODY_LENGTH - 1)}…` : text;
 }
 
+// Same groups as lib/Utils/MessageUtils.dart.
+const IMAGE_TYPES = new Set(["image", "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp"]);
+const VIDEO_TYPES = new Set(["mp4", "mov", "m4v", "3gp", "webm", "mkv", "avi"]);
+
 // Turns a stored message into the notification body (and optional picture).
 function describeMessage(msg) {
   const type = String(msg.type || "").toLowerCase();
   if (type === "text") return {body: truncate(msg.message)};
-  if (["image", "jpg", "jpeg", "png"].includes(type)) return {body: "📷 Photo", image: msg.photoUrl};
-  if (type === "mp4") return {body: "🎥 Video", image: msg.thumbnailUrl};
-  if (type === "pdf") return {body: `📄 ${msg.pdfName || "PDF"}`};
-  return {body: "📎 File"};
+  if (IMAGE_TYPES.has(type)) return {body: "📷 Photo", image: msg.photoUrl};
+  if (VIDEO_TYPES.has(type)) return {body: "🎥 Video", image: msg.thumbnailUrl};
+  if (type === "pdf") return {body: `📄 ${msg.pdfName || msg.fileName || "PDF"}`};
+  return {body: `📎 ${msg.fileName || "File"}`};
 }
 
 async function sendToUser(uid, {title, body, image, channelId, data}) {
