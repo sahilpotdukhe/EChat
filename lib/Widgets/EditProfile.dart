@@ -268,6 +268,7 @@ class _EditProfileState extends State<EditProfile> {
                                   userProvider.refreshUser();
                                   await Future.delayed(Duration(seconds: 2));
                                   appprovider.changeIsLoading();
+                                  if (!context.mounted) return;
                                   showToast("Changes Saved", backgroundColor: Colors.green, context: context);
                                   Navigator.pop(context);
                                 }

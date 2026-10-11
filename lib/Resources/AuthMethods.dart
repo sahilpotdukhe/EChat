@@ -15,7 +15,7 @@ class Authenticate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (_auth.currentUser != null) {
-      return BotttomNavigationBar();
+      return HomeScreen();
     } else {
       return LoginScreen();
     }
@@ -49,14 +49,14 @@ class AuthMethods {
     try{
       User? user = (await _auth.createUserWithEmailAndPassword(email: email, password: password)).user;
       if(user != null){
-        print("User Created Successfully");
+        debugPrint("User Created Successfully");
         return user;
       }else{
-        print("Account creation failed");
+        debugPrint("Account creation failed");
         return user;
       }
     }catch(e){
-      print(e);
+      debugPrint('$e');
       return null;
     }
   }
@@ -65,36 +65,42 @@ class AuthMethods {
     try{
       User? user = (await _auth.signInWithEmailAndPassword(email: email, password: password)).user;
       if(user != null){
-        print("Login Successful");
+        debugPrint("Login Successful");
         return user;
       }else{
-        print("Login failed");
+        debugPrint("Login failed");
         return user;
       }
     }catch(e){
-      print(e);
+      debugPrint('$e');
       return null;
     }
   }
 
   Future logOut(BuildContext context) async {
-    FirebaseAuth _auth = FirebaseAuth.instance;
+    final provider = Provider.of<GoogleSignInProvider>(context, listen: false);
+    await provider.googlelogout(context);
+  }
 
+  // Run before signing out (the rules need the user still signed in): stop
+  // this phone getting the account's notifications and show them offline.
+  // Offline, this gives up after a few seconds so logout isn't blocked; the
+  // deleted token then fails on the server, which clears it on the next send.
+  Future<void> clearSessionOnThisDevice() async {
+    final String? uid = _auth.currentUser?.uid;
+    if (uid == null) return;
     try {
-      try {
-        final provider =
-        Provider.of<GoogleSignInProvider>(context, listen: false);
-        provider.googlelogout(context);
-      } catch (e) {
-        await _auth.signOut().then((value) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => LoginScreen()),
-          );
-        });
-      }
+      await firestore.collection('Users').doc(uid).update({
+        'notification_token': '',
+        'state': Utils.stateToNum(UserState.Offline),
+      }).timeout(const Duration(seconds: 5));
     } catch (e) {
-      print("error");
+      debugPrint('Could not clear session on logout: $e');
+    }
+    try {
+      await FirebaseMessaging.instance.deleteToken().timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('Could not delete notification token: $e');
     }
   }
 
@@ -202,10 +208,10 @@ class GoogleSignInProvider extends ChangeNotifier {
         rethrow;
       }
       _user = googleUser;
-      print('user...');
-      print(_user);
+      debugPrint('user...');
+      debugPrint('$_user');
       final googleAuth = googleUser.authentication;
-      print("this is goooogle-- $googleAuth");
+      debugPrint("this is goooogle-- $googleAuth");
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
       );
@@ -225,19 +231,24 @@ class GoogleSignInProvider extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      print(e.toString());
+      debugPrint(e.toString());
       return false;
     }
   }
 
-  Future googlelogout(context) async {
+  // Used for every logout (email or Google); disconnecting Google is a no-op
+  // for email accounts.
+  Future googlelogout(BuildContext context) async {
+    await authMethods.clearSessionOnThisDevice();
     try {
       await googleSignIn.disconnect();
     } catch (e) {
-      print(e);
+      debugPrint('Google disconnect: $e');
     }
-    FirebaseAuth.instance.signOut();
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>LoginScreen()));
+    await FirebaseAuth.instance.signOut();
+    if (!context.mounted) return;
+    // Clear the whole back stack so Back can't return into the signed-out app.
+    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context)=>LoginScreen()), (route) => false);
 
   }
 }
