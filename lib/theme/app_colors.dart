@@ -12,6 +12,10 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color success;
   final Color warning;
   final Color online;
+
+  /// Behind the messages, a touch off the page color so incoming bubbles
+  /// stand out.
+  final Color chatBackground;
   final Color bubbleOutgoing;
   final Color onBubbleOutgoing;
   final Color bubbleIncoming;
@@ -22,6 +26,7 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.success,
     required this.warning,
     required this.online,
+    required this.chatBackground,
     required this.bubbleOutgoing,
     required this.onBubbleOutgoing,
     required this.bubbleIncoming,
@@ -46,9 +51,10 @@ class AppColors extends ThemeExtension<AppColors> {
     success: const Color(0xFF16A34A),
     warning: const Color(0xFFF59E0B),
     online: const Color(0xFF22C55E),
+    chatBackground: const Color(0xFFF4F4F7),
     bubbleOutgoing: shadcnLight.primary,
     onBubbleOutgoing: shadcnLight.primaryForeground,
-    bubbleIncoming: const Color(0xFFF4F4F5),
+    bubbleIncoming: Colors.white,
     onBubbleIncoming: shadcnLight.foreground,
     brandGradient: const LinearGradient(
       colors: [Color(0xFF8E7CF8), Color(0xFF4834D4)],
@@ -61,6 +67,7 @@ class AppColors extends ThemeExtension<AppColors> {
     success: const Color(0xFF34D399),
     warning: const Color(0xFFFBBF24),
     online: const Color(0xFF4ADE80),
+    chatBackground: shadcnDark.background,
     bubbleOutgoing: shadcnDark.primary,
     onBubbleOutgoing: shadcnDark.primaryForeground,
     bubbleIncoming: const Color(0xFF23232D),
@@ -77,6 +84,7 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? success,
     Color? warning,
     Color? online,
+    Color? chatBackground,
     Color? bubbleOutgoing,
     Color? onBubbleOutgoing,
     Color? bubbleIncoming,
@@ -87,6 +95,7 @@ class AppColors extends ThemeExtension<AppColors> {
       success: success ?? this.success,
       warning: warning ?? this.warning,
       online: online ?? this.online,
+      chatBackground: chatBackground ?? this.chatBackground,
       bubbleOutgoing: bubbleOutgoing ?? this.bubbleOutgoing,
       onBubbleOutgoing: onBubbleOutgoing ?? this.onBubbleOutgoing,
       bubbleIncoming: bubbleIncoming ?? this.bubbleIncoming,
@@ -102,6 +111,7 @@ class AppColors extends ThemeExtension<AppColors> {
       success: Color.lerp(success, other.success, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
       online: Color.lerp(online, other.online, t)!,
+      chatBackground: Color.lerp(chatBackground, other.chatBackground, t)!,
       bubbleOutgoing: Color.lerp(bubbleOutgoing, other.bubbleOutgoing, t)!,
       onBubbleOutgoing: Color.lerp(onBubbleOutgoing, other.onBubbleOutgoing, t)!,
       bubbleIncoming: Color.lerp(bubbleIncoming, other.bubbleIncoming, t)!,

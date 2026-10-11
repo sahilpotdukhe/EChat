@@ -1,194 +1,159 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:echat/models/message_model.dart';
+import 'package:echat/theme/app_colors.dart';
 import 'package:echat/utils/message_utils.dart';
-import 'package:echat/utils/scale_utils.dart';
-import 'package:echat/utils/universal_variables.dart';
-import 'package:echat/widgets/cached_chat_image.dart';
 import 'package:echat/widgets/cached_video_player_screen.dart';
 import 'package:echat/widgets/full_image_widget.dart';
 import 'package:echat/widgets/pdf_viewer_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:hexcolor/hexcolor.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:shadcn_kit/shadcn_kit.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// One chat message. [isMe] picks the side, colours and corner shape.
+/// One chat message.
+///
+/// [isMe] picks the side and colors. Messages sent close together by the
+/// same person form a group: [groupedWithOlder] tightens the gap above, and
+/// only the newest in a group ([groupedWithNewer] false) gets the "tail"
+/// corner. Long-press a text message to copy it.
 class MessageBubble extends StatelessWidget {
   final MessageModel message;
   final bool isMe;
+  final bool groupedWithOlder;
+  final bool groupedWithNewer;
 
-  const MessageBubble({super.key, required this.message, required this.isMe});
+  /// Read out before the message by screen readers, e.g. "Priya".
+  final String senderName;
 
-  Color get _textColor => isMe ? Colors.white : Colors.black;
+  /// Widest the bubble may get (a share of the chat's width).
+  final double maxWidth;
+
+  const MessageBubble({
+    super.key,
+    required this.message,
+    required this.isMe,
+    required this.senderName,
+    required this.maxWidth,
+    this.groupedWithOlder = false,
+    this.groupedWithNewer = false,
+  });
+
+  static const double _radius = 18;
+  static const double _tail = 4;
 
   @override
   Widget build(BuildContext context) {
-    final Radius corner = Radius.circular(10 * ScaleUtils.scaleFactor);
-    return Container(
-      margin: isMe
-          ? EdgeInsets.fromLTRB(0, 12 * ScaleUtils.verticalScale, 12 * ScaleUtils.horizontalScale, 0)
-          : EdgeInsets.only(top: 12 * ScaleUtils.verticalScale),
-      constraints: BoxConstraints(maxWidth: ScaleUtils.width * 0.75),
-      decoration: BoxDecoration(
-          gradient: isMe ? UniversalVariables.appGradient : null,
-          color: isMe ? null : HexColor('aeb9cc'),
-          borderRadius: isMe
-              ? BorderRadius.only(topLeft: corner, topRight: corner, bottomLeft: corner)
-              : BorderRadius.only(bottomRight: corner, topRight: corner, bottomLeft: corner)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [_content(context)],
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(8.0 * ScaleUtils.horizontalScale, 8 * ScaleUtils.verticalScale,
-                    8 * ScaleUtils.horizontalScale, 4 * ScaleUtils.verticalScale),
-                child: Text(
-                  DateFormat.jm().format(message.timestamp.toDate()),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(color: _textColor, fontSize: 13 * ScaleUtils.scaleFactor),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+    final colors = context.colors;
+    final kind = MessageUtils.kindForType(message.type);
+    final time = DateFormat.jm().format(message.timestamp.toDate());
+    final background = isMe ? colors.bubbleOutgoing : colors.bubbleIncoming;
+    final foreground = isMe ? colors.onBubbleOutgoing : colors.onBubbleIncoming;
+
+    const big = Radius.circular(_radius);
+    const small = Radius.circular(_tail);
+    final hasTail = !groupedWithNewer;
+    final shape = BorderRadius.only(
+      topLeft: big,
+      topRight: big,
+      bottomLeft: !isMe && hasTail ? small : big,
+      bottomRight: isMe && hasTail ? small : big,
     );
-  }
 
-  Widget _content(BuildContext context) {
-    final EdgeInsets mediaPadding = EdgeInsets.fromLTRB(
-        8.0 * ScaleUtils.horizontalScale, 8 * ScaleUtils.verticalScale, 8 * ScaleUtils.horizontalScale, 0);
-    final double side = 250;
+    final Widget body = switch (kind) {
+      MessageKind.text => _TextBody(text: message.message, time: time, color: foreground),
+      MessageKind.image => _MediaBody(
+          url: message.photoUrl,
+          heroTag: 'imageHero_${message.photoUrl}',
+          time: time,
+          maxWidth: maxWidth,
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => FullImageWidget(imageUrl: message.photoUrl),
+          )),
+        ),
+      MessageKind.video => _MediaBody(
+          url: message.thumbnailUrl,
+          isVideo: true,
+          time: time,
+          maxWidth: maxWidth,
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => CachedVideoPlayerScreen(videoUrl: message.photoUrl),
+          )),
+        ),
+      MessageKind.pdf => _FileBody(
+          name: _pdfName,
+          kindLabel: 'PDF document',
+          icon: Icons.picture_as_pdf_outlined,
+          iconColor: const Color(0xFFE5484D),
+          time: time,
+          color: foreground,
+          maxWidth: maxWidth,
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => PdfViewerScreen(
+              pdfUrl: message.pdfUrl.isNotEmpty ? message.pdfUrl : message.photoUrl,
+              pdfName: _pdfName,
+            ),
+          )),
+        ),
+      MessageKind.file => _FileBody(
+          name: message.fileName.isNotEmpty ? message.fileName : 'File',
+          kindLabel: _fileKindLabel,
+          icon: Icons.insert_drive_file_outlined,
+          iconColor: context.shadcn.primary,
+          time: time,
+          color: foreground,
+          maxWidth: maxWidth,
+          onTap: () => _openExternally(context),
+        ),
+    };
 
-    switch (MessageUtils.kindForType(message.type)) {
-      case MessageKind.text:
-        return Flexible(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(12 * ScaleUtils.horizontalScale, 8 * ScaleUtils.verticalScale,
-                20 * ScaleUtils.horizontalScale, 0),
-            child: Text(
-              message.message,
-              textAlign: TextAlign.start,
-              style: TextStyle(color: _textColor, fontSize: 15 * ScaleUtils.scaleFactor),
+    final preview = MessageUtils.previewText(
+      type: message.type,
+      message: message.message,
+      fileName: message.fileName.isNotEmpty ? message.fileName : message.pdfName,
+    );
+
+    return Padding(
+      padding: EdgeInsets.only(left: 12, right: 12, top: groupedWithOlder ? 2 : 10),
+      child: Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Semantics(
+            label: '${isMe ? 'You' : senderName}: $preview, $time',
+            // Text bubbles are read as one line; the copy gesture is offered
+            // here because excluding the children also drops the InkWell's.
+            excludeSemantics: kind == MessageKind.text,
+            onLongPress: kind == MessageKind.text ? () => _copy(context) : null,
+            onLongPressHint: kind == MessageKind.text ? 'Copy message' : null,
+            child: Material(
+              color: background,
+              borderRadius: shape,
+              clipBehavior: Clip.antiAlias,
+              child: kind == MessageKind.text
+                  ? InkWell(onLongPress: () => _copy(context), child: body)
+                  : body,
             ),
           ),
-        );
-
-      case MessageKind.video:
-        return GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => CachedVideoPlayerScreen(videoUrl: message.photoUrl)),
-          ),
-          child: Padding(
-            padding: mediaPadding,
-            child: Stack(
-              children: [
-                // No thumbnail (it couldn't be made): plain dark box with the play icon.
-                message.thumbnailUrl.isEmpty
-                    ? Container(
-                        height: side * ScaleUtils.verticalScale,
-                        width: side * ScaleUtils.horizontalScale,
-                        decoration: BoxDecoration(
-                            color: Colors.black87,
-                            borderRadius: BorderRadius.circular(10 * ScaleUtils.scaleFactor)),
-                      )
-                    : CachedChatImage(
-                        imageUrl: message.thumbnailUrl,
-                        height: side * ScaleUtils.verticalScale,
-                        width: side * ScaleUtils.horizontalScale,
-                        radius: 10 * ScaleUtils.scaleFactor,
-                        isRound: false,
-                        fit: BoxFit.cover,
-                      ),
-                SizedBox(
-                  width: side * ScaleUtils.horizontalScale,
-                  height: side * ScaleUtils.verticalScale,
-                  child: Center(
-                    child: Icon(Icons.play_circle, size: 70 * ScaleUtils.scaleFactor, color: Colors.white),
-                  ),
-                )
-              ],
-            ),
-          ),
-        );
-
-      case MessageKind.pdf:
-        final String name = message.pdfName.isNotEmpty ? message.pdfName : message.fileName;
-        return Padding(
-          padding: mediaPadding,
-          child: GestureDetector(
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => PdfViewerScreen(
-                        pdfUrl: message.pdfUrl.isNotEmpty ? message.pdfUrl : message.photoUrl,
-                        pdfName: name.isNotEmpty ? name : 'PDF'))),
-            child: _fileCard(Icons.picture_as_pdf_outlined, Colors.red, name.isNotEmpty ? name : 'PDF'),
-          ),
-        );
-
-      case MessageKind.image:
-        return Padding(
-          padding: mediaPadding,
-          child: GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) {
-              return FullImageWidget(imageUrl: message.photoUrl);
-            })),
-            child: Hero(
-              tag: "imageHero_${message.photoUrl}",
-              child: CachedChatImage(
-                imageUrl: message.photoUrl,
-                height: side * ScaleUtils.verticalScale,
-                width: side * ScaleUtils.horizontalScale,
-                radius: 10 * ScaleUtils.scaleFactor,
-                isRound: false,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-        );
-
-      case MessageKind.file:
-        final String name = message.fileName.isNotEmpty ? message.fileName : 'File';
-        return Padding(
-          padding: mediaPadding,
-          child: GestureDetector(
-            onTap: () => _openExternally(context),
-            child: _fileCard(Icons.insert_drive_file_outlined, UniversalVariables.appThemeColor, name),
-          ),
-        );
-    }
-  }
-
-  Widget _fileCard(IconData icon, Color iconColor, String name) {
-    return Container(
-      height: 250 * ScaleUtils.verticalScale,
-      width: 250 * ScaleUtils.horizontalScale,
-      color: Colors.white,
-      child: Padding(
-        padding: EdgeInsets.all(14.0 * ScaleUtils.scaleFactor),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Icon(icon, size: 100 * ScaleUtils.scaleFactor, color: iconColor),
-            Text(
-              name,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              maxLines: 2,
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20 * ScaleUtils.scaleFactor),
-            )
-          ],
         ),
       ),
     );
+  }
+
+  String get _pdfName {
+    final name = message.pdfName.isNotEmpty ? message.pdfName : message.fileName;
+    return name.isNotEmpty ? name : 'PDF';
+  }
+
+  String get _fileKindLabel {
+    final ext = MessageUtils.fileExtension(message.fileName);
+    return ext.isEmpty ? 'File' : '${ext.toUpperCase()} file';
+  }
+
+  void _copy(BuildContext context) {
+    HapticFeedback.selectionClick();
+    Clipboard.setData(ClipboardData(text: message.message));
+    showShadcnToast(context, title: 'Message copied', variant: ShadcnToastVariant.success);
   }
 
   // Files the app can't preview (docx, zip, ...) open in another app.
@@ -201,8 +166,197 @@ class MessageBubble extends StatelessWidget {
       // No app can handle it; reported below.
     }
     if (!opened && context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Couldn't open this file")));
+      showShadcnToast(context,
+          title: 'Couldn\'t open this file',
+          description: 'No app on this phone can open it.',
+          variant: ShadcnToastVariant.destructive);
     }
+  }
+}
+
+/// Text with the time tucked in at the end: on the last line when it fits,
+/// otherwise on its own line at the right.
+class _TextBody extends StatelessWidget {
+  final String text;
+  final String time;
+  final Color color;
+
+  const _TextBody({required this.text, required this.time, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 9, 12, 7),
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        crossAxisAlignment: WrapCrossAlignment.end,
+        spacing: 8,
+        children: [
+          Text(text, style: TextStyle(color: color, fontSize: 15, height: 1.35)),
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(time, style: TextStyle(color: color.withValues(alpha: 0.65), fontSize: 11)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A photo or a video thumbnail, with the time on a dark pill in the corner.
+class _MediaBody extends StatelessWidget {
+  final String url;
+  final String time;
+  final double maxWidth;
+  final VoidCallback onTap;
+  final bool isVideo;
+  final String? heroTag;
+
+  const _MediaBody({
+    required this.url,
+    required this.time,
+    required this.maxWidth,
+    required this.onTap,
+    this.isVideo = false,
+    this.heroTag,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final shadcn = context.shadcn;
+    final width = maxWidth.clamp(0.0, 260.0);
+    final height = width * 0.8;
+
+    Widget fallback(IconData icon) => Container(
+          color: isVideo ? Colors.black87 : shadcn.muted,
+          alignment: Alignment.center,
+          child: Icon(icon, color: isVideo ? Colors.white54 : shadcn.mutedForeground, size: 32),
+        );
+
+    Widget picture = url.isEmpty
+        ? fallback(isVideo ? Icons.videocam_outlined : Icons.image_outlined)
+        : CachedNetworkImage(
+            imageUrl: url,
+            fit: BoxFit.cover,
+            fadeInDuration: const Duration(milliseconds: 150),
+            placeholder: (_, __) => const ShadcnSkeleton(height: double.infinity, borderRadius: BorderRadius.zero),
+            errorWidget: (_, __, ___) => fallback(Icons.broken_image_outlined),
+          );
+    if (heroTag != null) picture = Hero(tag: heroTag!, child: picture);
+
+    return Padding(
+      padding: const EdgeInsets.all(3),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  picture,
+                  if (isVideo)
+                    Center(
+                      child: Container(
+                        width: 54,
+                        height: 54,
+                        decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36),
+                      ),
+                    ),
+                  Positioned(
+                    right: 8,
+                    bottom: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(10)),
+                      child: Text(time, style: const TextStyle(color: Colors.white, fontSize: 11)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A PDF or other file: an icon, its name and "Tap to open".
+class _FileBody extends StatelessWidget {
+  final String name;
+  final String kindLabel;
+  final IconData icon;
+  final Color iconColor;
+  final String time;
+  final Color color;
+  final double maxWidth;
+  final VoidCallback onTap;
+
+  const _FileBody({
+    required this.name,
+    required this.kindLabel,
+    required this.icon,
+    required this.iconColor,
+    required this.time,
+    required this.color,
+    required this.maxWidth,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        width: maxWidth.clamp(0.0, 280.0),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 12, 7),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
+                    child: Icon(icon, color: iconColor, size: 24),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$kindLabel · Tap to open',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: color.withValues(alpha: 0.7), fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(time, style: TextStyle(color: color.withValues(alpha: 0.65), fontSize: 11)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

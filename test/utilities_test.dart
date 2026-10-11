@@ -30,4 +30,18 @@ void main() {
       expect(MessageUtils.chatListTime(DateTime(2026, 10, 3, 12), now), '03/10/26');
     });
   });
+
+  group('groupsWith', () {
+    final t = DateTime(2026, 10, 11, 10, 0);
+    bool g(String a, DateTime ta, String b, DateTime tb) =>
+        MessageUtils.groupsWith(senderA: a, timeA: ta, senderB: b, timeB: tb);
+    test('same sender, close together', () => expect(g('me', t, 'me', t.add(const Duration(minutes: 2))), isTrue));
+    test('exactly at the gap still groups', () => expect(g('me', t, 'me', t.add(const Duration(minutes: 5))), isTrue));
+    test('too far apart', () => expect(g('me', t, 'me', t.add(const Duration(minutes: 6))), isFalse));
+    test('different sender', () => expect(g('me', t, 'you', t), isFalse));
+    test('order does not matter', () => expect(g('me', t.add(const Duration(minutes: 1)), 'me', t), isTrue));
+    test('across midnight does not group', () {
+      expect(g('me', DateTime(2026, 10, 11, 23, 59), 'me', DateTime(2026, 10, 12, 0, 1)), isFalse);
+    });
+  });
 }
