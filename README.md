@@ -1,13 +1,13 @@
 <!-- Project Title -->
 <div align="center" style="display: flex; align-items: center; justify-content: center;">
-  <img src="readmeimages/Echatlogoname.png" alt="Echat Logo" width="500" height="300">
+  <img src="docs/images/echat_logo_name.png" alt="Echat Logo" width="500" height="300">
 </div>
 
 **ECHAT** is a comprehensive chat application created using Flutter, Firebase, Dart, and Figma, offering a seamless communication experience.
 
 ### 🎥 Simple demo
 <p align="center">
-  <img src="echatdemo.gif" alt="EchatDemo" width="350" />
+  <img src="docs/images/echat_demo.gif" alt="EchatDemo" width="350" />
 </p>
 
 ### 🔰 Project Description
@@ -34,9 +34,9 @@
 - <img src="https://upload.wikimedia.org/wikipedia/commons/3/33/Figma-logo.svg" alt="Figma" width="20" height="20"> Figma (for UI design)
 - <img src="https://user-images.githubusercontent.com/25181517/186150365-da1eccce-6201-487c-8649-45e9e99435fd.png" alt="Flutter" width="20" height="20"> Flutter Framework (Dart language)
 - <img src="https://user-images.githubusercontent.com/25181517/189716855-2c69ca7a-5149-4647-936d-780610911353.png" alt="Firebase" width="20" height="20"> Firebase (for Authentication And Storing Data)
-- <img src="readmeimages/provider.svg" alt="Provider" width="20" height="20"> Provider (for state management)
-- <img src="readmeimages/agora.png" alt="Agora SDK" width="20" height="20"> Agora SDK (for Video and voice calling)
-- <img src="readmeimages/hive.jpg" alt="Hive" width="20" height="20"> Hive (for local storage)
+- <img src="docs/images/provider.svg" alt="Provider" width="20" height="20"> Provider (for state management)
+- <img src="docs/images/agora.png" alt="Agora SDK" width="20" height="20"> Agora SDK (for Video and voice calling)
+- <img src="docs/images/hive.jpg" alt="Hive" width="20" height="20"> Hive (for local storage)
 - <img src="https://github.com/marwin1991/profile-technology-icons/assets/136815194/82df4543-236b-4e45-9604-5434e3faab17" alt="SQLite" width="20" height="20"> SQLite (for local storage)
 
 ---
@@ -104,15 +104,15 @@ class _MyAppState extends State<MyApp> {
   <table style="border-collapse: collapse;">
     <tr>
       <td style="padding-right: 0px; border: none;">
-        <img src="readmeimages/Onboarding Screen 2.png" alt="Screen 1" width="250">
+        <img src="docs/images/onboarding_screen_2.png" alt="Screen 1" width="250">
         <p align="center">OnBoarding Screen</p>
       </td>
       <td style="padding-right: 0px; border: none;">
-        <img src="readmeimages/SignUp.png" alt="Screen 2" width="250">
+        <img src="docs/images/sign_up.png" alt="Screen 2" width="250">
         <p align="center">SignUp Screen</p>
       </td>
       <td style="border: none;">
-        <img src="readmeimages/Chats.png" alt="Screen 3" width="250">
+        <img src="docs/images/chats.png" alt="Screen 3" width="250">
         <p align="center">ChatLists Screen</p>
       </td>
     </tr>
@@ -122,15 +122,15 @@ class _MyAppState extends State<MyApp> {
   <table style="border-collapse: collapse;">
     <tr>
       <td style="padding-right: 0px; border: none;">
-        <img src="readmeimages/Conversations.png" alt="Screen 1" width="250">
+        <img src="docs/images/conversations.png" alt="Screen 1" width="250">
         <p align="center">Conversations Screen</p>
       </td>
       <td style="padding-right: 0px; border: none;">
-        <img src="readmeimages/Profilepage.png" alt="Screen 2" width="250">
+        <img src="docs/images/profile_page.png" alt="Screen 2" width="250">
         <p align="center">Profile Screen</p>
       </td>
       <td style="border: none;">
-        <img src="readmeimages/search2.png" alt="Screen 3" width="250">
+        <img src="docs/images/search_2.png" alt="Screen 3" width="250">
         <p align="center">Search Screen</p>
       </td>
     </tr>
@@ -140,15 +140,15 @@ class _MyAppState extends State<MyApp> {
   <table style="border-collapse: collapse;">
     <tr>
       <td style="padding-right: 0px; border: none;">
-        <img src="readmeimages/Pickup Screen.png" alt="Screen 1" width="250">
+        <img src="docs/images/pickup_screen.png" alt="Screen 1" width="250">
         <p align="center">Pickup Screen</p>
       </td>
       <td style="padding-right: 0px; border: none;">
-        <img src="readmeimages/videocall.png" alt="Screen 2" width="250">
+        <img src="docs/images/videocall.png" alt="Screen 2" width="250">
         <p align="center">VideoCall Screen</p>
       </td>
       <td style="border: none;">
-        <img src="readmeimages/call logs.png" alt="Screen 3" width="250">
+        <img src="docs/images/call_logs.png" alt="Screen 3" width="250">
         <p align="center">CallLogs Screen</p>
       </td>
     </tr>

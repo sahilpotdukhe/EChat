@@ -27,7 +27,7 @@ function truncate(text) {
   return text.length > MAX_BODY_LENGTH ? `${text.slice(0, MAX_BODY_LENGTH - 1)}…` : text;
 }
 
-// Same groups as lib/Utils/MessageUtils.dart.
+// Same groups as lib/utils/message_utils.dart.
 const IMAGE_TYPES = new Set(["image", "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp"]);
 const VIDEO_TYPES = new Set(["mp4", "mov", "m4v", "3gp", "webm", "mkv", "avi"]);
 

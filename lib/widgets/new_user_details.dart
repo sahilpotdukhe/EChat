@@ -1,0 +1,259 @@
+import 'package:echat/models/user_model.dart';
+import 'package:echat/providers/user_provider.dart';
+import 'package:echat/resources/auth_methods.dart';
+import 'package:echat/utils/scale_utils.dart';
+import 'package:echat/utils/universal_variables.dart';
+import 'package:echat/widgets/edit_profile.dart';
+import 'package:echat/widgets/full_image_widget.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_styled_toast/flutter_styled_toast.dart';
+import 'package:hexcolor/hexcolor.dart';
+import 'package:provider/provider.dart';
+
+class NewUserDetails extends StatefulWidget {
+  const NewUserDetails({super.key});
+
+  @override
+  State<NewUserDetails> createState() => _NewUserDetailsState();
+}
+
+class _NewUserDetailsState extends State<NewUserDetails> {
+  AuthMethods authMethods = AuthMethods();
+
+  @override
+  Widget build(BuildContext context) {
+    ScaleUtils.init(context);
+    UserProvider userProvider = Provider.of<UserProvider>(context);
+    UserModel? userModel = userProvider.getUser;
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SingleChildScrollView(
+        child: Container(
+          child: Stack(
+            children: [
+              Container(
+                height: 200*ScaleUtils.verticalScale,
+                decoration: BoxDecoration(
+                  gradient: UniversalVariables.appGradient,
+                  borderRadius: BorderRadius.only(
+                      bottomRight: Radius.circular(80*ScaleUtils.scaleFactor),
+                      bottomLeft: Radius.circular(80*ScaleUtils.scaleFactor)),
+                ),
+              ),
+              Center(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(height: 110*ScaleUtils.verticalScale),
+                    GestureDetector(
+                      onTap: (){
+                        Navigator.push(context,
+                            MaterialPageRoute(builder: (_) {
+                              return FullImageWidget(
+                                imageUrl: userModel.profilePhoto,
+                              );
+                            }));
+                      },
+                      child: CircleAvatar(
+                        radius: 75*ScaleUtils.scaleFactor,
+                        child: CircleAvatar(
+                          radius: 70*ScaleUtils.scaleFactor,
+                          backgroundColor: Colors.transparent,
+                          backgroundImage: AssetImage('assets/user.jpg'),
+                          foregroundImage: NetworkImage(userModel!.profilePhoto),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 10*ScaleUtils.verticalScale,
+                    ),
+                    Text(
+                      userModel.name,
+                      style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 25*ScaleUtils.scaleFactor,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    Padding(
+                      padding:  EdgeInsets.all(8.0*ScaleUtils.scaleFactor),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              Navigator.pushNamed(context, '/searchScreen');
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
+                                color: HexColor("3957ED"),
+                              ),
+                              child: Padding(
+                                padding:  EdgeInsets.all(12.0*ScaleUtils.scaleFactor),
+                                child: Row(
+                                  children:  [
+                                    Text(
+                                      "Message Friend",
+                                      style: TextStyle(fontSize:14*ScaleUtils.scaleFactor,color: Colors.white),
+                                    ),
+                                    SizedBox(width: 8*ScaleUtils.horizontalScale,),
+                                    Icon(Icons.message,color: Colors.white,)
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (context)=>EditProfile()));
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
+                                color: HexColor("3957ED"),
+                              ),
+                              child: Padding(
+                                padding:  EdgeInsets.all(12.0*ScaleUtils.scaleFactor),
+                                child:  Row(
+                                  children:  [
+                                    Text(
+                                      "Edit Profile",
+                                      style: TextStyle(fontSize:14*ScaleUtils.scaleFactor,color: Colors.white),
+                                    ),
+                                    SizedBox(width: 8*ScaleUtils.verticalScale,),
+                                    Icon(Icons.edit,color: Colors.white,)
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // SizedBox(
+                    //   height: 20*ScaleUtils.verticalScale,
+                    // ),
+                    Padding(
+                      padding:  EdgeInsets.symmetric(horizontal: 10*ScaleUtils.horizontalScale,vertical: 20*ScaleUtils.verticalScale),
+                      child: Container(
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30*ScaleUtils.scaleFactor),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withValues(alpha: 0.5),
+                                spreadRadius: 5,
+                                blurRadius: 7,
+                                offset: Offset(0, 3), // changes position of shadow
+                              ),
+                            ]),
+                        child: Padding(
+                          padding:  EdgeInsets.all(18.0*ScaleUtils.scaleFactor),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Name",
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
+                              ),
+                              Text(
+                                userModel.name,
+                                style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
+                              ),
+                              Divider(),
+                              Text(
+                                "Username",
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
+                              ),
+                              Text(
+                                userModel.username,
+                                style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
+                              ),
+                              Divider(),
+                              Text(
+                                "Email",
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
+                              ),
+                              Text(
+                                userModel.email,
+                                style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
+                              ),
+                              (userModel.phoneNumber=='')?Container()
+                                  :Column(
+                                children: [
+                                  Divider(),
+                                  Text(
+                                    "Phone number",
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
+                                  ),
+                                  Text(
+                                    userModel.phoneNumber,
+                                    style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
+                                  ),
+                                ],
+                              ),
+                              (userModel.gender == "")?Container()
+                                  :Column(
+                                children: [
+                                  Divider(),
+                                  Text(
+                                    "Gender",
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold, fontSize: 18*ScaleUtils.scaleFactor),
+                                  ),
+                                  Text(
+                                    userModel.gender,
+                                    style: TextStyle(fontSize: 16*ScaleUtils.scaleFactor),
+                                  ),
+                                ],
+                              )
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        authMethods.logOut(context);
+                        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) {return NewLoginScreen();}));
+                        showToast("Account Logging Out....", backgroundColor: Colors.red, context: context);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20*ScaleUtils.scaleFactor),
+                          color: HexColor("EE3427"),
+                        ),
+                        child: Padding(
+                          padding:  EdgeInsets.all(12.0*ScaleUtils.scaleFactor),
+                          child:  Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children:  [
+                              Text(
+                                "Logout",
+                                style: TextStyle(fontSize:16*ScaleUtils.scaleFactor,color: Colors.white),
+                              ),
+                              SizedBox(width: 8*ScaleUtils.horizontalScale,),
+                              Icon(Icons.logout,color: Colors.white,)
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // SizedBox(height: 70,)
+                    //Spacer()
+                  ],
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

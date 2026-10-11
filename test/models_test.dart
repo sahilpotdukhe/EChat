@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:echat/Models/CallModel.dart';
-import 'package:echat/Models/MessageModel.dart';
-import 'package:echat/Models/UserModel.dart';
+import 'package:echat/models/call_model.dart';
+import 'package:echat/models/message_model.dart';
+import 'package:echat/models/user_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Old documents in Firestore are missing fields added later; reading them must
