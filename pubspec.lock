@@ -1081,11 +1081,11 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "v0.2.0"
-      resolved-ref: "51e8cf450dc338f6115bcfcccecbc02a3baf3766"
+      ref: "v0.2.1"
+      resolved-ref: f6c68c40aef8ae3996b323605deec8ae8bbb73a9
       url: "git@github-personal:sahilpotdukhe/shadcn_kit.git"
     source: git
-    version: "0.2.0"
+    version: "0.2.1"
   shared_preferences:
     dependency: "direct main"
     description:

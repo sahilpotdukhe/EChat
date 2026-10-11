@@ -49,6 +49,21 @@ class MessageUtils {
     return DateFormat('dd/MM/yy').format(messageTime);
   }
 
+  /// Messages close together from the same sender are drawn as one group:
+  /// tighter spacing and a single "tail" corner. True when [a] and [b] are
+  /// from the same sender, on the same day and at most [gap] apart.
+  static bool groupsWith({
+    required String senderA,
+    required DateTime timeA,
+    required String senderB,
+    required DateTime timeB,
+    Duration gap = const Duration(minutes: 5),
+  }) {
+    return senderA == senderB &&
+        isSameDay(timeA, timeB) &&
+        timeA.difference(timeB).abs() <= gap;
+  }
+
   static bool isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
