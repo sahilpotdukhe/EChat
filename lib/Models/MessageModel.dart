@@ -10,6 +10,8 @@ class MessageModel{
   String thumbnailUrl = "";
   String pdfUrl = "";
   String pdfName = "";
+  // Original name of an uploaded file (any type); '' for text and photos.
+  String fileName = "";
   late Timestamp timestamp;
 
   MessageModel({
@@ -21,7 +23,8 @@ class MessageModel{
     required this.photoUrl,
     required this.thumbnailUrl,
     required this.pdfUrl,
-    required this.pdfName
+    required this.pdfName,
+    this.fileName = "",
 });
 
 //MessageModel.imageMessage is a constructor named imageMessage for a class called MessageModel
@@ -32,16 +35,6 @@ class MessageModel{
     required this.message,
     required this.timestamp,
     required this.photoUrl});
-
-  MessageModel.videoMessage({
-    required this.senderId,
-    required this.receiverId,
-    required this.type,
-    required this.message,
-    required this.timestamp,
-    required this.videoUrl,
-    required this.thumbnailUrl,
-  });
 
   Map toMap(){
     var map=<String,dynamic>{};
@@ -55,20 +48,23 @@ class MessageModel{
     map['thumbnailUrl'] = thumbnailUrl;
     map['pdfUrl'] = pdfUrl;
     map['pdfName'] = pdfName;
+    map['fileName'] = fileName;
     return map;
   }
 
+  // Missing fields (older messages) fall back to defaults instead of throwing.
   MessageModel.fromMap(Map<dynamic,dynamic> map){
-    senderId=map['senderId'];
-    receiverId=map['receiverId'];
-    type=map['type'];
-    message=map['message'];
-    timestamp=map['timestamp'];
-    photoUrl = map['photoUrl'];
-    videoUrl = map['videoUrl'];
-    thumbnailUrl = map['thumbnailUrl'];
-    pdfUrl = map['pdfUrl'];
-    pdfName = map['pdfName'];
+    senderId = map['senderId'] ?? '';
+    receiverId = map['receiverId'] ?? '';
+    type = map['type'] ?? '';
+    message = map['message'] ?? '';
+    timestamp = map['timestamp'] is Timestamp ? map['timestamp'] : Timestamp.now();
+    photoUrl = map['photoUrl'] ?? '';
+    videoUrl = map['videoUrl'] ?? '';
+    thumbnailUrl = map['thumbnailUrl'] ?? '';
+    pdfUrl = map['pdfUrl'] ?? '';
+    pdfName = map['pdfName'] ?? '';
+    fileName = map['fileName'] ?? '';
   }
 
 }
