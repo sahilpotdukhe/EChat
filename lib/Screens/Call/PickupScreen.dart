@@ -49,6 +49,7 @@ class _PickupScreenState extends State<PickupScreen> {
 
   getUser() async{
       callerModel = await authMethods.getUserDetailsById(widget.callModel.callerId);
+     if (!mounted || callerModel == null) return;
      setState(() {
        callerEmail = callerModel!.email;
      });
@@ -124,6 +125,8 @@ class _PickupScreenState extends State<PickupScreen> {
             ),
             InkWell(
               onTap: (){
+                // Caller's profile still loading (or gone): nothing to open yet.
+                if (callerModel == null) return;
                 isCallMissed = false;
                 addToLocalStorage(callStatus: "received");
                 callMethods.endCall(callModel: widget.callModel);

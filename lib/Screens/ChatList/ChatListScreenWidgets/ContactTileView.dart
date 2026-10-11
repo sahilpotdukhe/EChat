@@ -21,12 +21,17 @@ class ContactTileView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<UserModel>(
+    return FutureBuilder<UserModel?>(
         future: _authMethods.getUserDetailsById(contactModel.uid),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             UserModel userModel = snapshot.data!;
             return ViewLayout(contactUserModel: userModel);
+          }
+          // Contact's profile no longer exists, or failed to load: hide the row
+          // instead of spinning forever.
+          if (snapshot.connectionState == ConnectionState.done) {
+            return const SizedBox.shrink();
           }
           return Container(
               height: 80,

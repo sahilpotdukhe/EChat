@@ -239,12 +239,12 @@ class _EditProfileState extends State<EditProfile> {
                                     final FirebaseStorage storage =
                                         FirebaseStorage.instance;
                                     final picture =
-                                        '${userProvider.getUser!.name.toString()} Id:--- ${userProvider.getUser!.uid.toString()} Time: ${DateTime.now().microsecondsSinceEpoch.toString()}.jpg';
+                                        '${DateTime.now().microsecondsSinceEpoch}.jpg';
                                     final File _imagep = File(_image!.path);
                                     UploadTask task = storage
                                         .ref()
-                                        .child('Users/${picture}')
-                                        .putFile(_imagep);
+                                        .child('Users/${userProvider.getUser!.uid}/$picture')
+                                        .putFile(_imagep, SettableMetadata(contentType: 'image/jpeg'));
                                     TaskSnapshot snapshot = (await task
                                         .whenComplete(() => task.snapshot));
                                     await task.whenComplete(() async {

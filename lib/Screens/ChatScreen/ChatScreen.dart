@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Provider/UserProvider.dart';
 import 'package:echat/Resources/ChatFirebaseMethods.dart';
@@ -28,7 +26,6 @@ import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:http/http.dart' as http;
 
 class ChatScreen extends StatefulWidget {
   final UserModel receiver;
@@ -43,7 +40,8 @@ class _ChatScreenState extends State<ChatScreen> {
   TextEditingController messageController = TextEditingController();
   late UserProvider userProvider;
   bool isWriting = false;
-  late UserModel sender;
+  // Loaded asynchronously in initializeSender; null until then.
+  UserModel? sender;
   String _currentUserId = '';
   ChatFirebaseMethods chatFirebaseMethods = ChatFirebaseMethods();
   FirebaseStorageMethod firebaseStorageMethod = FirebaseStorageMethod();
@@ -60,12 +58,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> initializeSender() async {
     await Future.delayed(Duration.zero);
+    if (!mounted) return;
     userProvider = Provider.of<UserProvider>(context, listen: false);
     await userProvider.refreshUser();
+    if (!mounted) return;
     if (userProvider.getUser != null) {
-      UserModel? currentUser = userProvider.getUser;
       setState(() {
-        sender = currentUser!;
+        sender = userProvider.getUser;
       });
     } else {
       print('User is null');
@@ -83,12 +82,14 @@ class _ChatScreenState extends State<ChatScreen> {
         appBar: CustomAppBar(
           title: InkWell(
               onTap: () {
+                final me = sender;
+                if (me == null) return;
                 Navigator.push(
                     context,
                     MaterialPageRoute(
                         builder: (context) => ReceiverDetails(
                               receiverModel: widget.receiver,
-                              senderModel: sender,
+                              senderModel: me,
                             )));
               },
               child: Text(
@@ -98,25 +99,29 @@ class _ChatScreenState extends State<ChatScreen> {
               )),
           actions: [
             IconButton(
-                onPressed: () {
-                  CallUtilities.dial(
-                      from_Caller: sender,
-                      to_receiver: widget.receiver,
-                      context: context,
-                      callType: 'audioCall');
-                },
+                onPressed: sender == null
+                    ? null
+                    : () {
+                        CallUtilities.dial(
+                            from_Caller: sender!,
+                            to_receiver: widget.receiver,
+                            context: context,
+                            callType: 'audioCall');
+                      },
                 icon: Icon(
                   Icons.phone,
                   color: Colors.white,
                 )),
             IconButton(
-                onPressed: () {
-                  CallUtilities.dial(
-                      from_Caller: sender,
-                      to_receiver: widget.receiver,
-                      context: context,
-                      callType: 'videoCall');
-                },
+                onPressed: sender == null
+                    ? null
+                    : () {
+                        CallUtilities.dial(
+                            from_Caller: sender!,
+                            to_receiver: widget.receiver,
+                            context: context,
+                            callType: 'videoCall');
+                      },
                 icon: Icon(
                   Icons.video_call,
                   color: Colors.white,
@@ -124,12 +129,14 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
           leading: InkWell(
             onTap: () {
+              final me = sender;
+              if (me == null) return;
               Navigator.push(
                   context,
                   MaterialPageRoute(
                       builder: (context) => ReceiverDetails(
                           receiverModel: widget.receiver,
-                          senderModel: sender)));
+                          senderModel: me)));
             },
             child: Row(
               children: [
@@ -616,14 +623,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget chatControls(ImageUploadProvider imageUploadProvider) {
     void pickImageMethod({required ImageSource source}) async {
-      String receiverToken = widget.receiver.notificationToken;
       XFile? selectedImage = (await ImagePicker().pickImage(source: source));
       firebaseStorageMethod.uploadImage(selectedImage, widget.receiver.uid,
           _currentUserId, imageUploadProvider, (double progress) {
         setState(() {
           uploadProgress = progress;
         });
-      }, receiverToken, sender);
+      });
     }
 
     addMediaModel(BuildContext context) {
@@ -810,10 +816,13 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  void sendMessage() async {
+  void sendMessage() {
+    final me = sender;
+    // Keep the typed text if our profile hasn't loaded yet.
+    if (me == null) return;
     var text = messageController.text;
     MessageModel message = MessageModel(
-        senderId: sender.uid,
+        senderId: me.uid,
         receiverId: widget.receiver.uid,
         type: 'text',
         message: text,
@@ -826,50 +835,19 @@ class _ChatScreenState extends State<ChatScreen> {
       isWriting = false;
     });
     messageController.text = "";
-    chatFirebaseMethods.addMessagetoDb(message, sender, widget.receiver);
-
-    String receiverToken = widget.receiver.notificationToken;
-    try {
-      http.Response response = await http.post(
-        Uri.parse('https://fcm.googleapis.com/fcm/send'),
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization':
-              'key=AAAAq0ydI38:APA91bHE76HpjMV9xq6zd66mJyzmGoAte7AWwAMFbhVsXKMdVvDkTLs1oUrAqBLp1OdH7k8d2Lqkmp0FIDD1_r4PImOsVwZwQlWDaRrjyDTkggVaVKiCYijXLB46w-wHhqjgLiQEcaXe',
-        },
-        body: jsonEncode(
-          <String, dynamic>{
-            'notification': <String, dynamic>{
-              'title': sender.name,
-              'body': message.message,
-              'channel_id': 'message_channel'
-            },
-            'priority': 'high',
-            'data': <String, dynamic>{
-              'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-              'id': '1',
-              'status': 'done',
-            },
-            'to': receiverToken,
-          },
-        ),
-      );
-      response;
-    } catch (e) {
-      e;
-    }
+    chatFirebaseMethods.addMessagetoDb(message, me, widget.receiver);
+    // The push notification is sent by the notifyNewMessage Cloud Function.
   }
 
   void _selectFile(ImageUploadProvider imageUploadProvider) async {
     final List<PlatformFile> pickedFiles = await FilePicker.pickFiles();
     final PlatformFile? pickedFile = pickedFiles.isEmpty ? null : pickedFiles.first;
-    String receiverToken = widget.receiver.notificationToken;
     firebaseStorageMethod.uploadAnyFile(
         pickedFile, widget.receiver.uid, _currentUserId, imageUploadProvider,
         (double progress) {
       setState(() {
         uploadProgress = progress;
       });
-    }, receiverToken, sender);
+    });
   }
 }

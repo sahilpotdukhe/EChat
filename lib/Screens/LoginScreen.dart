@@ -1,5 +1,4 @@
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/Resources/AuthMethods.dart';
 import 'package:echat/Screens/SignUpScreen.dart';
 import 'package:echat/Utils/ScreenDimensions.dart';
@@ -7,7 +6,6 @@ import 'package:echat/Utils/UniversalVariables.dart';
 import 'package:echat/Widgets/BottomNavigationBar.dart';
 import 'package:echat/Widgets/loading.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:echat/Widgets/GoogleSignInButton.dart';
 import 'package:flutter_styled_toast/flutter_styled_toast.dart';
@@ -397,29 +395,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                                 .then((user) async {
                                               if (user != null) {
                                                 print(user);
-                                                String? initialToken =
-                                                    await FirebaseMessaging
-                                                        .instance
-                                                        .getToken();
-                                                print(
-                                                    "Initial Token sign in ${initialToken}");
-
-                                                FirebaseMessaging
-                                                    .instance.onTokenRefresh
-                                                    .listen((newToken) async {
-                                                  print(
-                                                      "New Token sign in  ${newToken}");
-                                                });
-                                                await FirebaseFirestore.instance
-                                                    .collection("Users")
-                                                    .doc(user.uid)
-                                                    .update({
-                                                  "notification_token":
-                                                      initialToken,
-                                                });
-
-                                                authMethods.updateToken(
-                                                    user.uid, initialToken!);
+                                                await authMethods
+                                                    .saveNotificationToken(user.uid);
                                                 Navigator.pushAndRemoveUntil(
                                                     context,
                                                     MaterialPageRoute(
