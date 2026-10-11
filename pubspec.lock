@@ -201,14 +201,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
-  curved_navigation_bar:
-    dependency: "direct main"
-    description:
-      name: curved_navigation_bar
-      sha256: bb4ab128fcb6f4a9f0f1f72d227db531818b20218984789777f049fcbf919279
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.6"
   dbus:
     dependency: transitive
     description:
@@ -1085,6 +1077,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.28.0"
+  shadcn_kit:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: "v0.2.0"
+      resolved-ref: "51e8cf450dc338f6115bcfcccecbc02a3baf3766"
+      url: "git@github-personal:sahilpotdukhe/shadcn_kit.git"
+    source: git
+    version: "0.2.0"
   shared_preferences:
     dependency: "direct main"
     description:

@@ -36,6 +36,19 @@ class MessageUtils {
     return DateFormat('dd-MM-yyyy').format(messageTime);
   }
 
+  /// Time shown on the right of a chat-list row: the time for today,
+  /// 'Yesterday', the weekday within the last week, otherwise dd/MM/yy.
+  static String chatListTime(DateTime messageTime, DateTime now) {
+    final DateTime messageDay = DateTime(messageTime.year, messageTime.month, messageTime.day);
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    // Rounded so a 23- or 25-hour daylight-saving day still counts as one.
+    final int daysAgo = (today.difference(messageDay).inHours / 24).round();
+    if (daysAgo <= 0) return DateFormat.jm().format(messageTime);
+    if (daysAgo == 1) return 'Yesterday';
+    if (daysAgo < 7) return DateFormat.E().format(messageTime);
+    return DateFormat('dd/MM/yy').format(messageTime);
+  }
+
   static bool isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 

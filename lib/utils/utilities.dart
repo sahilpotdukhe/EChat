@@ -8,16 +8,14 @@ class Utils{
     return "echat:${email.split('@')[0]}";
   }
 
+  /// Up to two capital letters from a name: "Sahil Potdukhe" -> "SP".
+  /// Empty or blank names give "?" instead of crashing.
   static String getInitials(String? displayName) {
-    // Suppose the name is Sahil Potdukhe
-    List<String> nameSplit = displayName!.split(" ");
-    // list will contain [Sahil,Potdukhe]
-    String firstNameInitial = nameSplit[0][0];// List's first index first letter that is "S"
-    if(nameSplit.length > 1){
-      String lastNameInitial = nameSplit[1][0];// List's second index first letter that is "P"
-      return firstNameInitial + lastNameInitial;//It will form "SP"
-    }
-    return firstNameInitial;
+    final parts = (displayName ?? '').trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    final first = parts.first[0];
+    final last = parts.length > 1 ? parts[1][0] : '';
+    return (first + last).toUpperCase();
   }
 
   static int stateToNum(UserState userState){
