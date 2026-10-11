@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:echat/Models/CallLogModel.dart';
 import 'package:echat/Resources/Interface/CallLogInterface.dart';
@@ -24,7 +25,7 @@ class HiveMethods implements CallLogInterface {
     var box = await Hive.openBox(hive_box);
     var logMap = callLogModel.toMap(callLogModel);
     int idOfInput = await box.add(logMap); // for the very first addition of data the idOfInput will be 0 then 1 then 2 ...
-    print("Call Dialled from Hive");
+    debugPrint("Call Dialled from Hive");
     close();
     return idOfInput;
   }
@@ -77,7 +78,7 @@ class HiveMethods implements CallLogInterface {
     await init();
     var box = await Hive.openBox(hive_box);
     await box.deleteAt(logId);
-    print("deleted");
+    debugPrint("deleted");
   }
 
   @override

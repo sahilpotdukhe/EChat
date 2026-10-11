@@ -58,7 +58,7 @@ class _SearchScreenState extends State<SearchScreen> {
             onChanged: (val) {
               setState(() {
                 query = val;
-                print(query);
+                debugPrint(query);
               });
             },
           ),
