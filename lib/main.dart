@@ -19,6 +19,7 @@ import 'package:shadcn_kit/shadcn_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 int? isViewed;
+bool isSignedIn = false;
 ThemeMode savedThemeMode = ThemeMode.system;
 
 // Runs in a separate background isolate, so it must be a top-level function
@@ -69,6 +70,10 @@ void main() async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
   isViewed = prefs.getInt("OnBoard");
   savedThemeMode = ThemePreference.read(prefs);
+  // Wait for Firebase to restore the saved sign-in while the splash is still
+  // up, so a signed-in user goes straight to their chats instead of seeing
+  // the login screen flash first.
+  isSignedIn = await FirebaseAuth.instance.authStateChanges().first != null;
   FlutterNativeSplash.remove();
   runApp(MyApp());
   //runApp(const MyApp());
@@ -88,7 +93,6 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     // it takes a BuildContext object as a parameter which Flutter uses to locate the position of this widget within the widget tree
-    AuthMethods authMethods = AuthMethods();
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ImageUploadProvider()),
@@ -103,19 +107,11 @@ class _MyAppState extends State<MyApp> {
         materialThemeBuilder: AppTheme.build,
         routes: {
           '/searchScreen': (context) => SearchScreen()},
-        home: FutureBuilder(
-          // Flutter widget used for building UI elements based on asynchronous operations.
-          future: authMethods.getCurrentUser(),
-          // It defines the asynchronous operation that the FutureBuilder will wait for. returns User object
-          builder: (context, AsyncSnapshot<User?> snapshot) {
-            // snapshot: An AsyncSnapshot object that contains the latest data received from the future. and the snapshot contains data of type User
-            if (snapshot.hasData) {
-              return HomeScreen();
-            } else {
-              return isViewed != 0 ? OnBoardScreens() : Authenticate();
-            }
-          },
-        ),
+        home: isSignedIn
+            ? HomeScreen()
+            : isViewed != 0
+                ? OnBoardScreens()
+                : Authenticate(),
       ),
     );
   }
