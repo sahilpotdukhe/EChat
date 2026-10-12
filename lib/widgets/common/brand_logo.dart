@@ -1,41 +1,40 @@
-import 'package:echat/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_kit/shadcn_kit.dart';
 
-/// The EChat mark: a gradient rounded square with a chat bubble, optionally
-/// followed by the name.
+/// The EChat mark (the same logo as the app icon and splash screen),
+/// optionally followed by the name.
 class BrandLogo extends StatelessWidget {
   final double size;
   final bool showName;
 
-  /// Use on a colored (brand gradient) background.
+  /// Use on a colored (brand gradient) background: the dark purple logo
+  /// sits on a white tile so it stays visible.
   final bool onBrand;
 
   const BrandLogo({super.key, this.size = 44, this.showName = true, this.onBrand = false});
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final shadcn = context.shadcn;
-    final mark = Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        gradient: onBrand ? null : colors.brandGradient,
-        color: onBrand ? Colors.white.withValues(alpha: 0.18) : null,
-        borderRadius: BorderRadius.circular(size * 0.3),
-        boxShadow: onBrand
-            ? null
-            : [
-                BoxShadow(
-                  color: shadcn.primary.withValues(alpha: 0.35),
-                  blurRadius: size * 0.4,
-                  offset: Offset(0, size * 0.12),
-                ),
-              ],
-      ),
-      child: Icon(Icons.chat_bubble_rounded, color: Colors.white, size: size * 0.5),
+    final image = Image.asset(
+      'assets/brand_mark.png',
+      width: onBrand ? size * 0.7 : size,
+      height: onBrand ? size * 0.7 : size,
+      filterQuality: FilterQuality.medium,
+      excludeFromSemantics: true,
     );
+    final mark = onBrand
+        ? Container(
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(size * 0.3),
+            ),
+            child: image,
+          )
+        : image;
     if (!showName) return mark;
 
     return Row(

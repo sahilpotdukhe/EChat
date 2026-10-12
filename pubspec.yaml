@@ -75,6 +75,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -118,6 +119,25 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
+# App icon, made from the same logo as the splash screen. The source
+# pictures are in assets/app_icon. After changing them, run:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: assets/app_icon/app_icon.png
+  android: ic_launcher
+  ios: true
+  remove_alpha_ios: true
+  # Android 8+: a background and a logo layer the phone crops to its own shape.
+  adaptive_icon_background: assets/app_icon/app_icon_background.png
+  adaptive_icon_foreground: assets/app_icon/app_icon_foreground.png
+  # Android 13+: one-colour version used when "themed icons" is on.
+  adaptive_icon_monochrome: assets/app_icon/app_icon_monochrome.png
+  web:
+    generate: true
+    image_path: assets/app_icon/app_icon.png
+    background_color: "#FFFFFF"
+    theme_color: "#6C5CE7"
+
 flutter_native_splash:
   # This package generates native code to customize Flutter's default white native splash screen
   # with background color and splash image.
