@@ -6,6 +6,7 @@ import 'package:echat/screens/home_screen.dart';
 import 'package:echat/enums/user_state.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
@@ -147,6 +148,13 @@ class AuthMethods {
   // the user just won't get notifications instead of the app crashing.
   Future<void> saveNotificationToken(String userId) async {
     try {
+      // On iPhone, Apple's push token arrives a moment after permission is
+      // granted, and asking Firebase for its token before then fails.
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        for (var i = 0; i < 10 && await FirebaseMessaging.instance.getAPNSToken() == null; i++) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+      }
       final String? token = await FirebaseMessaging.instance.getToken();
       if (token == null || token.isEmpty) return;
       await updateToken(userId, token);

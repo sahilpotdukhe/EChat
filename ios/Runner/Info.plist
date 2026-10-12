@@ -45,6 +45,40 @@
 		<true/>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
+		<key>NSCameraUsageDescription</key>
+		<string>EChat uses the camera for video calls and to take photos to send in chats.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>EChat uses the microphone for voice and video calls and for recording videos.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>EChat needs your photos so you can send pictures and videos and set a profile photo.</string>
+		<key>NSContactsUsageDescription</key>
+		<string>EChat reads your contacts to show which friends are on EChat and to invite the rest.</string>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>audio</string>
+			<string>fetch</string>
+			<string>remote-notification</string>
+		</array>
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>sms</string>
+			<string>tel</string>
+			<string>mailto</string>
+			<string>https</string>
+		</array>
+		<!-- Google Sign-In returns to the app through this link. Replace the
+		     value with REVERSED_CLIENT_ID from ios/Runner/GoogleService-Info.plist. -->
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.735724774271-rn84cbglbucfsb5672v80ajre3c3f4lk</string>
+				</array>
+			</dict>
+		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>

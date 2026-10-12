@@ -48,6 +48,10 @@ class _HomeScreenState extends State<HomeScreen>  with WidgetsBindingObserver{
     if (userProvider.getUser != null) {
       authMethods.setUserState(userId: userProvider.getUser!.uid, userState: UserState.online);
       LogRepository.initialize(dbName: userProvider.getUser!.uid);
+      // An iPhone only gets a push token once notifications are allowed, so
+      // save it again here; the one saved at sign-in may be missing.
+      LocalNotifications.requestPermission()
+          .then((_) => authMethods.saveNotificationToken(userProvider.getUser!.uid));
       debugPrint('${userProvider.getUser!.state}');
 
     } else {

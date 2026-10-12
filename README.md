@@ -89,6 +89,20 @@ class _MyAppState extends State<MyApp> {
     ```bash
     flutter run
 
+### 🍎 Running on iPhone
+
+The iOS project is set up already; these one-time steps need your own accounts:
+
+1. Install Xcode from the App Store, then run `sudo xcode-select -s /Applications/Xcode.app` and open Xcode once.
+2. In the Firebase console (project `echat-888ef`), add an iOS app with bundle ID `com.example.echat`, download `GoogleService-Info.plist` and put it in `ios/Runner/`.
+3. Copy `REVERSED_CLIENT_ID` from that file into `ios/Runner/Info.plist`, replacing `com.googleusercontent.apps.REPLACE_WITH_REVERSED_CLIENT_ID` (needed for Google Sign-In).
+4. Run `cd ios && pod install`, then `flutter run` with a simulator or iPhone connected.
+
+For push notifications on a real iPhone (a paid Apple Developer account is needed):
+
+5. Open `ios/Runner.xcworkspace`, pick your team under **Signing & Capabilities**, and add the **Push Notifications** capability.
+6. Create an APNs key at developer.apple.com and upload it in Firebase console > Project settings > Cloud Messaging > Apple app configuration.
+
 ## 📋 Requirements
 
 - Flutter SDK: [Installation Guide](https://flutter.dev/docs/get-started/install)

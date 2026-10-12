@@ -51,6 +51,16 @@ class LocalNotifications {
     AwesomeNotifications().setListeners(onActionReceivedMethod: _onAction);
   }
 
+  /// Asks once for permission to show notifications. iPhones (and Android
+  /// 13+) show nothing until the user agrees; later calls don't ask again.
+  static Future<void> requestPermission() async {
+    try {
+      await FirebaseMessaging.instance.requestPermission();
+    } catch (e) {
+      debugPrint('Could not ask for notification permission: $e');
+    }
+  }
+
   @pragma('vm:entry-point')
   static Future<void> _onAction(ReceivedAction action) async {
     switch (action.buttonKeyPressed) {
