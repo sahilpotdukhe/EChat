@@ -265,7 +265,17 @@ class _CallRow extends StatelessWidget {
         children: [
           Icon(directionIcon, size: 16, color: directionColor),
           const SizedBox(width: 4),
-          Flexible(child: Text([direction, if (time.isNotEmpty) time].join(' · '))),
+          Flexible(
+            child: Text(
+              [
+                direction,
+                if (time.isNotEmpty) time,
+                if (log.durationSeconds > 0) MessageUtils.callDurationLabel(log.durationSeconds),
+              ].join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
       trailing: onCallBack == null
@@ -280,7 +290,8 @@ class _CallRow extends StatelessWidget {
             ),
       onTap: onTap,
       onLongPress: onLongPress,
-      semanticLabel: '$direction $kind call, $name, $time. Long press to delete',
+      semanticLabel: '$direction $kind call, $name, $time'
+          '${log.durationSeconds > 0 ? ', ${MessageUtils.callDurationLabel(log.durationSeconds)}' : ''}. Long press to delete',
     );
   }
 }

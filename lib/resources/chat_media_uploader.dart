@@ -4,27 +4,32 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/models/message_model.dart';
 import 'package:echat/providers/image_upload_provider.dart';
 import 'package:echat/resources/chat_firebase_methods.dart';
+import 'package:echat/resources/media_storage.dart';
 import 'package:echat/utils/message_utils.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fc_native_video_thumbnail/fc_native_video_thumbnail.dart';
 
-// Uploads chat media, then saves the message. Each user uploads into their own
-// folder (see storage.rules). The push notification is sent by the
-// notification server (see NotificationService). Both upload methods throw on failure so the
-// chat screen can tell the user; the "uploading" spinner is always cleared.
-class FirebaseStorageMethod{
+// Uploads chat media (to Supabase, see MediaStorage), then saves the
+// message. The push notification is sent by the notification server (see
+// NotificationService). Both upload methods throw on failure so the chat
+// screen can tell the user; the "uploading" spinner is always cleared.
+class ChatMediaUploader{
 
   final ChatFirebaseMethods _chatFirebaseMethods = ChatFirebaseMethods();
 
   Future<void> uploadImage(XFile image, String receiverId, String senderId, ImageUploadProvider imageUploadProvider, Function(double) onProgress) async {
     imageUploadProvider.setToLoading();
     try{
-      final picture = '$receiverId-${DateTime.now().microsecondsSinceEpoch}.jpg';
-      final Reference ref = FirebaseStorage.instance.ref().child('Media/$senderId/$picture');
-      final String imageUrl = await _upload(ref, File(image.path), onProgress, SettableMetadata(contentType: 'image/jpeg'));
+      final String imageUrl = await MediaStorage.uploadFile(
+        folder: MediaStorage.chatFolder,
+        uid: senderId,
+        file: File(image.path),
+        name: 'photo.jpg',
+        contentType: 'image/jpeg',
+      );
+      onProgress(1);
 
       MessageModel messageModel = MessageModel.imageMessage(
           senderId: senderId,
@@ -51,9 +56,14 @@ class FirebaseStorageMethod{
       final String fileExtension = MessageUtils.fileExtension(fileName);
       final MessageKind kind = MessageUtils.kindForType(fileExtension);
 
-      // Timestamp prefix keeps two files with the same name from overwriting each other.
-      final Reference ref = FirebaseStorage.instance.ref().child('Media/$senderId/${DateTime.now().microsecondsSinceEpoch}_$fileName');
-      final String downloadUrl = await _upload(ref, file, onProgress, null);
+      final String downloadUrl = await MediaStorage.uploadFile(
+        folder: MediaStorage.chatFolder,
+        uid: senderId,
+        file: file,
+        name: fileName,
+        contentType: _contentType(kind, fileExtension),
+      );
+      onProgress(1);
 
       String thumbnailUrl = '';
       String pdfUrl = '';
@@ -85,15 +95,19 @@ class FirebaseStorageMethod{
     }
   }
 
-  // Uploads [file] to [ref], reporting progress (0..1), and returns its download URL.
-  Future<String> _upload(Reference ref, File file, Function(double) onProgress, SettableMetadata? metadata) async {
-    final UploadTask task = ref.putFile(file, metadata);
-    task.snapshotEvents.listen((TaskSnapshot snapshot) {
-      // totalBytes is 0 until the upload starts.
-      if (snapshot.totalBytes > 0) onProgress(snapshot.bytesTransferred / snapshot.totalBytes);
-    }, onError: (_) {}); // the error is thrown by `await task` below
-    final TaskSnapshot done = await task;
-    return done.ref.getDownloadURL();
+  // Lets browsers and other apps open the link the right way. Unknown
+  // types are left for Supabase to guess.
+  String? _contentType(MessageKind kind, String extension) {
+    switch (kind) {
+      case MessageKind.image:
+        return 'image/${extension == 'jpg' ? 'jpeg' : extension}';
+      case MessageKind.video:
+        return extension == 'mov' ? 'video/quicktime' : 'video/$extension';
+      case MessageKind.pdf:
+        return 'application/pdf';
+      default:
+        return null;
+    }
   }
 
   // Builds the thumbnail from the local video file, then uploads it.
@@ -109,11 +123,13 @@ class FirebaseStorageMethod{
       );
       if (thumbnail == null) return '';
 
-      final Reference storageRef = FirebaseStorage.instance.ref().child('thumbnails/$senderId/${DateTime.now().microsecondsSinceEpoch}.jpg');
-      await storageRef.putData(thumbnail, SettableMetadata(contentType: 'image/jpeg'));
-
-      // Get the download URL of the uploaded thumbnail image
-      return await storageRef.getDownloadURL();
+      return await MediaStorage.uploadBytes(
+        folder: MediaStorage.thumbnailFolder,
+        uid: senderId,
+        bytes: thumbnail,
+        name: 'thumbnail.jpg',
+        contentType: 'image/jpeg',
+      );
     } catch (e) {
       debugPrint('Could not make a video thumbnail: $e');
       return '';

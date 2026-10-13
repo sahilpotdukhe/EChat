@@ -1,6 +1,9 @@
-import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:echat/providers/user_provider.dart';
 import 'package:echat/resources/auth_methods.dart';
+import 'package:echat/resources/connectivity_service.dart';
+import 'package:echat/resources/media_storage.dart';
+import 'package:echat/resources/notification_router.dart';
+import 'package:echat/widgets/common/connectivity_banner.dart';
 import 'package:echat/resources/local_notifications.dart';
 import 'package:echat/screens/on_board_screens.dart';
 import 'package:echat/theme/app_colors.dart';
@@ -27,46 +30,29 @@ ThemeMode savedThemeMode = ThemeMode.system;
 @pragma('vm:entry-point')
 Future<void> backgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  await LocalNotifications.show(message);
+  // Pushes with a notification part are shown by the phone itself; showing
+  // them here too made them appear twice.
+  if (message.notification == null) await LocalNotifications.show(message);
+  await LocalNotifications.markDeliveredFromPush(message);
 }
-
 
 void main() async {
   // Must run before any plugin (notifications, Firebase) is used.
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   // Keep the splash only as long as startup actually takes.
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
-  AwesomeNotifications().initialize(null, [
-    NotificationChannel(
-        channelKey: "call_channel",
-        channelName: "Call Channel",
-        channelDescription: "Channel of Calling",
-        defaultColor: Colors.redAccent,
-        ledColor: Colors.white,
-        importance: NotificationImportance.Max,
-        channelShowBadge: true,
-        locked: true,
-        defaultRingtoneType: DefaultRingtoneType.Ringtone,
-        playSound: true,
-
-    ),
-    NotificationChannel(
-        channelKey: "message_channel",
-        channelName: "Message Channel",
-        channelDescription: "Channel of Calling",
-        defaultColor: Colors.redAccent,
-        ledColor: Colors.white,
-        importance: NotificationImportance.Max,
-        channelShowBadge: true,
-        locked: true,
-        defaultRingtoneType: DefaultRingtoneType.Notification,
-        playSound: true
-    )
-  ]);
+  await LocalNotifications.initialize();
   FirebaseMessaging.onBackgroundMessage(backgroundHandler);
 
   await Firebase
       .initializeApp(); // This line initializes Firebase services asynchronously.
+  try {
+    await MediaStorage.initialize();
+  } catch (e) {
+    // Only uploads need it; the app still starts.
+    debugPrint('Supabase setup failed: $e');
+  }
+  ConnectivityService.instance.start();
   SharedPreferences prefs = await SharedPreferences.getInstance();
   isViewed = prefs.getInt("OnBoard");
   savedThemeMode = ThemePreference.read(prefs);
@@ -105,6 +91,9 @@ class _MyAppState extends State<MyApp> {
         dark: AppColors.shadcnDark,
         initialMode: savedThemeMode,
         materialThemeBuilder: AppTheme.build,
+        navigatorKey: NotificationRouter.navigatorKey,
+        // "No internet" bar above every screen.
+        builder: (context, child) => ConnectivityBanner(child: child ?? const SizedBox.shrink()),
         routes: {
           '/searchScreen': (context) => SearchScreen()},
         home: isSignedIn

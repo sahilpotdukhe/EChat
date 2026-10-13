@@ -1,13 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:echat/enums/user_state.dart';
 import 'package:echat/models/user_model.dart';
 import 'package:echat/resources/auth_methods.dart';
 import 'package:echat/theme/app_colors.dart';
 import 'package:echat/utils/call_utilities.dart';
-import 'package:echat/utils/utilities.dart';
 import 'package:echat/widgets/common/user_avatar.dart';
 import 'package:echat/widgets/common/info_section.dart';
 import 'package:echat/widgets/full_image_widget.dart';
+import 'package:echat/utils/presence.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shadcn_kit/shadcn_kit.dart';
@@ -99,7 +98,7 @@ class _ReceiverDetailsState extends State<ReceiverDetails> {
 
   Widget _header(UserModel user) {
     final colors = context.colors;
-    final online = Utils.numToState(user.state) == UserState.online;
+    final online = Presence.isOnline(user, DateTime.now());
     final name = user.name.isEmpty ? 'EChat user' : user.name;
     final heroTag = 'avatar_${user.uid}';
     final hasPhoto = user.profilePhoto.isNotEmpty;

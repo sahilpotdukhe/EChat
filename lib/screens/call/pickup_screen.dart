@@ -118,7 +118,7 @@ class _PickupScreenState extends State<PickupScreen> {
   void _accept() {
     _ringTimer?.cancel();
     isCallMissed = false;
-    addToLocalStorage(callStatus: "received");
+    // Logged with its length when the call screen closes (CallLifecycle).
     // Tells the caller (and the server rules) this call is live.
     callMethods.markAccepted(callModel: widget.callModel);
     final screen = widget.callModel.callType == "videoCall"

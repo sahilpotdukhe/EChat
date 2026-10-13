@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:echat/models/message_model.dart';
+import 'package:echat/screens/chat/widgets/message_extras.dart';
 import 'package:echat/theme/app_colors.dart';
 import 'package:echat/utils/message_utils.dart';
 import 'package:echat/widgets/cached_video_player_screen.dart';
@@ -29,6 +30,12 @@ class MessageBubble extends StatelessWidget {
   /// Widest the bubble may get (a share of the chat's width).
   final double maxWidth;
 
+  /// Not on the server yet (sent while offline): shows a clock, not ticks.
+  final bool isPending;
+
+  /// Long-press: the Copy / Delete menu.
+  final VoidCallback? onLongPress;
+
   const MessageBubble({
     super.key,
     required this.message,
@@ -37,6 +44,8 @@ class MessageBubble extends StatelessWidget {
     required this.maxWidth,
     this.groupedWithOlder = false,
     this.groupedWithNewer = false,
+    this.isPending = false,
+    this.onLongPress,
   });
 
   static const double _radius = 18;
@@ -60,12 +69,25 @@ class MessageBubble extends StatelessWidget {
       bottomRight: isMe && hasTail ? small : big,
     );
 
+    final Widget meta = MessageMeta(
+      time: time,
+      color: foreground,
+      ticks: isMe && !message.isDeleted ? MessageTicks(status: message.status, pending: isPending, color: foreground) : null,
+    );
+    final Widget mediaMeta = MessageMeta(
+      time: time,
+      color: Colors.white,
+      ticks: isMe ? MessageTicks(status: message.status, pending: isPending, color: Colors.white) : null,
+    );
+
     final Widget body = switch (kind) {
-      MessageKind.text => _TextBody(text: message.message, time: time, color: foreground),
+      MessageKind.text => _TextBody(text: message.message, meta: meta, color: foreground),
+      MessageKind.deleted => DeletedMessageBody(isMe: isMe, meta: meta, color: foreground),
+      MessageKind.call => CallMessageBody(message: message, isMe: isMe, meta: meta, color: foreground),
       MessageKind.image => _MediaBody(
           url: message.photoUrl,
           heroTag: 'imageHero_${message.photoUrl}',
-          time: time,
+          meta: mediaMeta,
           maxWidth: maxWidth,
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => FullImageWidget(imageUrl: message.photoUrl),
@@ -74,7 +96,7 @@ class MessageBubble extends StatelessWidget {
       MessageKind.video => _MediaBody(
           url: message.thumbnailUrl,
           isVideo: true,
-          time: time,
+          meta: mediaMeta,
           maxWidth: maxWidth,
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => CachedVideoPlayerScreen(videoUrl: message.photoUrl),
@@ -85,7 +107,7 @@ class MessageBubble extends StatelessWidget {
           kindLabel: 'PDF document',
           icon: Icons.picture_as_pdf_outlined,
           iconColor: const Color(0xFFE5484D),
-          time: time,
+          meta: meta,
           color: foreground,
           maxWidth: maxWidth,
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
@@ -100,7 +122,7 @@ class MessageBubble extends StatelessWidget {
           kindLabel: _fileKindLabel,
           icon: Icons.insert_drive_file_outlined,
           iconColor: context.shadcn.primary,
-          time: time,
+          meta: meta,
           color: foreground,
           maxWidth: maxWidth,
           onTap: () => _openExternally(context),
@@ -111,7 +133,19 @@ class MessageBubble extends StatelessWidget {
       type: message.type,
       message: message.message,
       fileName: message.fileName.isNotEmpty ? message.fileName : message.pdfName,
+      callType: message.callType,
+      sentByMe: isMe,
     );
+    final statusLabel = !isMe || message.isDeleted
+        ? ''
+        : isPending
+            ? ', sending'
+            : switch (message.status) {
+                MessageStatus.read => ', read',
+                MessageStatus.delivered => ', delivered',
+                MessageStatus.sent => ', sent',
+                _ => '',
+              };
 
     return Padding(
       padding: EdgeInsets.only(left: 12, right: 12, top: groupedWithOlder ? 2 : 10),
@@ -120,19 +154,22 @@ class MessageBubble extends StatelessWidget {
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),
           child: Semantics(
-            label: '${isMe ? 'You' : senderName}: $preview, $time',
-            // Text bubbles are read as one line; the copy gesture is offered
-            // here because excluding the children also drops the InkWell's.
-            excludeSemantics: kind == MessageKind.text,
-            onLongPress: kind == MessageKind.text ? () => _copy(context) : null,
-            onLongPressHint: kind == MessageKind.text ? 'Copy message' : null,
-            child: Material(
-              color: background,
-              borderRadius: shape,
-              clipBehavior: Clip.antiAlias,
-              child: kind == MessageKind.text
-                  ? InkWell(onLongPress: () => _copy(context), child: body)
-                  : body,
+            label: '${isMe ? 'You' : senderName}: $preview, $time$statusLabel',
+            onLongPressHint: onLongPress == null ? null : 'Message options',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onLongPress: onLongPress == null
+                  ? null
+                  : () {
+                      HapticFeedback.selectionClick();
+                      onLongPress!();
+                    },
+              child: Material(
+                color: message.isDeleted ? background.withValues(alpha: 0.6) : background,
+                borderRadius: shape,
+                clipBehavior: Clip.antiAlias,
+                child: body,
+              ),
             ),
           ),
         ),
@@ -148,12 +185,6 @@ class MessageBubble extends StatelessWidget {
   String get _fileKindLabel {
     final ext = MessageUtils.fileExtension(message.fileName);
     return ext.isEmpty ? 'File' : '${ext.toUpperCase()} file';
-  }
-
-  void _copy(BuildContext context) {
-    HapticFeedback.selectionClick();
-    Clipboard.setData(ClipboardData(text: message.message));
-    showShadcnToast(context, title: 'Message copied', variant: ShadcnToastVariant.success);
   }
 
   // Files the app can't preview (docx, zip, ...) open in another app.
@@ -178,10 +209,10 @@ class MessageBubble extends StatelessWidget {
 /// otherwise on its own line at the right.
 class _TextBody extends StatelessWidget {
   final String text;
-  final String time;
+  final Widget meta;
   final Color color;
 
-  const _TextBody({required this.text, required this.time, required this.color});
+  const _TextBody({required this.text, required this.meta, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -193,10 +224,7 @@ class _TextBody extends StatelessWidget {
         spacing: 8,
         children: [
           Text(text, style: TextStyle(color: color, fontSize: 15, height: 1.35)),
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Text(time, style: TextStyle(color: color.withValues(alpha: 0.65), fontSize: 11)),
-          ),
+          Padding(padding: const EdgeInsets.only(top: 2), child: meta),
         ],
       ),
     );
@@ -206,7 +234,7 @@ class _TextBody extends StatelessWidget {
 /// A photo or a video thumbnail, with the time on a dark pill in the corner.
 class _MediaBody extends StatelessWidget {
   final String url;
-  final String time;
+  final Widget meta;
   final double maxWidth;
   final VoidCallback onTap;
   final bool isVideo;
@@ -214,7 +242,7 @@ class _MediaBody extends StatelessWidget {
 
   const _MediaBody({
     required this.url,
-    required this.time,
+    required this.meta,
     required this.maxWidth,
     required this.onTap,
     this.isVideo = false,
@@ -274,7 +302,7 @@ class _MediaBody extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(10)),
-                      child: Text(time, style: const TextStyle(color: Colors.white, fontSize: 11)),
+                      child: meta,
                     ),
                   ),
                 ],
@@ -293,7 +321,7 @@ class _FileBody extends StatelessWidget {
   final String kindLabel;
   final IconData icon;
   final Color iconColor;
-  final String time;
+  final Widget meta;
   final Color color;
   final double maxWidth;
   final VoidCallback onTap;
@@ -303,7 +331,7 @@ class _FileBody extends StatelessWidget {
     required this.kindLabel,
     required this.icon,
     required this.iconColor,
-    required this.time,
+    required this.meta,
     required this.color,
     required this.maxWidth,
     required this.onTap,
@@ -352,7 +380,7 @@ class _FileBody extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              Text(time, style: TextStyle(color: color.withValues(alpha: 0.65), fontSize: 11)),
+              meta,
             ],
           ),
         ),

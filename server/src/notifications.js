@@ -21,6 +21,10 @@ function truncate(text) {
 function describeMessage(msg) {
   const type = String(msg.type || "").toLowerCase();
   if (type === "text") return {body: truncate(msg.message)};
+  if (type === "call") {
+    const kind = msg.callType === "videoCall" ? "video" : "voice";
+    return {body: msg.message === "answered" ? `📞 ${kind[0].toUpperCase()}${kind.slice(1)} call` : `📞 Missed ${kind} call`};
+  }
   if (IMAGE_TYPES.has(type)) return {body: "📷 Photo", image: msg.photoUrl};
   if (VIDEO_TYPES.has(type)) return {body: "🎥 Video", image: msg.thumbnailUrl};
   if (type === "pdf") return {body: `📄 ${msg.pdfName || msg.fileName || "PDF"}`};
@@ -32,7 +36,18 @@ function isHttpUrl(value) {
 }
 
 // Sends one notification to a user's saved device token. Returns true if sent.
-async function sendToUser({db, messaging, logger = console}, uid, {title, body, image, channelId, data}) {
+// Messages waiting to be read across all of a user's chats: the number on
+// the app icon. 0 if it can't be worked out.
+async function unreadTotal(db, uid) {
+  try {
+    const snap = await db.collection("Users").doc(uid).collection("Contacts").where("unread_count", ">", 0).get();
+    return snap.docs.reduce((sum, d) => sum + (Number(d.get("unread_count")) || 0), 0);
+  } catch (e) {
+    return 0;
+  }
+}
+
+async function sendToUser({db, messaging, logger = console}, uid, {title, body, image, channelId, data, badge}) {
   const userSnap = await db.collection("Users").doc(uid).get();
   const token = userSnap.get("notification_token");
   if (!token) return false;
@@ -45,8 +60,8 @@ async function sendToUser({db, messaging, logger = console}, uid, {title, body, 
       token,
       notification,
       data,
-      android: {priority: "high", notification: {channelId}},
-      apns: {payload: {aps: {sound: "default"}}},
+      android: {priority: "high", notification: {channelId, ...(badge ? {notificationCount: badge} : {})}},
+      apns: {payload: {aps: {sound: "default", ...(badge ? {badge} : {})}}},
     });
     return true;
   } catch (err) {
@@ -59,4 +74,4 @@ async function sendToUser({db, messaging, logger = console}, uid, {title, body, 
   }
 }
 
-module.exports = {describeMessage, sendToUser};
+module.exports = {describeMessage, sendToUser, unreadTotal};

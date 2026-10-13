@@ -1,5 +1,5 @@
 # Tests the security rules and the notification server on every PR that
-# touches them, and deploys the database rules when they land on master.
+# touches them, and deploys the database rules when they land on main.
 # (The notification server itself is deployed by Vercel from git.)
 #
 # One-time setup: add a repository secret FIREBASE_SERVICE_ACCOUNT containing a
@@ -21,7 +21,7 @@ on:
       - "firebase.json"
       - "scripts/deploy_firebase.sh"
   push:
-    branches: [master]
+    branches: [main]
     paths:
       - "server/**"
       - "firebase-tests/**"

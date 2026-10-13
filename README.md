@@ -27,7 +27,12 @@
 - **Contact Invitations**: Invite contacts to join ECHAT for conversations.
 - **Profile Editing**: Customize profiles with personal information and pictures.
 - **Call Log Management**: View and delete call logs for control.
-- **Search Functionality**: Easily discover and connect with other users.|
+- **Search Functionality**: Easily discover and connect with other users.
+- **WhatsApp-style ticks**: 🕓 waiting to send, ✓ sent, ✓✓ delivered, blue ✓✓ read.
+- **Unread badges**: per chat, on the Chats tab and on the app icon.
+- **Calls in the chat**: "Voice call · 3 min" / "Missed video call" bubbles, and call length in the Calls tab.
+- **Delete**: a message or a whole chat, for you or for everyone.
+- **Presence**: reliable online dot and "last seen", plus a "No internet" banner.
 
 ---
 ### 🛠 Technologies and Frameworks Used
@@ -94,7 +99,7 @@ class _MyAppState extends State<MyApp> {
 The iOS project is set up already; these one-time steps need your own accounts:
 
 1. Install Xcode from the App Store, then run `sudo xcode-select -s /Applications/Xcode.app` and open Xcode once.
-2. In the Firebase console (project `echat-888ef`), add an iOS app with bundle ID `com.example.echat`, download `GoogleService-Info.plist` and put it in `ios/Runner/`.
+2. In the Firebase console (project `echat-888ef`), add an iOS app with bundle ID `com.sahilpotdukhe.echat` (already done; the file is in the repo), download `GoogleService-Info.plist` and put it in `ios/Runner/`.
 3. Copy `REVERSED_CLIENT_ID` from that file into `ios/Runner/Info.plist`, replacing `com.googleusercontent.apps.REPLACE_WITH_REVERSED_CLIENT_ID` (needed for Google Sign-In).
 4. Run `cd ios && pod install`, then `flutter run` with a simulator or iPhone connected.
 
@@ -102,6 +107,11 @@ For push notifications on a real iPhone (a paid Apple Developer account is neede
 
 5. Open `ios/Runner.xcworkspace`, pick your team under **Signing & Capabilities**, and add the **Push Notifications** capability.
 6. Create an APNs key at developer.apple.com and upload it in Firebase console > Project settings > Cloud Messaging > Apple app configuration.
+
+### 🗂 File storage (Supabase)
+
+Photos, videos, files and profile pictures are stored in Supabase Storage. See
+[docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) for the one-time setup.
 
 ## 📋 Requirements
 

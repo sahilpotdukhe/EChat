@@ -11,10 +11,15 @@ initializeApp({projectId: "demo-echat"});
 const db = getFirestore();
 
 const sent = [];
+const claims = {};
 const auth = {
   verifyIdToken: async (token) => {
     if (!token.startsWith("token-")) throw new Error("bad token");
     return {uid: token.slice("token-".length)};
+  },
+  getUser: async (uid) => ({uid, customClaims: claims[uid]}),
+  setCustomUserClaims: async (uid, value) => {
+    claims[uid] = value;
   },
 };
 const messaging = {
@@ -83,6 +88,30 @@ test("message: notifies the receiver with the sender's real name", async () => {
   assert.equal(sent[0].notification.title, "Alice");
   assert.equal(sent[0].notification.body, "hi");
   assert.equal(sent[0].android.notification.channelId, "message_channel");
+  assert.deepEqual(sent[0].data, {type: "message", senderId: "alice", messageId: id});
+});
+
+test("message: badge shows bob's unread total across chats", async () => {
+  await db.doc("Users/bob/Contacts/alice").set({contact_id: "alice", unread_count: 2});
+  await db.doc("Users/bob/Contacts/carol").set({contact_id: "carol", unread_count: 3});
+  const id = await saveMessage("alice", "bob");
+  await post("/notify/message", {messageId: id, receiverId: "bob"}, "token-alice");
+  assert.equal(sent[0].apns.payload.aps.badge, 5);
+  assert.equal(sent[0].android.notification.notificationCount, 5);
+});
+
+test("message: a missed call reads like WhatsApp", async () => {
+  const id = await saveMessage("alice", "bob", {type: "call", message: "missed", callType: "videoCall"});
+  await post("/notify/message", {messageId: id, receiverId: "bob"}, "token-alice");
+  assert.equal(sent[0].notification.body, "📞 Missed video call");
+});
+
+test("supabase role: added once, other claims kept", async () => {
+  claims.alice = {admin: true};
+  const res = await post("/supabase/role", {}, "token-alice");
+  assert.equal(res.status, 200);
+  assert.deepEqual(claims.alice, {admin: true, role: "authenticated"});
+  assert.equal((await post("/supabase/role", {}, "bad")).status, 401);
 });
 
 test("message: second request for the same message sends nothing", async () => {

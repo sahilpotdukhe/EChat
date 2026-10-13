@@ -1,13 +1,12 @@
-import 'package:echat/enums/user_state.dart';
 import 'package:echat/models/user_model.dart';
 import 'package:echat/resources/auth_methods.dart';
 import 'package:echat/screens/chat/chat_screen.dart';
 import 'package:echat/utils/responsive.dart';
-import 'package:echat/utils/utilities.dart';
 import 'package:echat/widgets/common/app_search_field.dart';
 import 'package:echat/widgets/common/skeleton.dart';
 import 'package:echat/widgets/common/user_avatar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:echat/utils/presence.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_kit/shadcn_kit.dart';
 
@@ -164,7 +163,7 @@ class _SearchScreenState extends State<SearchScreen> {
           leading: UserAvatar(
             name: user.name,
             imageUrl: user.profilePhoto,
-            isOnline: Utils.numToState(user.state) == UserState.online,
+            isOnline: Presence.isOnline(user, DateTime.now()),
           ),
           title: _Highlighted(text: user.name.isEmpty ? 'EChat user' : user.name, query: _query),
           subtitle: Text(user.username.replaceFirst('echat:', '@')),
