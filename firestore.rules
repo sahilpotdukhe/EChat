@@ -20,15 +20,27 @@ service cloud.firestore {
           && request.resource.data.get('uid', uid) == uid;
       allow delete: if false;
 
-      // Users/{owner}/Contacts/{other}. Sending a message adds each person to the
-      // other's list, so either of the two people may create the entry.
+      // Users/{owner}/Contacts/{other}: one row of owner's chat list, with
+      // the chat's unread count and newest-message time. Sending a message
+      // adds/updates the row on both sides, so either of the two people may
+      // write it; the other person may only bump the time and unread count.
       match /Contacts/{contactId} {
+        function keepsId() {
+          return request.resource.data.contact_id == contactId;
+        }
+        function onlyBumps() {
+          return request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['contact_id', 'last_message_at', 'unread_count'])
+              && request.resource.data.get('unread_count', 0) >= resource.data.get('unread_count', 0)
+              && request.resource.data.get('unread_count', 0) <= resource.data.get('unread_count', 0) + 1;
+        }
         allow list: if isMe(uid);
         allow get: if isMe(uid) || isMe(contactId);
-        allow create: if (isMe(uid) || isMe(contactId))
-            && request.resource.data.contact_id == contactId;
-        allow update: if false;
-        allow delete: if isMe(uid);
+        allow create: if (isMe(uid) || isMe(contactId)) && keepsId()
+            && request.resource.data.get('unread_count', 0) in [0, 1];
+        allow update: if keepsId() && (isMe(uid) || (isMe(contactId) && onlyBumps()));
+        // Either person may delete the chat (for everyone).
+        allow delete: if isMe(uid) || isMe(contactId);
       }
     }
 
@@ -36,14 +48,40 @@ service cloud.firestore {
     // The sender writes both copies, so a message is only allowed when the
     // signed-in user is its sender and the path belongs to those two people.
     match /messages/{ownerId}/{peerId}/{messageId} {
-      allow read: if isMe(ownerId);
+      function inChat() {
+        return isMe(ownerId) || isMe(peerId);
+      }
+      // sent < delivered < read; '' (older messages) is below them all.
+      function rank(status) {
+        return status == 'read' ? 3 : status == 'delivered' ? 2 : status == 'sent' ? 1 : 0;
+      }
+      // The receiver's phone moving the ticks forward, never back.
+      function isTick() {
+        return resource.data.receiverId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+            && rank(request.resource.data.status) > rank(resource.data.get('status', ''));
+      }
+      // The sender's "Delete for everyone": wipes the content, keeps who/when.
+      function isDeleteForEveryone() {
+        return resource.data.senderId == request.auth.uid
+            && request.resource.data.type == 'deleted'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+                ['type', 'message', 'photoUrl', 'videoUrl', 'thumbnailUrl', 'pdfUrl', 'pdfName', 'fileName']);
+      }
+
+      // Both people can read both copies (deleting a chat for everyone
+      // needs to list the other side).
+      allow read: if inChat();
       allow create: if signedIn()
           && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.get('status', 'sent') == 'sent'
           && (
             (ownerId == request.auth.uid && peerId == request.resource.data.receiverId)
             || (peerId == request.auth.uid && ownerId == request.resource.data.receiverId)
           );
-      allow update, delete: if false;
+      allow update: if inChat() && (isTick() || isDeleteForEveryone());
+      // Delete for me (own copy), or a whole chat deleted for everyone.
+      allow delete: if inChat();
     }
 
     // Call/{uid}: the call currently ringing for uid. The caller writes a copy

@@ -6,7 +6,7 @@
 // hasn't been notified yet, so the endpoint can't be used to spam people.
 
 const express = require("express");
-const {describeMessage, sendToUser} = require("./notifications");
+const {describeMessage, sendToUser, unreadTotal} = require("./notifications");
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -72,7 +72,10 @@ function createApp({db, auth, messaging, logger = console}) {
       body,
       image,
       channelId: "message_channel",
-      data: {type: "message", senderId: uid},
+      // messageId lets the receiver's phone mark it delivered (two grey
+      // ticks) even while the app is closed.
+      data: {type: "message", senderId: uid, messageId},
+      badge: await unreadTotal(db, receiverId),
     });
     res.json({sent});
   });
@@ -100,6 +103,20 @@ function createApp({db, auth, messaging, logger = console}) {
       data: {type: "call", callType: String(call.callType || ""), callerId: uid},
     });
     res.json({sent});
+  });
+
+  // Lets the signed-in user upload files to Supabase Storage, which trusts
+  // Firebase sign-in tokens only when they carry role = "authenticated".
+  // Adds that claim once (keeping any others); the app then refreshes its
+  // token.
+  app.post("/supabase/role", async (req, res) => {
+    const uid = await signedInUid(req);
+    const user = await auth.getUser(uid);
+    const claims = user.customClaims || {};
+    if (claims.role !== "authenticated") {
+      await auth.setCustomUserClaims(uid, {...claims, role: "authenticated"});
+    }
+    res.json({ok: true});
   });
 
   // eslint-disable-next-line no-unused-vars

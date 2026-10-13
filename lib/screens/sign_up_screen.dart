@@ -151,13 +151,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
         _goHome();
         return;
       }
+      // null means the user closed the Google picker: no error to show.
       setState(() => _isGoogleLoading = false);
-      if (signedIn == false) {
-        showShadcnToast(context, title: 'Google sign-in failed. Please try again.', variant: ShadcnToastVariant.destructive);
-      }
+    } on GoogleSignInFailure catch (e) {
+      if (!mounted) return;
+      setState(() => _isGoogleLoading = false);
+      showShadcnToast(context, title: e.message, variant: ShadcnToastVariant.destructive);
     } catch (e) {
       debugPrint('$e');
-      if (mounted) setState(() => _isGoogleLoading = false);
+      if (!mounted) return;
+      setState(() => _isGoogleLoading = false);
+      showShadcnToast(context, title: 'Google sign-in failed. Please try again.', variant: ShadcnToastVariant.destructive);
     }
   }
 

@@ -1,9 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:echat/models/call_log_model.dart';
 import 'package:echat/resources/call_methods.dart';
 import 'package:echat/models/call_model.dart';
 import 'package:echat/models/user_model.dart';
-import 'package:echat/resources/repositories/log_repository.dart';
 import 'package:echat/screens/call/call_screen.dart';
 import 'package:echat/screens/call/audio_call_screen.dart';
 import 'package:flutter/material.dart';
@@ -27,23 +25,11 @@ class CallUtilities {
       callType: callType,
     );
 
-    CallLogModel callLogModel = CallLogModel(
-        callerId: fromCaller.uid,
-        receiverId: toReceiver.uid,
-        callerName: fromCaller.name,
-        callerPic: fromCaller.profilePhoto,
-        receiverName: toReceiver.name,
-        receiverPic: toReceiver.profilePhoto,
-        callStatus: "Dialled",
-        timestamp: DateTime.now().toString(),
-        callType: callType
-    );
-
     CallResult result = await callMethods.makeCall(callModel: callModel);
     callModel.hasDialled = true;
 
-    // Only calls that actually went out go into the call history.
-    if (result == CallResult.started) LogRepository.addLogs(callLogModel);
+    // The call history entry (and the call in the chat) is saved when the
+    // call screen closes, once its length is known (see CallLifecycle).
 
     if (!context.mounted) return callModel;
 

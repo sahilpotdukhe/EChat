@@ -1,7 +1,11 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:echat/models/call_log_model.dart';
 import 'package:echat/models/call_model.dart';
+import 'package:echat/models/message_model.dart';
+import 'package:echat/resources/chat_firebase_methods.dart';
+import 'package:echat/resources/repositories/log_repository.dart';
 import 'package:echat/providers/user_provider.dart';
 import 'package:echat/resources/agora_call_session.dart';
 import 'package:echat/resources/call_methods.dart';
@@ -31,6 +35,8 @@ mixin CallLifecycle<T extends StatefulWidget> on State<T> {
   DateTime? connectedAt;
 
   StreamSubscription? _callSubscription;
+  // The call is saved to the history and the chat only once.
+  bool _recorded = false;
   Timer? _noAnswerTimer;
   // Set once this screen starts closing, so it is popped only once.
   bool _closing = false;
@@ -89,6 +95,7 @@ mixin CallLifecycle<T extends StatefulWidget> on State<T> {
         if (mounted && !_closing) {
           _closing = true;
           _noAnswerTimer?.cancel();
+          _recordCall();
           Navigator.pop(context);
         }
         return;
@@ -110,6 +117,7 @@ mixin CallLifecycle<T extends StatefulWidget> on State<T> {
     if (_closing) return;
     _closing = true;
     _noAnswerTimer?.cancel();
+    _recordCall();
     await _callSubscription?.cancel();
     await session.release();
     callMethods.endCall(callModel: callModel);
@@ -117,8 +125,56 @@ mixin CallLifecycle<T extends StatefulWidget> on State<T> {
   }
 
   void disposeCall() {
+    _recordCall();
     _noAnswerTimer?.cancel();
     _callSubscription?.cancel();
     session.release();
+  }
+
+  /// Saves the finished call: in this phone's Calls tab (both people), and
+  /// as a call bubble in the chat ("Voice call · 3 min" / "Missed voice
+  /// call"), written once, by the caller. Never throws.
+  void _recordCall() {
+    if (_recorded) return;
+    _recorded = true;
+    final started = connectedAt;
+    final int seconds = started == null ? 0 : DateTime.now().difference(started).inSeconds;
+    final bool answered = started != null;
+    final isCaller = callModel.hasDialled;
+
+    try {
+      LogRepository.addLogs(CallLogModel(
+        callerId: callModel.callerId,
+        receiverId: callModel.receiverId,
+        callerName: callModel.callerName,
+        callerPic: callModel.callerPic,
+        receiverName: callModel.receiverName,
+        receiverPic: callModel.receiverPic,
+        callStatus: isCaller ? 'Dialled' : 'received',
+        timestamp: DateTime.now().toString(),
+        callType: callModel.callType,
+        durationSeconds: seconds,
+      )).catchError((Object e) => debugPrint('Call history not saved: $e'));
+    } catch (e) {
+      debugPrint('Call history not saved: $e');
+    }
+
+    if (!isCaller) return;
+    // A missed call notifies them and counts as unread; a call they
+    // answered doesn't.
+    ChatFirebaseMethods()
+        .addMessagetoDb(
+          MessageModel.call(
+            senderId: callModel.callerId,
+            receiverId: callModel.receiverId,
+            callType: callModel.callType,
+            answered: answered,
+            callDuration: seconds,
+            timestamp: Timestamp.now(),
+          ),
+          notify: !answered,
+          countAsUnread: !answered,
+        )
+        .catchError((Object e) => debugPrint('Call not added to the chat: $e'));
   }
 }

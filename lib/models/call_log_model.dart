@@ -10,6 +10,8 @@ class CallLogModel{
   String callStatus = "";
   String timestamp = "";
   String callType = "";
+  // How long the two people talked; 0 for missed / unanswered calls.
+  int durationSeconds = 0;
 
   CallLogModel({
     this.callLogId,
@@ -21,7 +23,8 @@ class CallLogModel{
     required this.receiverPic,
     required this.callStatus,
     required this.timestamp,
-    required this.callType
+    required this.callType,
+    this.durationSeconds = 0,
 });
 
   bool get isOutgoing => callStatus == "Dialled";
@@ -48,6 +51,7 @@ class CallLogModel{
     logMap['call_status'] = callLogModel.callStatus;
     logMap['timestamp'] = callLogModel.timestamp;
     logMap['callType'] = callLogModel.callType;
+    logMap['duration'] = callLogModel.durationSeconds;
     return logMap;
   }
 
@@ -64,5 +68,6 @@ class CallLogModel{
     callStatus = logMap['call_status'] ?? '';
     timestamp = logMap['timestamp'] ?? '';
     callType = logMap['callType'] ?? '';
+    durationSeconds = (logMap['duration'] as num?)?.toInt() ?? 0;
   }
 }

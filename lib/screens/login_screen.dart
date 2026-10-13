@@ -78,14 +78,17 @@ class _LoginScreenState extends State<LoginScreen> {
         _goHome();
         return;
       }
-      setState(() => _isGoogleLoading = false);
       // null means the user closed the Google picker: no error to show.
-      if (signedIn == false) {
-        showShadcnToast(context, title: 'Google sign-in failed. Please try again.', variant: ShadcnToastVariant.destructive);
-      }
+      setState(() => _isGoogleLoading = false);
+    } on GoogleSignInFailure catch (e) {
+      if (!mounted) return;
+      setState(() => _isGoogleLoading = false);
+      showShadcnToast(context, title: e.message, variant: ShadcnToastVariant.destructive);
     } catch (e) {
       debugPrint('$e');
-      if (mounted) setState(() => _isGoogleLoading = false);
+      if (!mounted) return;
+      setState(() => _isGoogleLoading = false);
+      showShadcnToast(context, title: 'Google sign-in failed. Please try again.', variant: ShadcnToastVariant.destructive);
     }
   }
 

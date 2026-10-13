@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class UserModel{
   String uid="";
   String name="";
@@ -10,6 +12,9 @@ class UserModel{
   String profilePhoto="";
   String authType="";
   String notificationToken = "";
+  // Refreshed about every minute while their app is open (see
+  // PresenceService). Null on profiles from before this was stored.
+  Timestamp? lastSeen;
 
   UserModel({
     required this.uid,
@@ -22,7 +27,8 @@ class UserModel{
     required this.phoneNumber,
     required this.profilePhoto,
     required this.authType,
-    required this.notificationToken
+    required this.notificationToken,
+    this.lastSeen,
 });
 
   Map toMap(UserModel user) {
@@ -38,6 +44,7 @@ class UserModel{
     data["gender"] = user.gender;
     data['auth_type'] = user.authType;
     data['notification_token'] = user.notificationToken;
+    if (user.lastSeen != null) data['last_seen'] = user.lastSeen;
     return data;
   }
 
@@ -55,6 +62,7 @@ class UserModel{
     phoneNumber = mapData['phone_Number'] ?? '';
     authType = mapData['auth_type'] ?? '';
     notificationToken = mapData['notification_token'] ?? '';
+    lastSeen = mapData['last_seen'] is Timestamp ? mapData['last_seen'] : null;
   }
 
 }

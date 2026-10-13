@@ -6,12 +6,14 @@ import 'package:echat/providers/image_upload_provider.dart';
 import 'package:echat/providers/user_provider.dart';
 import 'package:echat/resources/auth_methods.dart';
 import 'package:echat/resources/chat_firebase_methods.dart';
-import 'package:echat/resources/firebase_storage_method.dart';
+import 'package:echat/resources/chat_media_uploader.dart';
+import 'package:echat/resources/local_notifications.dart';
 import 'package:echat/screens/call/pickup_layout.dart';
 import 'package:echat/screens/chat/message_bubble.dart';
 import 'package:echat/screens/chat/widgets/attachment_sheet.dart';
 import 'package:echat/screens/chat/widgets/chat_composer.dart';
 import 'package:echat/screens/chat/widgets/chat_parts.dart';
+import 'package:echat/screens/chat/widgets/delete_sheets.dart';
 import 'package:echat/theme/app_colors.dart';
 import 'package:echat/utils/call_utilities.dart';
 import 'package:echat/utils/message_utils.dart';
@@ -21,6 +23,7 @@ import 'package:echat/widgets/receiver_details.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shadcn_kit/shadcn_kit.dart';
@@ -34,10 +37,10 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ChatFirebaseMethods _chatFirebaseMethods = ChatFirebaseMethods();
-  final FirebaseStorageMethod _firebaseStorageMethod = FirebaseStorageMethod();
+  final ChatMediaUploader _mediaUploader = ChatMediaUploader();
   final ScrollController _scrollController = ScrollController();
 
   // Loaded asynchronously in _initializeSender; null until then.
@@ -59,6 +62,10 @@ class _ChatScreenState extends State<ChatScreen> {
   /// Widest the messages and the typing bar get on tablets.
   static const double _maxChatWidth = 760;
 
+  // Messages from them already sent off to be marked read.
+  final Set<String> _markedRead = {};
+  bool _appInForeground = true;
+
   @override
   void initState() {
     super.initState();
@@ -66,22 +73,62 @@ class _ChatScreenState extends State<ChatScreen> {
     _messagesStream = _messagesQuery();
     _scrollController.addListener(_onScroll);
     _initializeSender();
+    WidgetsBinding.instance.addObserver(this);
+    // No notifications for this chat while it's open, and clear any shown.
+    LocalNotifications.openChatPeerId = widget.receiver.uid;
+    LocalNotifications.dismissChat(widget.receiver.uid);
+    if (_currentUserId.isNotEmpty) {
+      _chatFirebaseMethods.clearUnread(myId: _currentUserId, peerId: widget.receiver.uid);
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (LocalNotifications.openChatPeerId == widget.receiver.uid) LocalNotifications.openChatPeerId = null;
     _scrollController.dispose();
     _messageController.dispose();
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final foreground = state == AppLifecycleState.resumed;
+    if (foreground == _appInForeground) return;
+    // Rebuilding re-checks for messages that arrived while away.
+    setState(() => _appInForeground = foreground);
+    if (foreground) LocalNotifications.openChatPeerId = widget.receiver.uid;
+  }
+
+  // Metadata changes too, so a message's clock turns into a tick as soon as
+  // the server has it.
   Stream<QuerySnapshot> _messagesQuery() => FirebaseFirestore.instance
       .collection("messages")
       .doc(_currentUserId)
       .collection(widget.receiver.uid)
       .orderBy("timestamp", descending: true)
       .limit(_messageLimit)
-      .snapshots();
+      .snapshots(includeMetadataChanges: true);
+
+  // Their messages on screen become "read" (blue ticks for them), but only
+  // while this chat really is in front of me.
+  void _markVisibleAsRead(List<QueryDocumentSnapshot> docs) {
+    if (!_appInForeground || !(ModalRoute.of(context)?.isCurrent ?? false)) return;
+    final peerId = widget.receiver.uid;
+    final ids = <String>[
+      for (final doc in docs)
+        if (!_markedRead.contains(doc.id) && _needsRead(doc.data() as Map<String, dynamic>, peerId)) doc.id,
+    ];
+    if (ids.isEmpty) return;
+    _markedRead.addAll(ids);
+    _chatFirebaseMethods.markRead(myId: _currentUserId, peerId: peerId, messageIds: ids);
+    _chatFirebaseMethods.clearUnread(myId: _currentUserId, peerId: peerId);
+  }
+
+  static bool _needsRead(Map<String, dynamic> data, String peerId) {
+    final status = data['status'];
+    return data['senderId'] == peerId && (status == MessageStatus.sent || status == MessageStatus.delivered);
+  }
 
   void _onScroll() {
     final position = _scrollController.position;
@@ -171,7 +218,17 @@ class _ChatScreenState extends State<ChatScreen> {
               onPressed: _sender == null ? null : () => _call('videoCall'),
               child: const Icon(Icons.videocam_outlined, size: 24),
             ),
-            const SizedBox(width: 6),
+            PopupMenuButton<String>(
+              tooltip: 'More options',
+              onSelected: (value) {
+                if (value == 'delete') _deleteChat();
+                if (value == 'profile') _openProfile();
+              },
+              itemBuilder: (_) => [
+                if (_sender != null) const PopupMenuItem(value: 'profile', child: Text('View contact')),
+                const PopupMenuItem(value: 'delete', child: Text('Delete chat')),
+              ],
+            ),
           ],
         ),
         body: Column(
@@ -250,6 +307,9 @@ class _ChatScreenState extends State<ChatScreen> {
         final messages = [
           for (final doc in docs) MessageModel.fromMap(doc.data() as Map<String, dynamic>),
         ];
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _markVisibleAsRead(docs);
+        });
         final bool hasOlder = docs.length >= _messageLimit;
         final DateTime now = DateTime.now();
         final senderName = widget.receiver.name.isEmpty ? 'EChat user' : widget.receiver.name;
@@ -291,6 +351,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   MessageBubble(
                     message: message,
                     isMe: message.senderId == _currentUserId,
+                    // Not on the server yet (offline): a clock instead of ticks.
+                    isPending: docs[index].metadata.hasPendingWrites,
+                    onLongPress: () => _showMessageActions(docs[index].id, message),
                     senderName: senderName,
                     maxWidth: bubbleMaxWidth,
                     groupedWithOlder: !startsNewDay && groups(older),
@@ -351,6 +414,52 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  Future<void> _showMessageActions(String messageId, MessageModel message) async {
+    final isMe = message.senderId == _currentUserId;
+    final action = await showMessageActionsSheet(
+      context,
+      canCopy: message.type == 'text' && message.message.isNotEmpty,
+      canDeleteForEveryone: isMe && !message.isDeleted && !message.isCall,
+    );
+    if (action == null || !mounted) return;
+    switch (action) {
+      case MessageAction.copy:
+        Clipboard.setData(ClipboardData(text: message.message));
+        showShadcnToast(context, title: 'Message copied', variant: ShadcnToastVariant.success);
+      case MessageAction.deleteForMe:
+        _chatFirebaseMethods
+            .deleteMessageForMe(myId: _currentUserId, peerId: widget.receiver.uid, messageId: messageId)
+            .catchError((Object e) {
+          debugPrint('Delete for me failed: $e');
+          _showError("Couldn't delete the message. Please try again.");
+        });
+      case MessageAction.deleteForEveryone:
+        _chatFirebaseMethods
+            .deleteMessageForEveryone(
+                myId: _currentUserId, peerId: widget.receiver.uid, messageId: messageId, message: message)
+            .catchError((Object e) {
+          debugPrint('Delete for everyone failed: $e');
+          _showError("Couldn't delete the message. Please try again.");
+        });
+    }
+  }
+
+  Future<void> _deleteChat() async {
+    final forEveryone = await showDeleteChatSheet(context, name: widget.receiver.name);
+    if (forEveryone == null || !mounted) return;
+    final navigator = Navigator.of(context);
+    try {
+      await _chatFirebaseMethods.deleteChat(
+          myId: _currentUserId, peerId: widget.receiver.uid, forEveryone: forEveryone);
+      if (!mounted) return;
+      showShadcnToast(context, title: 'Chat deleted', variant: ShadcnToastVariant.success);
+      navigator.pop();
+    } catch (e) {
+      debugPrint('Delete chat failed: $e');
+      _showError("Couldn't delete the chat. Please try again.");
+    }
+  }
+
   String _preview(String text) => text.length > 30 ? '${text.substring(0, 30)}…' : text;
 
   void _onUploadProgress(double progress) {
@@ -382,7 +491,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _uploadProgress = 0);
     _jumpToLatest();
     try {
-      await _firebaseStorageMethod.uploadImage(
+      await _mediaUploader.uploadImage(
           selectedImage, widget.receiver.uid, _currentUserId, imageUploadProvider, _onUploadProgress);
     } catch (e) {
       debugPrint('Image upload failed: $e');
@@ -400,7 +509,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _uploadProgress = 0);
     _jumpToLatest();
     try {
-      await _firebaseStorageMethod.uploadAnyFile(
+      await _mediaUploader.uploadAnyFile(
           pickedFiles.first, widget.receiver.uid, _currentUserId, imageUploadProvider, _onUploadProgress);
     } catch (e) {
       debugPrint('File upload failed: $e');
