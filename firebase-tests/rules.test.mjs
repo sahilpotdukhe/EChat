@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import {initializeTestEnvironment, assertSucceeds, assertFails} from "@firebase/rules-unit-testing";
-import {doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, Timestamp, writeBatch, serverTimestamp} from "firebase/firestore";
+import {doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, Timestamp, writeBatch, serverTimestamp, increment} from "firebase/firestore";
 import {ref, uploadBytes, getBytes} from "firebase/storage";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -112,6 +112,49 @@ await clearCalls();
 await seed({"Call/bob": call("eve", "bob", false, {channel_id: "old", created_at: ago(5 * HOUR), accepted: true})});
 await t("accepted call 5 h old can be overwritten", assertSucceeds(dial(alice, "alice", "bob", "c9")));
 await clearCalls();
+
+console.log("Chat list rows (same as addMessagetoDb, merged)");
+const bump = (db, owner, peer) => setDoc(doc(db, `Users/${owner}/Contacts/${peer}`),
+  {contact_id: peer, last_message_at: Timestamp.now(), unread_count: increment(1)}, {merge: true});
+await seed({"Users/carol/Contacts/alice": {contact_id: "alice", unread_count: 2}});
+await t("alice bumps carol's unread count by one", assertSucceeds(bump(alice, "carol", "alice")));
+await t("alice CANNOT jump carol's unread count", assertFails(updateDoc(doc(alice, "Users/carol/Contacts/alice"), {unread_count: 50})));
+await t("alice CANNOT zero carol's unread count", assertFails(updateDoc(doc(alice, "Users/carol/Contacts/alice"), {unread_count: 0})));
+await t("carol clears her own unread count", assertSucceeds(updateDoc(doc(env.authenticatedContext("carol").firestore(), "Users/carol/Contacts/alice"), {unread_count: 0})));
+await t("alice creates a new row for dave with 1 unread", assertSucceeds(bump(alice, "dave", "alice")));
+await t("eve CANNOT bump alice's row about bob", assertFails(bump(eve, "alice", "bob")));
+await t("eve CANNOT change the id in her row", assertFails(setDoc(doc(eve, "Users/eve/Contacts/bob"), {contact_id: "alice"})));
+
+console.log("Ticks");
+const tickMsg = (status) => ({...msg("alice", "bob"), status});
+await seed({"messages/alice/bob/m1": tickMsg("sent"), "messages/bob/alice/m1": tickMsg("sent")});
+await t("bob marks alice's copy delivered", assertSucceeds(updateDoc(doc(bob, "messages/alice/bob/m1"), {status: "delivered"})));
+await t("bob marks his copy read", assertSucceeds(updateDoc(doc(bob, "messages/bob/alice/m1"), {status: "read"})));
+await t("bob marks alice's copy read", assertSucceeds(updateDoc(doc(bob, "messages/alice/bob/m1"), {status: "read"})));
+await t("ticks CANNOT go backwards (read -> delivered)", assertFails(updateDoc(doc(bob, "messages/alice/bob/m1"), {status: "delivered"})));
+await seed({"messages/alice/bob/m2": tickMsg("sent")});
+await t("the sender CANNOT tick her own message", assertFails(updateDoc(doc(alice, "messages/alice/bob/m2"), {status: "read"})));
+await t("bob CANNOT edit the text while ticking", assertFails(updateDoc(doc(bob, "messages/alice/bob/m2"), {status: "read", message: "changed"})));
+await t("eve CANNOT tick alice and bob's message", assertFails(updateDoc(doc(eve, "messages/alice/bob/m2"), {status: "read"})));
+await t("a new message CANNOT start as read", assertFails(addDoc(collection(alice, "messages/alice/bob"), tickMsg("read"))));
+
+console.log("Deleting");
+const wipe = {type: "deleted", message: "", photoUrl: "", videoUrl: "", thumbnailUrl: "", pdfUrl: "", pdfName: "", fileName: ""};
+await seed({"messages/alice/bob/m3": msg("alice", "bob"), "messages/bob/alice/m3": msg("alice", "bob")});
+await t("alice deletes her message for everyone (her copy)", assertSucceeds(updateDoc(doc(alice, "messages/alice/bob/m3"), wipe)));
+await t("alice deletes her message for everyone (bob's copy)", assertSucceeds(updateDoc(doc(alice, "messages/bob/alice/m3"), wipe)));
+await seed({"messages/bob/alice/m4": msg("alice", "bob")});
+await t("bob CANNOT delete alice's message for everyone", assertFails(updateDoc(doc(bob, "messages/bob/alice/m4"), wipe)));
+await t("alice CANNOT rewrite her sent message", assertFails(updateDoc(doc(alice, "messages/bob/alice/m4"), {message: "edited"})));
+await t("bob deletes a message for himself", assertSucceeds(deleteDoc(doc(bob, "messages/bob/alice/m4"))));
+await seed({"messages/bob/alice/m5": msg("alice", "bob")});
+await t("alice lists bob's side of their chat (delete for everyone)", assertSucceeds(getDocs(collection(alice, "messages/bob/alice"))));
+await t("alice deletes bob's copy (delete chat for everyone)", assertSucceeds(deleteDoc(doc(alice, "messages/bob/alice/m5"))));
+await t("eve CANNOT list alice and bob's chat", assertFails(getDocs(collection(eve, "messages/alice/bob"))));
+await t("eve CANNOT delete from alice and bob's chat", assertFails(deleteDoc(doc(eve, "messages/alice/bob/m1"))));
+await t("alice removes herself from bob's list", assertSucceeds(deleteDoc(doc(alice, "Users/bob/Contacts/alice"))));
+await t("eve CANNOT remove alice from bob's list", assertFails(deleteDoc(doc(eve, "Users/bob/Contacts/alice"))));
+await t("alice updates her last_seen", assertSucceeds(updateDoc(doc(alice, "Users/alice"), {state: 1, last_seen: serverTimestamp()})));
 
 console.log("Everything else");
 await t("unknown collection is closed", assertFails(setDoc(doc(alice, "Other/x"), {a: 1})));

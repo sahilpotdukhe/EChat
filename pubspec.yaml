@@ -36,7 +36,6 @@ dependencies:
   google_sign_in:
   firebase_core:
   intl:
-  firebase_storage:
   image_picker:
   path_provider:
   provider:
@@ -64,6 +63,8 @@ dependencies:
     git:
       url: git@github-personal:sahilpotdukhe/shadcn_kit.git
       ref: v0.2.1
+  supabase_flutter: ^2.18.3
+  connectivity_plus: ^7.3.2
 
 dev_dependencies:
   flutter_test:

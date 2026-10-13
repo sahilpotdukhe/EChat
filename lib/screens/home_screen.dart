@@ -1,5 +1,14 @@
 import 'dart:async';
 
+import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:echat/models/contact_model.dart';
+import 'package:echat/resources/chat_firebase_methods.dart';
+import 'package:echat/resources/notification_router.dart';
+import 'package:echat/resources/presence_service.dart';
+import 'package:echat/theme/app_colors.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:echat/providers/user_provider.dart';
 import 'package:echat/resources/auth_methods.dart';
 import 'package:echat/resources/local_notifications.dart';
@@ -9,7 +18,6 @@ import 'package:echat/screens/call_logs/call_logs_screen.dart';
 import 'package:echat/screens/chat_list/chat_list_screen.dart';
 import 'package:echat/screens/search_screen.dart';
 import 'package:echat/widgets/new_user_details.dart';
-import 'package:echat/enums/user_state.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:echat/screens/contact_page.dart';
@@ -24,19 +32,41 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>  with WidgetsBindingObserver{
+class _HomeScreenState extends State<HomeScreen> {
   late UserProvider userProvider;
   AuthMethods authMethods = AuthMethods();
+  final ChatFirebaseMethods _chatMethods = ChatFirebaseMethods();
   bool _disposed = false;
-  StreamSubscription<RemoteMessage>? _messageSubscription;
+  final List<StreamSubscription> _subscriptions = [];
+
+  /// Chats with unread messages: the number on the Chats tab.
+  int _unreadChats = 0;
+
+  // Chats whose new messages are being marked delivered right now.
+  final Set<String> _delivering = {};
+
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     initializeUser();
-    // Show notifications while the app is open too. Messages without a
-    // title are handled (the old code assumed one and could crash).
-    _messageSubscription = FirebaseMessaging.onMessage.listen(LocalNotifications.show);
+    final messaging = FirebaseMessaging.instance;
+    _subscriptions.addAll([
+      // Pushes that arrive while the app is open: the phone doesn't show
+      // these itself.
+      FirebaseMessaging.onMessage.listen((message) {
+        LocalNotifications.show(message, appOpen: true);
+        LocalNotifications.markDeliveredFromPush(message);
+      }),
+      // Tapping a notification the phone showed while the app was in the
+      // background.
+      FirebaseMessaging.onMessageOpenedApp.listen(_openFromPush),
+      // The push address of this phone can change; without saving the new
+      // one, notifications silently stop arriving.
+      messaging.onTokenRefresh.listen((token) {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) authMethods.updateToken(uid, token).catchError((Object e) => debugPrint('$e'));
+      }),
+    ]);
   }
 
   Future<void> initializeUser() async {
@@ -45,56 +75,69 @@ class _HomeScreenState extends State<HomeScreen>  with WidgetsBindingObserver{
     userProvider = Provider.of<UserProvider>(context, listen: false);
     await userProvider.refreshUser();
     if (_disposed) return;
-    if (userProvider.getUser != null) {
-      authMethods.setUserState(userId: userProvider.getUser!.uid, userState: UserState.online);
-      LogRepository.initialize(dbName: userProvider.getUser!.uid);
-      // An iPhone only gets a push token once notifications are allowed, so
-      // save it again here; the one saved at sign-in may be missing.
-      LocalNotifications.requestPermission()
-          .then((_) => authMethods.saveNotificationToken(userProvider.getUser!.uid));
-      debugPrint('${userProvider.getUser!.state}');
-
-    } else {
+    final user = userProvider.getUser;
+    if (user == null) {
       debugPrint('User is null');
+      return;
     }
-    WidgetsBinding.instance.addObserver(this);
+    PresenceService.instance.start(user.uid);
+    LogRepository.initialize(dbName: user.uid);
+    _subscriptions.add(_chatMethods.fetchUnreadContacts(userId: user.uid).listen(
+          (snapshot) => _onUnreadChanged(user.uid, snapshot),
+          onError: (Object e) => debugPrint('Unread chats: $e'),
+        ));
+    // An iPhone only gets a push token once notifications are allowed, so
+    // save it again here; the one saved at sign-in may be missing.
+    LocalNotifications.requestPermission().then((_) => authMethods.saveNotificationToken(user.uid));
+    await _openFromLaunch();
+  }
+
+  // The app was opened by tapping a notification.
+  Future<void> _openFromLaunch() async {
+    try {
+      final RemoteMessage? push = await FirebaseMessaging.instance.getInitialMessage();
+      if (push != null) _openFromPush(push);
+      final action = await AwesomeNotifications().getInitialNotificationAction(removeFromActionEvents: true);
+      final payload = action?.payload ?? const {};
+      if (payload['type'] == 'message') NotificationRouter.openChat(payload['senderId'] ?? '');
+    } catch (e) {
+      debugPrint('Could not read the launch notification: $e');
+    }
+    NotificationRouter.openPending();
+  }
+
+  void _openFromPush(RemoteMessage message) {
+    if (message.data['type'] == 'message') NotificationRouter.openChat(message.data['senderId'] ?? '');
+  }
+
+  // Keeps the badges up to date, and marks new messages as delivered: this
+  // phone has them now, so the sender sees two grey ticks.
+  void _onUnreadChanged(String myId, QuerySnapshot snapshot) {
+    var messages = 0;
+    for (final doc in snapshot.docs) {
+      final contact = ContactModel.fromMap(doc.data() as Map<String, dynamic>);
+      messages += contact.unreadCount;
+      if (contact.uid.isNotEmpty && _delivering.add(contact.uid)) {
+        _chatMethods
+            .markDelivered(myId: myId, peerId: contact.uid)
+            .catchError((Object e) => debugPrint('Mark delivered: $e'))
+            .whenComplete(() => _delivering.remove(contact.uid));
+      }
+    }
+    LocalNotifications.setBadge(messages);
+    if (mounted && snapshot.docs.length != _unreadChats) setState(() => _unreadChats = snapshot.docs.length);
   }
 
   @override
   void dispose() {
-    // TODO: implement dispose
-    _messageSubscription?.cancel();
-    super.dispose();
     _disposed = true;
-    WidgetsBinding.instance.removeObserver(this);
+    for (final subscription in _subscriptions) {
+      subscription.cancel();
+    }
+    NotificationRouter.homeClosed();
+    super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && !_disposed) {
-      // Re-initialize user when app is resumed, if the state is not disposed
-      initializeUser();
-    }
-    String currentUserid = (userProvider.getUser != null)?userProvider.getUser!.uid : "";
-    // TODO: implement didChangeAppLifecycleState
-    super.didChangeAppLifecycleState(state);
-    switch(state){
-      case AppLifecycleState.resumed:
-        authMethods.setUserState(userId: currentUserid, userState: UserState.online);
-            break;
-      case AppLifecycleState.inactive:
-        authMethods.setUserState(userId: currentUserid, userState: UserState.offline);
-        break;
-      case AppLifecycleState.paused:
-        authMethods.setUserState(userId: currentUserid, userState: UserState.waiting);
-        break;
-      case AppLifecycleState.detached:
-        authMethods.setUserState(userId: currentUserid, userState: UserState.waiting);
-        break;
-      case AppLifecycleState.hidden:
-        // TODO: Handle this case.
-    }
-  }
   static const _tabs = [
     _Tab('Chats', Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded),
     _Tab('Calls', Icons.call_outlined, Icons.call_rounded),
@@ -166,10 +209,10 @@ class _HomeScreenState extends State<HomeScreen>  with WidgetsBindingObserver{
                         child: BrandLogo(size: 40, showName: false),
                       ),
                       destinations: [
-                        for (final t in _tabs)
+                        for (final (i, t) in _tabs.indexed)
                           NavigationRailDestination(
-                            icon: Icon(t.icon),
-                            selectedIcon: Icon(t.selectedIcon),
+                            icon: _badged(i, Icon(t.icon)),
+                            selectedIcon: _badged(i, Icon(t.selectedIcon)),
                             label: Text(t.label),
                           ),
                       ],
@@ -185,16 +228,29 @@ class _HomeScreenState extends State<HomeScreen>  with WidgetsBindingObserver{
                   selectedIndex: _page,
                   onDestinationSelected: _select,
                   destinations: [
-                    for (final t in _tabs)
+                    for (final (i, t) in _tabs.indexed)
                       NavigationDestination(
-                        icon: Icon(t.icon),
-                        selectedIcon: Icon(t.selectedIcon),
+                        icon: _badged(i, Icon(t.icon)),
+                        selectedIcon: _badged(i, Icon(t.selectedIcon)),
                         label: t.label,
+                        tooltip: i == 0 && _unreadChats > 0 ? '${t.label}, $_unreadChats unread' : null,
                       ),
                   ],
                 ),
         ),
       ),
+    );
+  }
+}
+
+extension on _HomeScreenState {
+  // The Chats tab shows how many chats have unread messages, like WhatsApp.
+  Widget _badged(int index, Widget icon) {
+    if (index != 0 || _unreadChats == 0) return icon;
+    return Badge(
+      label: Text(_unreadChats > 99 ? '99+' : '$_unreadChats'),
+      backgroundColor: context.colors.success,
+      child: icon,
     );
   }
 }

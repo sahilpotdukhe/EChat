@@ -26,6 +26,19 @@ class NotificationService {
   static Future<void> notifyCall({required String receiverId}) =>
       _post('/notify/call', {'receiverId': receiverId});
 
+  /// Lets this account upload files to Supabase (see MediaStorage). Unlike
+  /// the notifications, this throws on failure so the upload can report it.
+  static Future<void> grantStorageAccess() async {
+    final String? idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (idToken == null) throw StateError('Not signed in');
+    final http.Response response = await http
+        .post(Uri.parse('$baseUrl/supabase/role'), headers: {'Authorization': 'Bearer $idToken'})
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      throw Exception('Storage access refused: ${response.statusCode} ${response.body}');
+    }
+  }
+
   static Future<void> _post(String path, Map<String, String> body) async {
     try {
       final String? idToken = await FirebaseAuth.instance.currentUser?.getIdToken();

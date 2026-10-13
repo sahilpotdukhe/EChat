@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/models/user_model.dart';
 import 'package:echat/providers/user_provider.dart';
+import 'package:echat/resources/media_storage.dart';
 import 'package:echat/utils/validators.dart';
 import 'package:echat/widgets/common/user_avatar.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -59,13 +59,19 @@ class _EditProfileState extends State<EditProfile> {
         'gender': _gender ?? '',
       };
       if (_newPhoto != null) {
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child('Users/${user.uid}/${DateTime.now().microsecondsSinceEpoch}.jpg');
-        await ref.putFile(File(_newPhoto!.path), SettableMetadata(contentType: 'image/jpeg'));
-        updates['profile_photo'] = await ref.getDownloadURL();
+        updates['profile_photo'] = await MediaStorage.uploadFile(
+          folder: MediaStorage.profileFolder,
+          uid: user.uid,
+          file: File(_newPhoto!.path),
+          name: 'profile.jpg',
+          contentType: 'image/jpeg',
+        );
       }
+      final oldPhoto = user.profilePhoto;
       await FirebaseFirestore.instance.collection('Users').doc(user.uid).update(updates);
+      // The old picture is no longer shown anywhere (only removes files
+      // this app put in Supabase).
+      if (updates.containsKey('profile_photo')) MediaStorage.removeByUrl(oldPhoto);
       if (!mounted) return;
       await Provider.of<UserProvider>(context, listen: false).refreshUser();
       if (!mounted) return;

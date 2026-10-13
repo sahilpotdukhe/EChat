@@ -118,8 +118,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 if (!snapshot.hasData) {
                   return const SliverFillRemaining(hasScrollBody: true, child: SkeletonList());
                 }
-                final docs = snapshot.data!.docs;
-                if (docs.isEmpty) {
+                // Newest conversation first, like WhatsApp.
+                final contacts = [
+                  for (final doc in snapshot.data!.docs) ContactModel.fromMap(doc.data() as Map<String, dynamic>),
+                ]
+                  ..removeWhere((c) => c.uid.isEmpty)
+                  ..sort(ContactModel.newestFirst);
+                if (contacts.isEmpty) {
                   return SliverFillRemaining(
                     // ShadcnEmptyState scrolls itself when space is short.
                     hasScrollBody: true,
@@ -141,9 +146,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   // the New chat button.
                   padding: EdgeInsets.fromLTRB(side, ShadcnSpacing.sm, side, 96),
                   sliver: SliverList.builder(
-                    itemCount: docs.length,
+                    itemCount: contacts.length,
                     itemBuilder: (context, index) {
-                      final contact = ContactModel.fromMap(docs[index].data() as Map<String, dynamic>);
+                      final contact = contacts[index];
                       return ContactTileView(
                         key: ValueKey(contact.uid),
                         contactModel: contact,

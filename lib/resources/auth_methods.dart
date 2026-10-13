@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/models/user_model.dart';
+import 'package:echat/resources/media_storage.dart';
+import 'package:echat/resources/presence_service.dart';
 import 'package:echat/screens/login_screen.dart';
 import 'package:echat/utils/utilities.dart';
 import 'package:echat/screens/home_screen.dart';
@@ -92,6 +94,8 @@ class AuthMethods {
   Future<void> clearSessionOnThisDevice() async {
     final String? uid = _auth.currentUser?.uid;
     if (uid == null) return;
+    await PresenceService.instance.stop();
+    MediaStorage.reset();
     try {
       await firestore.collection('Users').doc(uid).update({
         'notification_token': '',
@@ -185,12 +189,6 @@ class AuthMethods {
     return userList;
   }
 
-  void setUserState({required String userId, required UserState userState}){
-    int stateNum = Utils.stateToNum(userState);
-
-    firestore.collection("Users").doc(userId).update({"state": stateNum});
-  }
-
   Stream<DocumentSnapshot> getUserStream({required String uid}) =>
       firestore.collection("Users").doc(uid).snapshots();
 }
@@ -207,45 +205,52 @@ class GoogleSignInProvider extends ChangeNotifier {
   GoogleSignInAccount? _user;
   GoogleSignInAccount get user => _user!;
 
-  /// True when signed in, false on failure, null if the user closed the
-  /// Google picker.
+  /// True when signed in, null if the user closed the Google picker.
+  /// Throws [GoogleSignInFailure] with a message to show when it fails.
   Future<bool?> googleLogin(BuildContext context) async {
+    final GoogleSignInAccount googleUser;
     try {
       await (_initialization ??= googleSignIn.initialize());
-      final GoogleSignInAccount googleUser;
-      try {
-        googleUser = await googleSignIn.authenticate();
-      } on GoogleSignInException catch (e) {
-        if (e.code == GoogleSignInExceptionCode.canceled) return null;
-        rethrow;
-      }
-      _user = googleUser;
-      debugPrint('user...');
-      debugPrint('$_user');
-      final googleAuth = googleUser.authentication;
-      debugPrint("this is goooogle-- $googleAuth");
-      final credential = GoogleAuthProvider.credential(
-        idToken: googleAuth.idToken,
-      );
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      DocumentSnapshot userDocs = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(FirebaseAuth.instance.currentUser!.uid)
-          .get();
-      // Wait for the profile to exist before the caller opens the home screen,
-      // which reads it straight away.
-      if (userDocs.data() == null) {
-        await authMethods.setUserProfile(name: _user?.displayName, email: _user?.email,mobilenumber: '',profilePic:_user?.photoUrl,authType: "googleAuth");
-      }else{
-        await authMethods.saveNotificationToken(userDocs.id);
-      }
-
-
-      return true;
+      googleUser = await googleSignIn.authenticate();
+    } on GoogleSignInException catch (e) {
+      debugPrint('Google sign-in: ${e.code} ${e.description}');
+      if (e.code == GoogleSignInExceptionCode.canceled) return null;
+      throw GoogleSignInFailure.fromGoogle(e);
     } catch (e) {
-      debugPrint(e.toString());
-      return false;
+      // e.g. initialize() failing on an iPhone build with no Google client ID.
+      _initialization = null;
+      debugPrint('Google sign-in: $e');
+      throw const GoogleSignInFailure(
+          'Google sign-in isn\'t set up for this build of the app. Use email for now.');
     }
+    _user = googleUser;
+
+    final String? idToken = googleUser.authentication.idToken;
+    if (idToken == null) {
+      throw const GoogleSignInFailure('Google didn\'t return a sign-in token. Please try again.');
+    }
+    try {
+      await FirebaseAuth.instance.signInWithCredential(GoogleAuthProvider.credential(idToken: idToken));
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Firebase Google sign-in: ${e.code} ${e.message}');
+      throw GoogleSignInFailure.fromFirebase(e);
+    }
+
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    DocumentSnapshot userDocs = await FirebaseFirestore.instance.collection('Users').doc(uid).get();
+    // Wait for the profile to exist before the caller opens the home screen,
+    // which reads it straight away.
+    if (userDocs.data() == null) {
+      await authMethods.setUserProfile(
+          name: googleUser.displayName,
+          email: googleUser.email,
+          mobilenumber: '',
+          profilePic: googleUser.photoUrl,
+          authType: "googleAuth");
+    } else {
+      await authMethods.saveNotificationToken(uid);
+    }
+    return true;
   }
 
   // Used for every logout (email or Google); disconnecting Google is a no-op
@@ -263,4 +268,47 @@ class GoogleSignInProvider extends ChangeNotifier {
     Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context)=>LoginScreen()), (route) => false);
 
   }
+}
+
+/// Why Google sign-in failed, in words for the person signing in.
+class GoogleSignInFailure implements Exception {
+  final String message;
+
+  const GoogleSignInFailure(this.message);
+
+  factory GoogleSignInFailure.fromGoogle(GoogleSignInException e) {
+    switch (e.code) {
+      case GoogleSignInExceptionCode.clientConfigurationError:
+      case GoogleSignInExceptionCode.providerConfigurationError:
+        return const GoogleSignInFailure(
+            'Google sign-in isn\'t set up correctly for this app. Use email for now.');
+      case GoogleSignInExceptionCode.uiUnavailable:
+        return const GoogleSignInFailure('Couldn\'t open the Google account picker. Please try again.');
+      case GoogleSignInExceptionCode.interrupted:
+        return const GoogleSignInFailure('Sign-in was interrupted. Please try again.');
+      default:
+        // Android reports "no Google account on this phone" this way too.
+        return const GoogleSignInFailure(
+            'Google sign-in failed. Make sure a Google account is added to this phone and try again.');
+    }
+  }
+
+  factory GoogleSignInFailure.fromFirebase(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'network-request-failed':
+        return const GoogleSignInFailure('No internet connection. Check it and try again.');
+      case 'user-disabled':
+        return const GoogleSignInFailure('This account has been disabled.');
+      case 'operation-not-allowed':
+        return const GoogleSignInFailure('Google sign-in is turned off for EChat right now. Use email instead.');
+      case 'account-exists-with-different-credential':
+        return const GoogleSignInFailure(
+            'This email already has an EChat account. Sign in with your email and password.');
+      default:
+        return const GoogleSignInFailure('Google sign-in failed. Please try again.');
+    }
+  }
+
+  @override
+  String toString() => message;
 }
