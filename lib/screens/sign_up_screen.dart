@@ -175,7 +175,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       },
       child: BusyOverlay(
         visible: _isGoogleLoading,
-        message: 'Signing you in…',
+        message: 'Signing in with Google…',
+        hint: 'Choose your account in the window that opens.',
         child: AuthLayout(
           showBack: true,
           title: verifying ? 'Check your inbox' : 'Create your account',

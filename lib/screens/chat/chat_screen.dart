@@ -8,6 +8,7 @@ import 'package:echat/resources/auth_methods.dart';
 import 'package:echat/resources/chat_firebase_methods.dart';
 import 'package:echat/resources/chat_media_uploader.dart';
 import 'package:echat/resources/local_notifications.dart';
+import 'package:echat/resources/notification_service.dart';
 import 'package:echat/screens/call/pickup_layout.dart';
 import 'package:echat/screens/chat/message_bubble.dart';
 import 'package:echat/screens/chat/widgets/attachment_sheet.dart';
@@ -77,6 +78,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     // No notifications for this chat while it's open, and clear any shown.
     LocalNotifications.openChatPeerId = widget.receiver.uid;
     LocalNotifications.dismissChat(widget.receiver.uid);
+    // So the first message's notification isn't held up by a sleeping server.
+    NotificationService.warmUp();
     if (_currentUserId.isNotEmpty) {
       _chatFirebaseMethods.clearUnread(myId: _currentUserId, peerId: widget.receiver.uid);
     }

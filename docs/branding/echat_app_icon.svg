@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9D8CFF"/>
+      <stop offset="0.55" stop-color="#5B47E0"/>
+      <stop offset="1" stop-color="#2E2296"/>
+    </linearGradient>
+    <linearGradient id="ink" x1="400" y1="380" x2="640" y2="600" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7B6CF2"/>
+      <stop offset="1" stop-color="#3B2DB8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="300" cy="200" r="620" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="28" stdDeviation="30" flood-color="#1A1060" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- Background tile -->
+  <rect width="1024" height="1024" rx="228" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="228" fill="url(#glow)"/>
+
+  <!-- White chat bubble with a tail -->
+  <g filter="url(#shadow)">
+    <rect x="222" y="222" width="580" height="520" rx="150" fill="#FFFFFF"/>
+    <path fill="#FFFFFF" d="M 300 640 L 272 830 Q 268 856 292 842 L 480 712 Z"/>
+  </g>
+
+  <!-- The "E", drawn like lines of a message -->
+  <path d="M 612 386 H 412 V 578 H 612 M 412 482 H 578"
+        fill="none" stroke="url(#ink)" stroke-width="66"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- New-message / online badge -->
+  <circle cx="786" cy="238" r="78" fill="#7DD3FC" stroke="url(#bg)" stroke-width="30"/>
+</svg>

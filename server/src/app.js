@@ -64,18 +64,25 @@ function createApp({db, auth, messaging, logger = console}) {
     });
     if (!msg) return res.json({sent: false, reason: "already notified"});
 
-    // Name comes from the sender's profile, not the request, so it can't be faked.
-    const senderSnap = await db.collection("Users").doc(uid).get();
+    // Name comes from the sender's profile, not the request, so it can't be
+    // faked. The three reads don't depend on each other: run them together.
+    const [senderSnap, receiverSnap, badge] = await Promise.all([
+      db.collection("Users").doc(uid).get(),
+      db.collection("Users").doc(receiverId).get(),
+      unreadTotal(db, receiverId),
+    ]);
     const {body, image} = describeMessage(msg);
     const sent = await sendToUser(deps, receiverId, {
       title: senderSnap.get("name") || "New message",
       body,
       image,
+      avatar: senderSnap.get("profile_photo"),
       channelId: "message_channel",
       // messageId lets the receiver's phone mark it delivered (two grey
       // ticks) even while the app is closed.
       data: {type: "message", senderId: uid, messageId},
-      badge: await unreadTotal(db, receiverId),
+      badge,
+      userSnap: receiverSnap,
     });
     res.json({sent});
   });
@@ -93,14 +100,19 @@ function createApp({db, auth, messaging, logger = console}) {
     });
     if (!call) return res.json({sent: false, reason: "already notified"});
 
-    const callerSnap = await db.collection("Users").doc(uid).get();
-    // The app's background handler shows the call screen when the title is "Incoming Call".
+    const [callerSnap, receiverSnap] = await Promise.all([
+      db.collection("Users").doc(uid).get(),
+      db.collection("Users").doc(receiverId).get(),
+    ]);
+    const callerName = callerSnap.get("name") || "Someone";
+    const video = call.callType === "videoCall";
     const sent = await sendToUser(deps, receiverId, {
-      title: "Incoming Call",
-      body: callerSnap.get("name") || "Someone is calling",
-      image: callerSnap.get("profile_photo"),
+      title: callerName,
+      body: video ? "Incoming video call" : "Incoming voice call",
+      avatar: callerSnap.get("profile_photo"),
       channelId: "call_channel",
-      data: {type: "call", callType: String(call.callType || ""), callerId: uid},
+      data: {type: "call", callType: String(call.callType || ""), callerId: uid, senderId: uid},
+      userSnap: receiverSnap,
     });
     res.json({sent});
   });

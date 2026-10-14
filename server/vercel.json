@@ -1,7 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ],
   "functions": {
-    "api/index.js": { "maxDuration": 10 }
-  }
+    "api/index.js": {
+      "maxDuration": 10
+    }
+  },
+  "regions": [
+    "bom1"
+  ]
 }

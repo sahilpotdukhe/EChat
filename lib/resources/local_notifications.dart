@@ -1,51 +1,60 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:echat/models/message_model.dart';
 import 'package:echat/resources/chat_firebase_methods.dart';
 import 'package:echat/resources/notification_router.dart';
-import 'package:echat/theme/app_colors.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
-/// Shows a push message as a phone notification: a ringing full-screen one
-/// for calls (Accept / Decline), a normal one for chat messages, one per chat
-/// so different people's messages don't replace each other.
+/// Draws EChat's phone notifications, WhatsApp-style:
 ///
-/// Pushes from the server carry a notification part, which the phone shows
-/// by itself while the app is in the background. This class shows the rest:
-/// pushes that arrive while the app is open, and data-only pushes.
+/// * Messages: the sender's round photo, name and text, stacked per chat,
+///   with **Reply** (type in the notification) and **Mark as read**.
+/// * Calls: a full-screen, ringing notification with the caller's photo and
+///   **Decline** / **Answer**, which stops ringing after 45 seconds.
+///
+/// On Android the server sends the details as data only and this class draws
+/// the notification, even with the app closed (see the background handler in
+/// main.dart). iPhones get the system's own notification from the server.
 class LocalNotifications {
   static const _callId = 123;
+  static const String _icon = 'resource://drawable/ic_stat_echat';
+  static const Color _brand = Color(0xFF6C5CE7);
 
   /// The chat on screen right now, so its own messages don't notify.
   static String? openChatPeerId;
 
   /// Once, at startup, before any notification is shown.
   static Future<void> initialize() async {
-    await AwesomeNotifications().initialize(null, [
+    await AwesomeNotifications().initialize(_icon, [
       NotificationChannel(
         channelKey: "call_channel",
         channelName: "Calls",
         channelDescription: "Incoming voice and video calls",
-        defaultColor: Colors.redAccent,
-        ledColor: Colors.white,
+        defaultColor: _brand,
+        ledColor: _brand,
         importance: NotificationImportance.Max,
-        channelShowBadge: true,
+        channelShowBadge: false,
         locked: true,
+        criticalAlerts: true,
         defaultRingtoneType: DefaultRingtoneType.Ringtone,
         playSound: true,
+        enableVibration: true,
       ),
       NotificationChannel(
         channelKey: "message_channel",
         channelName: "Messages",
         channelDescription: "New chat messages",
-        defaultColor: Colors.redAccent,
-        ledColor: Colors.white,
-        importance: NotificationImportance.Max,
+        defaultColor: _brand,
+        ledColor: _brand,
+        importance: NotificationImportance.High,
         channelShowBadge: true,
         defaultRingtoneType: DefaultRingtoneType.Notification,
         playSound: true,
+        enableVibration: true,
+        groupAlertBehavior: GroupAlertBehavior.Children,
       ),
     ]);
     await AwesomeNotifications().setListeners(onActionReceivedMethod: _onAction);
@@ -54,9 +63,7 @@ class LocalNotifications {
   /// [appOpen] is true for pushes received while the app is on screen.
   static Future<void> show(RemoteMessage message, {bool appOpen = false}) async {
     final Map<String, dynamic> data = message.data;
-    // Data-only messages have no notification part; fall back to the data
-    // fields (sent by server/src/app.js) instead of crashing.
-    final bool isCall = data['type'] == 'call' || message.notification?.title == 'Incoming Call';
+    final bool isCall = data['type'] == 'call';
     final String senderId = (data['senderId'] ?? data['callerId'] ?? '').toString();
 
     // With the app open, an incoming call already fills the screen, and a
@@ -64,42 +71,119 @@ class LocalNotifications {
     if (appOpen && isCall) return;
     if (appOpen && senderId.isNotEmpty && senderId == openChatPeerId) return;
 
-    final String? title = message.notification?.title ?? data['title'] ?? (isCall ? 'Incoming Call' : null);
-    final String? body = message.notification?.body ?? data['body'];
-    if (title == null && body == null) return;
-    final String? image = message.notification?.android?.imageUrl ?? message.notification?.apple?.imageUrl;
+    final String title = (message.notification?.title ?? data['title'] ?? '').toString();
+    final String body = (message.notification?.body ?? data['body'] ?? '').toString();
+    if (title.isEmpty && body.isEmpty) return;
+    final String? avatar = _url(data['avatar']);
 
-    await AwesomeNotifications().createNotification(
-      content: NotificationContent(
-        id: isCall ? _callId : notificationIdFor(senderId),
-        channelKey: isCall ? 'call_channel' : 'message_channel',
+    final badge = int.tryParse('${data['badge'] ?? ''}');
+    if (badge != null) setBadge(badge);
+
+    if (isCall) {
+      await _showCall(title: title, body: body, avatar: avatar, callerId: senderId);
+    } else {
+      await _showMessage(
         title: title,
         body: body,
-        groupKey: isCall ? null : senderId,
-        category: isCall ? NotificationCategory.Call : NotificationCategory.Message,
+        avatar: avatar,
+        image: _url(data['image']),
+        senderId: senderId,
+        messageId: (data['messageId'] ?? '').toString(),
+      );
+    }
+  }
+
+  static Future<void> _showMessage({
+    required String title,
+    required String body,
+    required String senderId,
+    required String messageId,
+    String? avatar,
+    String? image,
+  }) async {
+    final payload = {'type': 'message', 'senderId': senderId, 'messageId': messageId};
+    await AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        // One per message, stacked under the chat's group.
+        id: notificationIdFor(messageId.isEmpty ? '$senderId${DateTime.now().millisecondsSinceEpoch}' : messageId),
+        channelKey: 'message_channel',
+        groupKey: senderId,
+        title: title,
+        body: body,
+        summary: title,
+        category: NotificationCategory.Message,
+        color: _brand,
+        largeIcon: avatar,
+        roundedLargeIcon: true,
+        // A photo shows big; text stacks like a conversation.
+        notificationLayout: image != null ? NotificationLayout.BigPicture : NotificationLayout.Messaging,
+        bigPicture: image,
+        hideLargeIconOnExpand: image != null,
         wakeUpScreen: true,
-        fullScreenIntent: isCall,
-        autoDismissible: !isCall,
-        locked: isCall,
-        backgroundColor: AppColors.shadcnLight.primary,
-        notificationLayout: image != null && !isCall ? NotificationLayout.BigPicture : NotificationLayout.Default,
-        bigPicture: isCall ? null : image,
-        largeIcon: 'asset://assets/login.png',
-        payload: {'type': isCall ? 'call' : 'message', 'senderId': senderId},
+        autoDismissible: true,
+        payload: payload,
       ),
-      actionButtons: isCall
-          ? [
-              NotificationActionButton(
-                  key: 'Decline',
-                  label: 'Decline',
-                  color: Colors.red,
-                  actionType: ActionType.SilentBackgroundAction,
-                  autoDismissible: true),
-              // Opens the app, where the incoming call screen is waiting.
-              NotificationActionButton(key: 'Accept', label: 'Answer', color: Colors.green, autoDismissible: true),
-            ]
-          : null,
+      actionButtons: [
+        NotificationActionButton(
+          key: 'Reply',
+          label: 'Reply',
+          requireInputText: true,
+          actionType: ActionType.SilentBackgroundAction,
+          autoDismissible: true,
+        ),
+        NotificationActionButton(
+          key: 'MarkRead',
+          label: 'Mark as read',
+          actionType: ActionType.SilentBackgroundAction,
+          autoDismissible: true,
+        ),
+      ],
     );
+  }
+
+  static Future<void> _showCall({
+    required String title,
+    required String body,
+    required String callerId,
+    String? avatar,
+  }) async {
+    await AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: _callId,
+        channelKey: 'call_channel',
+        title: title,
+        body: body,
+        category: NotificationCategory.Call,
+        color: _brand,
+        largeIcon: avatar,
+        roundedLargeIcon: true,
+        notificationLayout: NotificationLayout.Default,
+        wakeUpScreen: true,
+        fullScreenIntent: true,
+        autoDismissible: false,
+        locked: true,
+        // The caller gives up after 45 seconds; stop ringing then too.
+        timeoutAfter: const Duration(seconds: 45),
+        payload: {'type': 'call', 'senderId': callerId},
+      ),
+      actionButtons: [
+        NotificationActionButton(
+          key: 'Decline',
+          label: 'Decline',
+          color: const Color(0xFFE5484D),
+          actionType: ActionType.SilentBackgroundAction,
+          autoDismissible: true,
+          isDangerousOption: true,
+        ),
+        // Opens the app, where the incoming call screen is waiting.
+        NotificationActionButton(key: 'Accept', label: 'Answer', color: const Color(0xFF16A34A), autoDismissible: true),
+      ],
+    );
+  }
+
+  static String? _url(Object? value) {
+    final s = value?.toString() ?? '';
+    return s.startsWith('https://') ? s : null;
   }
 
   /// The message in this push reached this phone: two grey ticks for the
@@ -110,7 +194,7 @@ class LocalNotifications {
     final String? senderId = data['senderId'];
     if (data['type'] != 'message' || messageId == null || senderId == null) return;
     try {
-      final user = FirebaseAuth.instance.currentUser ?? await FirebaseAuth.instance.authStateChanges().first;
+      final user = await _signedInUser();
       if (user == null) return;
       await ChatFirebaseMethods()
           .markDeliveredById(myId: user.uid, peerId: senderId, messageId: messageId)
@@ -120,11 +204,11 @@ class LocalNotifications {
     }
   }
 
-  /// One notification per chat: a stable id from the sender's uid (Dart's
-  /// own String.hashCode isn't promised to be the same between runs).
-  static int notificationIdFor(String senderId) {
+  /// A stable notification id from a string (Dart's own String.hashCode
+  /// isn't promised to be the same between runs).
+  static int notificationIdFor(String key) {
     var hash = 7;
-    for (final unit in senderId.codeUnits) {
+    for (final unit in key.codeUnits) {
       hash = (hash * 31 + unit) & 0x3fffffff;
     }
     // Keep clear of the call notification's id.
@@ -132,8 +216,13 @@ class LocalNotifications {
   }
 
   /// Clears a chat's notifications once it is opened.
-  static Future<void> dismissChat(String senderId) =>
-      AwesomeNotifications().dismiss(notificationIdFor(senderId));
+  static Future<void> dismissChat(String senderId) async {
+    try {
+      await AwesomeNotifications().dismissNotificationsByGroupKey(senderId);
+    } catch (e) {
+      debugPrint('Could not clear notifications: $e');
+    }
+  }
 
   /// Asks once for permission to show notifications. iPhones (and Android
   /// 13+) show nothing until the user agrees; later calls don't ask again.
@@ -154,25 +243,76 @@ class LocalNotifications {
     }
   }
 
-  // May run with the app closed (Decline), in its own isolate.
+  // May run with the app closed (Decline, Reply, Mark as read), in its own
+  // isolate, so it sets up Firebase itself.
   @pragma('vm:entry-point')
   static Future<void> _onAction(ReceivedAction action) async {
     final payload = action.payload ?? const {};
-    if (action.buttonKeyPressed == 'Decline') {
-      await _declineCall(payload['senderId'] ?? '');
-      return;
+    final String senderId = payload['senderId'] ?? '';
+    switch (action.buttonKeyPressed) {
+      case 'Decline':
+        await _declineCall(senderId);
+      case 'Reply':
+        await _reply(senderId, payload['messageId'] ?? '', action.buttonKeyInput.trim());
+      case 'MarkRead':
+        await _markRead(senderId, payload['messageId'] ?? '');
+      default:
+        // Tapped a message (or Answer): open the app on that chat; for a
+        // call the incoming call screen shows by itself.
+        if (payload['type'] == 'message') NotificationRouter.openChat(senderId);
     }
-    // Tapped a message (or Answer): open the app on that chat; for a call
-    // the incoming call screen shows by itself.
-    if (payload['type'] == 'message') NotificationRouter.openChat(payload['senderId'] ?? '');
+  }
+
+  static Future<User?> _signedInUser() async {
+    await Firebase.initializeApp();
+    return FirebaseAuth.instance.currentUser ?? await FirebaseAuth.instance.authStateChanges().first;
+  }
+
+  // Sends a text reply typed in the notification, and marks their message
+  // read (replying means you've seen it).
+  static Future<void> _reply(String senderId, String messageId, String text) async {
+    if (senderId.isEmpty || text.isEmpty) return;
+    try {
+      final user = await _signedInUser();
+      if (user == null) return;
+      await ChatFirebaseMethods().addMessagetoDb(MessageModel(
+        senderId: user.uid,
+        receiverId: senderId,
+        type: 'text',
+        message: text,
+        timestamp: Timestamp.now(),
+        photoUrl: '',
+        thumbnailUrl: '',
+        pdfUrl: '',
+        pdfName: '',
+      ));
+      await _markRead(senderId, messageId);
+    } catch (e) {
+      debugPrint('Could not send the reply: $e');
+    }
+  }
+
+  static Future<void> _markRead(String senderId, String messageId) async {
+    if (senderId.isEmpty) return;
+    try {
+      final user = await _signedInUser();
+      if (user == null) return;
+      final chat = ChatFirebaseMethods();
+      await Future.wait([
+        if (messageId.isNotEmpty) chat.markRead(myId: user.uid, peerId: senderId, messageIds: [messageId]),
+        chat.clearUnread(myId: user.uid, peerId: senderId),
+      ]);
+      await dismissChat(senderId);
+    } catch (e) {
+      debugPrint('Could not mark as read: $e');
+    }
   }
 
   // Hangs up a ringing call from the notification, like the Decline button
   // on the incoming call screen (which then logs it as missed).
   static Future<void> _declineCall(String callerId) async {
     try {
-      await Firebase.initializeApp();
-      final user = FirebaseAuth.instance.currentUser ?? await FirebaseAuth.instance.authStateChanges().first;
+      final user = await _signedInUser();
       if (user == null) return;
       final calls = FirebaseFirestore.instance.collection('Call');
       await Future.wait([

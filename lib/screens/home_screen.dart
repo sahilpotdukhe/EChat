@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/models/contact_model.dart';
 import 'package:echat/resources/chat_firebase_methods.dart';
 import 'package:echat/resources/notification_router.dart';
+import 'package:echat/resources/notification_service.dart';
 import 'package:echat/resources/presence_service.dart';
 import 'package:echat/theme/app_colors.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -81,6 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     PresenceService.instance.start(user.uid);
+    NotificationService.warmUp();
     LogRepository.initialize(dbName: user.uid);
     _subscriptions.add(_chatMethods.fetchUnreadContacts(userId: user.uid).listen(
           (snapshot) => _onUnreadChanged(user.uid, snapshot),

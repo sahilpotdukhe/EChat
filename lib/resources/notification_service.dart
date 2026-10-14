@@ -26,6 +26,23 @@ class NotificationService {
   static Future<void> notifyCall({required String receiverId}) =>
       _post('/notify/call', {'receiverId': receiverId});
 
+  static DateTime? _lastWarmUp;
+
+  /// Wakes the server up ahead of time. Vercel puts it to sleep when idle,
+  /// and waking costs a few seconds, which would otherwise delay the first
+  /// notification. Called when the app or a chat opens; at most every few
+  /// minutes. Fire-and-forget.
+  static void warmUp() {
+    final now = DateTime.now();
+    final last = _lastWarmUp;
+    if (last != null && now.difference(last) < const Duration(minutes: 4)) return;
+    _lastWarmUp = now;
+    http.get(Uri.parse('$baseUrl/health')).timeout(_timeout).catchError((Object e) {
+      debugPrint('Notification server warm-up failed: $e');
+      return http.Response('', 0);
+    });
+  }
+
   /// Lets this account upload files to Supabase (see MediaStorage). Unlike
   /// the notifications, this throws on failure so the upload can report it.
   static Future<void> grantStorageAccess() async {

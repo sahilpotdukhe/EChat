@@ -132,7 +132,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return BusyOverlay(
       visible: _isGoogleLoading,
-      message: 'Signing you in…',
+      message: 'Signing in with Google…',
+      hint: 'Choose your account in the window that opens.',
       child: AuthLayout(
         title: 'Welcome back',
         subtitle: 'Sign in to pick up your conversations.',

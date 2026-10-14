@@ -35,7 +35,6 @@ function isHttpUrl(value) {
   return typeof value === "string" && value.startsWith("https://");
 }
 
-// Sends one notification to a user's saved device token. Returns true if sent.
 // Messages waiting to be read across all of a user's chats: the number on
 // the app icon. 0 if it can't be worked out.
 async function unreadTotal(db, uid) {
@@ -47,28 +46,41 @@ async function unreadTotal(db, uid) {
   }
 }
 
-async function sendToUser({db, messaging, logger = console}, uid, {title, body, image, channelId, data, badge}) {
-  const userSnap = await db.collection("Users").doc(uid).get();
-  const token = userSnap.get("notification_token");
+// Sends one notification to a user's saved device token. Returns true if sent.
+//
+// Android gets the details as data only, and the app draws the notification
+// itself (sender's photo, stacked messages, Reply / Mark as read, a ringing
+// screen for calls), even when it is closed. iPhones need a visible alert in
+// the push, so they get a normal notification. [userSnap] may be passed in
+// when the caller has already read the receiver's profile.
+async function sendToUser({db, messaging, logger = console}, uid, {title, body, image, avatar, channelId, data, badge, userSnap}) {
+  const snap = userSnap || await db.collection("Users").doc(uid).get();
+  const token = snap.get("notification_token");
   if (!token) return false;
+  const isCall = channelId === "call_channel";
 
-  const notification = {title, body};
-  if (isHttpUrl(image)) notification.imageUrl = image;
+  const fields = {...data, title: String(title || ""), body: String(body || ""), badge: String(badge || 0)};
+  if (isHttpUrl(image)) fields.image = image;
+  if (isHttpUrl(avatar)) fields.avatar = avatar;
 
   try {
     await messaging.send({
       token,
-      notification,
-      data,
-      android: {priority: "high", notification: {channelId, ...(badge ? {notificationCount: badge} : {})}},
-      apns: {payload: {aps: {sound: "default", ...(badge ? {badge} : {})}}},
+      data: fields,
+      // A call nobody answers within 45 s is over; don't ring later.
+      android: {priority: "high", ...(isCall ? {ttl: 45 * 1000} : {})},
+      apns: {
+        headers: {"apns-priority": "10", ...(isCall ? {"apns-expiration": String(Math.floor(Date.now() / 1000) + 45)} : {})},
+        payload: {aps: {alert: {title, body}, sound: "default", "mutable-content": 1, ...(badge ? {badge} : {})}},
+        ...(isHttpUrl(image) ? {fcmOptions: {imageUrl: image}} : {}),
+      },
     });
     return true;
   } catch (err) {
     if (!DEAD_TOKEN_CODES.has(err.code)) throw err;
     // Only clear the token if the user hasn't saved a new one since we read it.
-    await userSnap.ref
-        .update({notification_token: ""}, {lastUpdateTime: userSnap.updateTime})
+    await snap.ref
+        .update({notification_token: ""}, {lastUpdateTime: snap.updateTime})
         .catch((e) => logger.info(`Token for ${uid} changed meanwhile, kept it: ${e.message}`));
     return false;
   }

@@ -85,10 +85,18 @@ test("message: notifies the receiver with the sender's real name", async () => {
   assert.deepEqual(await res.json(), {sent: true});
   assert.equal(sent.length, 1);
   assert.equal(sent[0].token, "tok-bob");
-  assert.equal(sent[0].notification.title, "Alice");
-  assert.equal(sent[0].notification.body, "hi");
-  assert.equal(sent[0].android.notification.channelId, "message_channel");
-  assert.deepEqual(sent[0].data, {type: "message", senderId: "alice", messageId: id});
+  // Android: data only, the app draws the notification.
+  assert.equal(sent[0].notification, undefined);
+  assert.equal(sent[0].android.priority, "high");
+  assert.deepEqual(sent[0].data, {type: "message", senderId: "alice", messageId: id, title: "Alice", body: "hi", badge: "0"});
+  // iPhone: a normal alert.
+  assert.deepEqual(sent[0].apns.payload.aps.alert, {title: "Alice", body: "hi"});
+});
+
+test("message: sender's photo goes along for the notification", async () => {
+  const id = await saveMessage("bob", "alice");
+  await post("/notify/message", {messageId: id, receiverId: "alice"}, "token-bob");
+  assert.equal(sent[0].data.avatar, "https://x/b.jpg");
 });
 
 test("message: badge shows bob's unread total across chats", async () => {
@@ -97,13 +105,13 @@ test("message: badge shows bob's unread total across chats", async () => {
   const id = await saveMessage("alice", "bob");
   await post("/notify/message", {messageId: id, receiverId: "bob"}, "token-alice");
   assert.equal(sent[0].apns.payload.aps.badge, 5);
-  assert.equal(sent[0].android.notification.notificationCount, 5);
+  assert.equal(sent[0].data.badge, "5");
 });
 
 test("message: a missed call reads like WhatsApp", async () => {
   const id = await saveMessage("alice", "bob", {type: "call", message: "missed", callType: "videoCall"});
   await post("/notify/message", {messageId: id, receiverId: "bob"}, "token-alice");
-  assert.equal(sent[0].notification.body, "📞 Missed video call");
+  assert.equal(sent[0].data.body, "📞 Missed video call");
 });
 
 test("supabase role: added once, other claims kept", async () => {
@@ -125,7 +133,7 @@ test("message: second request for the same message sends nothing", async () => {
 test("message: file types get a readable body", async () => {
   const id = await saveMessage("alice", "bob", {type: "docx", fileName: "notes.docx"});
   await post("/notify/message", {messageId: id, receiverId: "bob"}, "token-alice");
-  assert.equal(sent[0].notification.body, "📎 notes.docx");
+  assert.equal(sent[0].data.body, "📎 notes.docx");
 });
 
 test("message: no sign-in token is refused", async () => {
@@ -181,10 +189,13 @@ test("call: rings the receiver once", async () => {
   await startCall("alice", "bob");
   const res = await post("/notify/call", {receiverId: "bob"}, "token-alice");
   assert.deepEqual(await res.json(), {sent: true});
-  assert.equal(sent[0].notification.title, "Incoming Call");
-  assert.equal(sent[0].notification.body, "Alice");
-  assert.equal(sent[0].android.notification.channelId, "call_channel");
+  assert.equal(sent[0].data.type, "call");
+  assert.equal(sent[0].data.title, "Alice");
+  assert.equal(sent[0].data.body, "Incoming video call");
   assert.equal(sent[0].data.callType, "videoCall");
+  assert.equal(sent[0].data.callerId, "alice");
+  // Rings for at most 45 s.
+  assert.equal(sent[0].android.ttl, 45000);
 
   const again = await post("/notify/call", {receiverId: "bob"}, "token-alice");
   assert.deepEqual(await again.json(), {sent: false, reason: "already notified"});
