@@ -1,5 +1,4 @@
 import 'package:echat/enums/user_state.dart';
-import 'package:intl/intl.dart';
 class Utils{
 
   // Example email = sahilpotdukhe.ssp@gmail.com
@@ -49,11 +48,4 @@ class Utils{
         return UserState.waiting;
     }
   }
-  
-  static String formatDateString(String dateString){
-    DateTime dateTime = DateTime.parse(dateString);
-    var formatter = DateFormat('dd/MM/yy   ....  hh:mm a');
-    return formatter.format(dateTime);
-  }
-
 }

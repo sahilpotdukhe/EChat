@@ -132,15 +132,6 @@ class AuthMethods {
     await saveNotificationToken(currentUser.uid);
   }
 
-  Future<bool> checkAlreadyRegistered(String email) async {
-    QuerySnapshot result = await firestore.collection("Users").
-                            where("email", isEqualTo: email).
-                            get();
-    final List<DocumentSnapshot> docs = result.docs;
-    // If user is already registered means it has entry in the firestore database so the doc length will be equal to or greater than 1
-    return docs.isNotEmpty ? true : false;
-  }
-
   Future<void> updateToken(String userId, String token) async {
     await firestore.collection('Users').doc(userId).update({
       'notification_token': token,

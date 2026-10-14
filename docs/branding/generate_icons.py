@@ -30,9 +30,9 @@ def on_canvas(img, canvas, size, bg=(0, 0, 0, 0)):
     c.alpha_composite(im, ((canvas - size) // 2, (canvas - size) // 2)); return c
 
 # ---- in-app logo + brand master
-save(icon, "assets/logo.png", 512)
+save(icon, "assets/logo.png", 256)          # shown at most 56pt wide in the app
 save(src, "docs/branding/echat_app_icon.png", 1024, rgb=True)
-save(icon, "assets/splash.png", 1024)
+save(icon, "docs/branding/splash_master.png", 1024)
 
 # ---- native splash sources (flutter_native_splash regenerates platform files)
 for name in ("android12", "android12_dark"):
@@ -45,10 +45,6 @@ d = R("ios/Runner/Assets.xcassets/AppIcon.appiconset")
 for img in json.load(open(f"{d}/Contents.json"))["images"]:
     pt = float(img["size"].split("x")[0]); sc = int(img["scale"][0])
     save(tile, f"ios/Runner/Assets.xcassets/AppIcon.appiconset/{img['filename']}", round(pt * sc), rgb=True)
-
-# ---- macOS
-for s in (16, 32, 64, 128, 256, 512, 1024):
-    save(on_canvas(icon, 1024, 824), f"macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_{s}.png", s)
 
 # ---- Android legacy launcher (pre-8.0)
 dens = {"mdpi": 1, "hdpi": 1.5, "xhdpi": 2, "xxhdpi": 3, "xxxhdpi": 4}

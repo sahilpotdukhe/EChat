@@ -51,15 +51,6 @@ class HiveMethods implements CallLogInterface {
   // |             | }                               |
   // -----------------------------------------------
 
-
-  Future<void> updateLog(int i, CallLogModel newCallLogModel) async {
-    await init();
-    var box = await Hive.openBox(hiveBox);
-    var newLogMap = newCallLogModel.toMap(newCallLogModel);
-    await box.putAt(i, newLogMap);
-    await close();
-  }
-
   @override
   Future<List<CallLogModel>> getLogs() async {
     await init();
