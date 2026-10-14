@@ -7,6 +7,7 @@ import 'package:echat/resources/chat_firebase_methods.dart';
 import 'package:echat/screens/chat/chat_screen.dart';
 import 'package:echat/utils/message_utils.dart';
 import 'package:echat/utils/presence.dart';
+import 'package:echat/widgets/common/typing_watcher.dart';
 import 'package:echat/theme/app_colors.dart';
 import 'package:echat/screens/chat/widgets/delete_sheets.dart';
 import 'package:echat/screens/chat/widgets/message_extras.dart';
@@ -21,7 +22,8 @@ class ContactTileView extends StatefulWidget {
   final ContactModel contactModel;
   final String currentUserId;
 
-  const ContactTileView({super.key, required this.contactModel, required this.currentUserId});
+  const ContactTileView(
+      {super.key, required this.contactModel, required this.currentUserId});
 
   @override
   State<ContactTileView> createState() => _ContactTileViewState();
@@ -32,14 +34,20 @@ class _ContactTileViewState extends State<ContactTileView> {
     final forEveryone = await showDeleteChatSheet(context, name: user.name);
     if (forEveryone == null || !mounted) return;
     try {
-      await ChatFirebaseMethods()
-          .deleteChat(myId: widget.currentUserId, peerId: user.uid, forEveryone: forEveryone);
-      if (mounted) showShadcnToast(context, title: 'Chat deleted', variant: ShadcnToastVariant.success);
+      await ChatFirebaseMethods().deleteChat(
+          myId: widget.currentUserId,
+          peerId: user.uid,
+          forEveryone: forEveryone);
+      if (mounted) {
+        showShadcnToast(context,
+            title: 'Chat deleted', variant: ShadcnToastVariant.success);
+      }
     } catch (e) {
       debugPrint('Delete chat failed: $e');
       if (mounted) {
         showShadcnToast(context,
-            title: 'Couldn\'t delete the chat. Please try again.', variant: ShadcnToastVariant.destructive);
+            title: 'Couldn\'t delete the chat. Please try again.',
+            variant: ShadcnToastVariant.destructive);
       }
     }
   }
@@ -48,7 +56,8 @@ class _ContactTileViewState extends State<ContactTileView> {
   late final Stream<DocumentSnapshot> _userStream =
       AuthMethods().getUserStream(uid: widget.contactModel.uid);
   late final Stream<QuerySnapshot> _lastMessageStream = ChatFirebaseMethods()
-      .fetchLastMessageBetween(senderId: widget.currentUserId, receiverId: widget.contactModel.uid);
+      .fetchLastMessageBetween(
+          senderId: widget.currentUserId, receiverId: widget.contactModel.uid);
 
   @override
   Widget build(BuildContext context) {
@@ -71,18 +80,24 @@ class _ContactTileViewState extends State<ContactTileView> {
             final docs = messageSnapshot.data?.docs ?? const [];
             final MessageModel? last = docs.isEmpty
                 ? null
-                : MessageModel.fromMap(docs.first.data() as Map<dynamic, dynamic>);
-            return ValueListenableBuilder<DateTime>(
-              // Re-checks the online dot every 30 s.
-              valueListenable: Presence.clock,
-              builder: (context, _, __) => ChatRow(
-                user: user,
-                lastMessage: last,
-                isLoadingMessage: !messageSnapshot.hasData && !messageSnapshot.hasError,
-                sentByMe: last?.senderId == widget.currentUserId,
-                unreadCount: widget.contactModel.unreadCount,
-                isOnline: Presence.isOnline(user, DateTime.now()),
-                onLongPress: () => _deleteChat(user),
+                : MessageModel.fromMap(
+                    docs.first.data() as Map<dynamic, dynamic>);
+            return TypingWatcher(
+              typingAt: widget.contactModel.typingAt,
+              builder: (context, typing) => ValueListenableBuilder<DateTime>(
+                // Re-checks the online dot every 30 s.
+                valueListenable: Presence.clock,
+                builder: (context, _, __) => ChatRow(
+                  user: user,
+                  lastMessage: last,
+                  isLoadingMessage:
+                      !messageSnapshot.hasData && !messageSnapshot.hasError,
+                  sentByMe: last?.senderId == widget.currentUserId,
+                  unreadCount: widget.contactModel.unreadCount,
+                  isOnline: Presence.isOnline(user, DateTime.now()),
+                  isTyping: typing,
+                  onLongPress: () => _deleteChat(user),
+                ),
               ),
             );
           },
@@ -102,6 +117,9 @@ class ChatRow extends StatelessWidget {
   final bool isOnline;
   final VoidCallback? onLongPress;
 
+  /// They're typing to me: the preview line says "typing…".
+  final bool isTyping;
+
   const ChatRow({
     super.key,
     required this.user,
@@ -111,6 +129,7 @@ class ChatRow extends StatelessWidget {
     this.unreadCount = 0,
     this.isOnline = false,
     this.onLongPress,
+    this.isTyping = false,
   });
 
   @override
@@ -130,34 +149,58 @@ class ChatRow extends StatelessWidget {
         sentByMe: sentByMe,
       );
       // Deleted messages and calls already say who; others get "You:".
-      if (sentByMe && !last.isDeleted && !last.isCall) preview = 'You: $preview';
+      if (sentByMe && !last.isDeleted && !last.isCall) {
+        preview = 'You: $preview';
+      }
     } else {
       preview = isLoadingMessage ? '' : 'Say hi 👋';
     }
 
     final name = user.name.isEmpty ? 'EChat user' : user.name;
-    final time = last == null ? null : MessageUtils.chatListTime(last.timestamp.toDate(), DateTime.now());
+    final time = last == null
+        ? null
+        : MessageUtils.chatListTime(last.timestamp.toDate(), DateTime.now());
 
     return ShadcnListTile(
-      leading: UserAvatar(name: user.name, imageUrl: user.profilePhoto, size: 52, isOnline: isOnline),
+      leading: UserAvatar(
+          name: user.name,
+          imageUrl: user.profilePhoto,
+          size: 52,
+          isOnline: isOnline),
       title: Text(name),
       // Keep the message on a single line so every row has the same height.
-      subtitle: Row(
-        children: [
-          if (sentByMe && last != null && !last.isDeleted) ...[
-            MessageTicks(status: last.status, pending: false, color: shadcn.mutedForeground),
-            const SizedBox(width: 3),
-          ],
-          Flexible(
-            child: Text(
-              preview,
+      subtitle: isTyping
+          ? Text(
+              'typing…',
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: hasUnread ? TextStyle(color: shadcn.foreground, fontWeight: FontWeight.w600) : null,
+              style: TextStyle(
+                  color: colors.success,
+                  fontWeight: FontWeight.w600,
+                  fontStyle: FontStyle.italic),
+            )
+          : Row(
+              children: [
+                if (sentByMe && last != null && !last.isDeleted) ...[
+                  MessageTicks(
+                      status: last.status,
+                      pending: false,
+                      color: shadcn.mutedForeground),
+                  const SizedBox(width: 3),
+                ],
+                Flexible(
+                  child: Text(
+                    preview,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: hasUnread
+                        ? TextStyle(
+                            color: shadcn.foreground,
+                            fontWeight: FontWeight.w600)
+                        : null,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
       trailing: time == null && !hasUnread
           ? null
           : Column(
@@ -180,10 +223,15 @@ class ChatRow extends StatelessWidget {
                     height: 20,
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                     alignment: Alignment.center,
-                    decoration: BoxDecoration(color: colors.success, borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(
+                        color: colors.success,
+                        borderRadius: BorderRadius.circular(10)),
                     child: Text(
                       unreadCount > 99 ? '99+' : '$unreadCount',
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],
@@ -192,6 +240,7 @@ class ChatRow extends StatelessWidget {
       semanticLabel: [
         name,
         if (isOnline) 'online',
+        if (isTyping) 'typing',
         if (hasUnread) '$unreadCount unread',
         if (preview.isNotEmpty) preview,
         if (time != null) time,

@@ -1,7 +1,9 @@
 import 'package:echat/models/message_model.dart';
 import 'package:echat/screens/chat/widgets/message_extras.dart';
 import 'package:echat/theme/app_colors.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/widgets/common/connectivity_banner.dart';
+import 'package:echat/widgets/common/typing_watcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -57,5 +59,44 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
     expect(find.text('Back online'), findsNothing);
+  });
+
+  group('TypingWatcher', () {
+    Widget watcher(Timestamp? at) => _wrap(TypingWatcher(
+          typingAt: at,
+          builder: (_, typing) => Text(typing ? 'typing' : 'idle'),
+        ));
+
+    testWidgets('shows typing for 6 s after each update, then hides', (tester) async {
+      await tester.pumpWidget(watcher(null));
+      expect(find.text('idle'), findsOneWidget);
+
+      await tester.pumpWidget(watcher(Timestamp.fromMillisecondsSinceEpoch(1)));
+      expect(find.text('typing'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+      expect(find.text('typing'), findsOneWidget);
+
+      // A refresh keeps it going.
+      await tester.pumpWidget(watcher(Timestamp.fromMillisecondsSinceEpoch(2)));
+      await tester.pump(const Duration(seconds: 5));
+      expect(find.text('typing'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text('idle'), findsOneWidget);
+    });
+
+    testWidgets('cleared on send hides it at once', (tester) async {
+      await tester.pumpWidget(watcher(null));
+      await tester.pumpWidget(watcher(Timestamp.fromMillisecondsSinceEpoch(1)));
+      expect(find.text('typing'), findsOneWidget);
+      await tester.pumpWidget(watcher(null));
+      expect(find.text('idle'), findsOneWidget);
+    });
+
+    testWidgets('an old value from before the screen opened is ignored', (tester) async {
+      final old = Timestamp.fromDate(DateTime.now().subtract(const Duration(minutes: 2)));
+      await tester.pumpWidget(watcher(old));
+      expect(find.text('idle'), findsOneWidget);
+    });
   });
 }

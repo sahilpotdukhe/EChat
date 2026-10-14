@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import {initializeTestEnvironment, assertSucceeds, assertFails} from "@firebase/rules-unit-testing";
-import {doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, Timestamp, writeBatch, serverTimestamp, increment} from "firebase/firestore";
+import {doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, Timestamp, writeBatch, serverTimestamp, increment, deleteField} from "firebase/firestore";
 import {ref, uploadBytes, getBytes} from "firebase/storage";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -124,6 +124,13 @@ await t("carol clears her own unread count", assertSucceeds(updateDoc(doc(env.au
 await t("alice creates a new row for dave with 1 unread", assertSucceeds(bump(alice, "dave", "alice")));
 await t("eve CANNOT bump alice's row about bob", assertFails(bump(eve, "alice", "bob")));
 await t("eve CANNOT change the id in her row", assertFails(setDoc(doc(eve, "Users/eve/Contacts/bob"), {contact_id: "alice"})));
+
+console.log("Typing");
+await seed({"Users/frank/Contacts/alice": {contact_id: "alice", unread_count: 0}});
+await t("alice shows frank she's typing", assertSucceeds(updateDoc(doc(alice, "Users/frank/Contacts/alice"), {typing_at: serverTimestamp()})));
+await t("alice stops typing", assertSucceeds(updateDoc(doc(alice, "Users/frank/Contacts/alice"), {typing_at: deleteField()})));
+await t("eve CANNOT fake alice typing to frank", assertFails(updateDoc(doc(eve, "Users/frank/Contacts/alice"), {typing_at: serverTimestamp()})));
+await t("alice CANNOT sneak other changes in with typing", assertFails(updateDoc(doc(alice, "Users/frank/Contacts/alice"), {typing_at: serverTimestamp(), blocked: true})));
 
 console.log("Ticks");
 const tickMsg = (status) => ({...msg("alice", "bob"), status});

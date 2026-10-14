@@ -59,6 +59,8 @@ class ChatFirebaseMethods{
       'contact_id': senderId,
       'last_message_at': messageModel.timestamp,
       if (countAsUnread) 'unread_count': FieldValue.increment(1),
+      // Sending ends "typing…" on their side straight away.
+      'typing_at': FieldValue.delete(),
     }, SetOptions(merge: true));
     listBatch.commit().catchError((Object e) => debugPrint('Chat list not updated: $e'));
 
@@ -67,6 +69,23 @@ class ChatFirebaseMethods{
     // Not awaited: a slow or unreachable notification server must not delay
     // or fail the message itself.
     if (notify) NotificationService.notifyMessage(messageId: senderCopy.id, receiverId: receiverId);
+  }
+
+  /// My chat-list entry for [peerId]: their unread count and whether they
+  /// are typing to me.
+  Stream<DocumentSnapshot> contactStream({required String myId, required String peerId}) =>
+      _contact(myId, peerId).snapshots();
+
+  /// Shows (or stops showing) "typing…" to [peerId]. Written on their
+  /// chat-list entry for me; skipped quietly if they don't have one yet (a
+  /// brand-new chat) or the write fails.
+  Future<void> setTyping({required String myId, required String peerId, required bool typing}) async {
+    try {
+      await _contact(peerId, myId)
+          .update({'typing_at': typing ? FieldValue.serverTimestamp() : FieldValue.delete()});
+    } catch (e) {
+      debugPrint('Typing status skipped: $e');
+    }
   }
 
   Stream<QuerySnapshot> fetchContacts({required String userId}) =>

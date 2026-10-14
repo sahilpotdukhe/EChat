@@ -36,7 +36,7 @@ let server;
 let baseUrl;
 
 before(async () => {
-  server = createApp({db, auth, messaging, logger: quietLogger}).listen(0);
+  server = createApp({db, auth, messaging, logger: quietLogger, agoraCertificate: "0123456789abcdef0123456789abcdef"}).listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
@@ -218,4 +218,18 @@ test("call: caller's own doc (has_dialled true) is refused", async () => {
 test("call: no call is 404", async () => {
   const res = await post("/notify/call", {receiverId: "bob"}, "token-alice");
   assert.equal(res.status, 404);
+});
+
+test("agora: people in the call get a pass, others don't", async () => {
+  await startCall("alice", "bob");
+  for (const who of ["alice", "bob"]) {
+    const res = await post("/agora/token", {channelId: "room1"}, `token-${who}`);
+    assert.equal(res.status, 200, who);
+    const {token} = await res.json();
+    assert.match(token, /^007/, "Agora 007 token");
+  }
+  assert.equal((await post("/agora/token", {channelId: "room1"}, "token-eve")).status, 403);
+  assert.equal((await post("/agora/token", {channelId: "other"}, "token-alice")).status, 403);
+  assert.equal((await post("/agora/token", {channelId: "room1"})).status, 401);
+  assert.equal((await post("/agora/token", {}, "token-alice")).status, 400);
 });

@@ -23,14 +23,15 @@ service cloud.firestore {
       // Users/{owner}/Contacts/{other}: one row of owner's chat list, with
       // the chat's unread count and newest-message time. Sending a message
       // adds/updates the row on both sides, so either of the two people may
-      // write it; the other person may only bump the time and unread count.
+      // write it; the other person may only bump the time and unread count,
+      // and set when they were last typing (the "typing…" line).
       match /Contacts/{contactId} {
         function keepsId() {
           return request.resource.data.contact_id == contactId;
         }
         function onlyBumps() {
           return request.resource.data.diff(resource.data).affectedKeys()
-                  .hasOnly(['contact_id', 'last_message_at', 'unread_count'])
+                  .hasOnly(['contact_id', 'last_message_at', 'unread_count', 'typing_at'])
               && request.resource.data.get('unread_count', 0) >= resource.data.get('unread_count', 0)
               && request.resource.data.get('unread_count', 0) <= resource.data.get('unread_count', 0) + 1;
         }

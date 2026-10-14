@@ -17,11 +17,15 @@ class ChatHeaderTitle extends StatelessWidget {
   final Stream<DocumentSnapshot> receiverStream;
   final VoidCallback? onTap;
 
+  /// They're typing to me right now: "typing…" replaces the status line.
+  final bool isTyping;
+
   const ChatHeaderTitle({
     super.key,
     required this.receiver,
     required this.receiverStream,
     this.onTap,
+    this.isTyping = false,
   });
 
   @override
@@ -46,7 +50,9 @@ class ChatHeaderTitle extends StatelessWidget {
     final online = Presence.isOnline(user, now);
     final name = user.name.isEmpty ? 'EChat user' : user.name;
     final lastSeen = user.lastSeen;
-    final status = online
+    final status = isTyping
+        ? 'typing…'
+        : online
         ? 'Online'
         : lastSeen != null
             ? MessageUtils.lastSeenLabel(lastSeen.toDate(), now)
@@ -89,9 +95,11 @@ class ChatHeaderTitle extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
-                        color: online
+                        color: isTyping || online
                             ? context.colors.success
                             : shadcn.mutedForeground,
+                        fontStyle: isTyping ? FontStyle.italic : null,
+                        fontWeight: isTyping ? FontWeight.w600 : null,
                       ),
                     ),
                   ],

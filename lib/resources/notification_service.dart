@@ -43,6 +43,26 @@ class NotificationService {
     });
   }
 
+  /// The pass to join call [channelId]'s Agora channel. Throws if the
+  /// server can't give one (not set up yet, not in that call, offline).
+  static Future<String> callToken(String channelId) async {
+    final String? idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (idToken == null) throw StateError('Not signed in');
+    final http.Response response = await http
+        .post(
+          Uri.parse('$baseUrl/agora/token'),
+          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $idToken'},
+          body: jsonEncode({'channelId': channelId}),
+        )
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      throw Exception('Call pass refused: ${response.statusCode} ${response.body}');
+    }
+    final token = (jsonDecode(response.body) as Map)['token'];
+    if (token is! String || token.isEmpty) throw Exception('Call pass missing from the reply');
+    return token;
+  }
+
   /// Lets this account upload files to Supabase (see MediaStorage). Unlike
   /// the notifications, this throws on failure so the upload can report it.
   static Future<void> grantStorageAccess() async {

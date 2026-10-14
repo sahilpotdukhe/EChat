@@ -1,9 +1,8 @@
-import 'package:echat/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:shadcn_kit/shadcn_kit.dart';
 
-/// The EChat mark: a gradient rounded square with a chat bubble, optionally
-/// followed by the name.
+/// The EChat mark: the app icon (`assets/logo.png`), optionally followed by
+/// the name.
 class BrandLogo extends StatelessWidget {
   final double size;
   final bool showName;
@@ -15,15 +14,12 @@ class BrandLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final shadcn = context.shadcn;
     final mark = Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: onBrand ? null : colors.brandGradient,
-        color: onBrand ? Colors.white.withValues(alpha: 0.18) : null,
-        borderRadius: BorderRadius.circular(size * 0.3),
+        borderRadius: BorderRadius.circular(size * 0.225),
         boxShadow: onBrand
             ? null
             : [
@@ -34,7 +30,7 @@ class BrandLogo extends StatelessWidget {
                 ),
               ],
       ),
-      child: Icon(Icons.chat_bubble_rounded, color: Colors.white, size: size * 0.5),
+      child: Image.asset('assets/logo.png', width: size, height: size, filterQuality: FilterQuality.medium),
     );
     if (!showName) return mark;
 

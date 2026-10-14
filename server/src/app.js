@@ -6,7 +6,15 @@
 // hasn't been notified yet, so the endpoint can't be used to spam people.
 
 const express = require("express");
+const {RtcTokenBuilder, RtcRole} = require("agora-token");
 const {describeMessage, sendToUser, unreadTotal} = require("./notifications");
+
+// Agora project the app's calls use (lib/resources/agora_call_session.dart).
+// The certificate is secret: set AGORA_APP_CERTIFICATE on Vercel.
+const AGORA_APP_ID = "4e3d9239cb394c08beae2ed37754bf1d";
+// A call pass is good for this long; ongoing calls aren't cut off when it
+// runs out, it only stops new joins.
+const AGORA_TOKEN_SECONDS = 2 * 60 * 60;
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -19,7 +27,7 @@ function isId(value) {
   return typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 }
 
-function createApp({db, auth, messaging, logger = console}) {
+function createApp({db, auth, messaging, logger = console, agoraCertificate = process.env.AGORA_APP_CERTIFICATE}) {
   const deps = {db, messaging, logger};
   const app = express();
   app.use(express.json({limit: "10kb"}));
@@ -115,6 +123,24 @@ function createApp({db, auth, messaging, logger = console}) {
       userSnap: receiverSnap,
     });
     res.json({sent});
+  });
+
+  // Body: {channelId}. The pass to join a call's Agora channel. Only for
+  // someone in that call: their own Call doc must name this channel (the
+  // caller and the receiver each have one). Replaces the old token server on
+  // Render, which was slow to wake up and gave a pass to anyone who asked.
+  app.post("/agora/token", async (req, res) => {
+    const uid = await signedInUid(req);
+    const {channelId} = req.body || {};
+    if (!isId(channelId)) throw new HttpError(400, "channelId is required");
+    if (!agoraCertificate) throw new HttpError(503, "Calls aren't set up on the server");
+
+    const call = await db.collection("Call").doc(uid).get();
+    if (!call.exists || call.get("channel_id") !== channelId) throw new HttpError(403, "Not your call");
+
+    const token = RtcTokenBuilder.buildTokenWithUid(
+        AGORA_APP_ID, agoraCertificate, channelId, 0, RtcRole.PUBLISHER, AGORA_TOKEN_SECONDS, AGORA_TOKEN_SECONDS);
+    res.json({token});
   });
 
   // Lets the signed-in user upload files to Supabase Storage, which trusts

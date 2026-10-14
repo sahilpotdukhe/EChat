@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/enums/view_state.dart';
+import 'package:echat/models/contact_model.dart';
 import 'package:echat/models/message_model.dart';
 import 'package:echat/models/user_model.dart';
 import 'package:echat/providers/image_upload_provider.dart';
@@ -19,6 +20,7 @@ import 'package:echat/theme/app_colors.dart';
 import 'package:echat/utils/call_utilities.dart';
 import 'package:echat/utils/message_utils.dart';
 import 'package:echat/utils/responsive.dart';
+import 'package:echat/widgets/common/typing_watcher.dart';
 import 'package:echat/widgets/common/user_avatar.dart';
 import 'package:echat/widgets/receiver_details.dart';
 import 'package:file_picker/file_picker.dart';
@@ -57,6 +59,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   // Built once (and again only when loading more), not on every rebuild:
   // a new query per keystroke would re-subscribe to Firestore each time.
   late Stream<QuerySnapshot> _messagesStream;
+  // My chat-list entry for them: says when they're typing to me.
+  late final Stream<DocumentSnapshot> _myEntryStream = _chatFirebaseMethods.contactStream(
+      myId: FirebaseAuth.instance.currentUser?.uid ?? '', peerId: widget.receiver.uid);
+
+  // When I last told them I'm typing; null while I'm not.
+  DateTime? _typingSentAt;
+  static const Duration _typingRefresh = Duration(seconds: 3);
+
   late final Stream<DocumentSnapshot> _receiverStream =
       AuthMethods().getUserStream(uid: widget.receiver.uid);
 
@@ -75,6 +85,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _scrollController.addListener(_onScroll);
     _initializeSender();
     WidgetsBinding.instance.addObserver(this);
+    _messageController.addListener(_onTextChanged);
     // No notifications for this chat while it's open, and clear any shown.
     LocalNotifications.openChatPeerId = widget.receiver.uid;
     LocalNotifications.dismissChat(widget.receiver.uid);
@@ -88,15 +99,39 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _stopTyping();
     if (LocalNotifications.openChatPeerId == widget.receiver.uid) LocalNotifications.openChatPeerId = null;
     _scrollController.dispose();
     _messageController.dispose();
     super.dispose();
   }
 
+  // "typing…" for them while there's text in the box, refreshed every few
+  // seconds (their side hides it 6 s after the last refresh).
+  void _onTextChanged() {
+    if (_currentUserId.isEmpty) return;
+    if (_messageController.text.trim().isEmpty) {
+      _stopTyping();
+      return;
+    }
+    final now = DateTime.now();
+    final last = _typingSentAt;
+    if (last != null && now.difference(last) < _typingRefresh) return;
+    _typingSentAt = now;
+    _chatFirebaseMethods.setTyping(myId: _currentUserId, peerId: widget.receiver.uid, typing: true);
+  }
+
+  void _stopTyping() {
+    if (_typingSentAt == null) return;
+    _typingSentAt = null;
+    _chatFirebaseMethods.setTyping(myId: _currentUserId, peerId: widget.receiver.uid, typing: false);
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final foreground = state == AppLifecycleState.resumed;
+    // Leaving the app with text in the box isn't typing.
+    if (!foreground) _stopTyping();
     if (foreground == _appInForeground) return;
     // Rebuilding re-checks for messages that arrived while away.
     setState(() => _appInForeground = foreground);
@@ -199,10 +234,21 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         backgroundColor: colors.chatBackground,
         appBar: AppBar(
           titleSpacing: 0,
-          title: ChatHeaderTitle(
-            receiver: widget.receiver,
-            receiverStream: _receiverStream,
-            onTap: _sender == null ? null : _openProfile,
+          title: StreamBuilder<DocumentSnapshot>(
+            stream: _myEntryStream,
+            builder: (context, snapshot) {
+              final data = snapshot.data?.data() as Map<String, dynamic>?;
+              final typingAt = data == null ? null : ContactModel.fromMap(data).typingAt;
+              return TypingWatcher(
+                typingAt: typingAt,
+                builder: (context, typing) => ChatHeaderTitle(
+                  receiver: widget.receiver,
+                  receiverStream: _receiverStream,
+                  isTyping: typing,
+                  onTap: _sender == null ? null : _openProfile,
+                ),
+              );
+            },
           ),
           actions: [
             ShadcnButton(
@@ -406,6 +452,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         thumbnailUrl: '',
         pdfUrl: '',
         pdfName: '');
+    // Sending clears "typing…" on their side (see addMessagetoDb).
+    _typingSentAt = null;
     _messageController.clear();
     _jumpToLatest();
     // Offline, the message shows straight away and is sent once back online;

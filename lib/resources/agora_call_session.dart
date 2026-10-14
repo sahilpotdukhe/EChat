@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:echat/resources/notification_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -9,7 +10,8 @@ import 'package:permission_handler/permission_handler.dart';
 /// One Agora voice/video call: fetches a token, joins the channel and tracks
 /// the remote user. Used by CallScreen and AudioCallScreen.
 class AgoraCallSession {
-  // Must be the same Agora project the token server signs tokens for,
+  // Must be the same Agora project the servers sign passes for (also in
+  // server/src/app.js),
   // otherwise Agora rejects the token and the call never connects.
   static const String appId = '4e3d9239cb394c08beae2ed37754bf1d';
   static const String _tokenServer =
@@ -27,8 +29,12 @@ class AgoraCallSession {
   AgoraCallSession({required this.channelId, required this.video});
 
   Future<void> start() async {
+    // Fetch the call pass while the permission prompt is up.
+    final Future<String> tokenFuture = _fetchToken();
+    // Don't report a pass failure as unhandled while still waiting here.
+    tokenFuture.ignore();
     await [Permission.microphone, if (video) Permission.camera].request();
-    final token = await _fetchToken();
+    final token = await tokenFuture;
 
     await engine.initialize(const RtcEngineContext(
       appId: appId,
@@ -67,7 +73,15 @@ class AgoraCallSession {
     );
   }
 
+  // The call pass comes from EChat's own server (fast, kept awake, and only
+  // gives passes to people in the call). Until that server has the Agora
+  // certificate set up, fall back to the old token server.
   Future<String> _fetchToken() async {
+    try {
+      return await NotificationService.callToken(channelId);
+    } catch (e) {
+      debugPrint('EChat server call pass failed, trying the old token server: $e');
+    }
     final Response response;
     try {
       // The free-tier server can take a while to wake up, but not forever.

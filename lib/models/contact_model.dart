@@ -10,12 +10,16 @@ class ContactModel{
   Timestamp? lastMessageAt;
   // Messages (and missed calls) from them I haven't opened yet.
   int unreadCount = 0;
+  // Set by their phone while they type to me (about every 3 s); cleared
+  // when they send or stop. See TypingWatcher.
+  Timestamp? typingAt;
 
   ContactModel({
     required this.uid,
     this.addedOn,
     this.lastMessageAt,
     this.unreadCount = 0,
+    this.typingAt,
 });
 
   Map toMap(ContactModel contactModel){
@@ -33,6 +37,7 @@ class ContactModel{
     lastMessageAt = mapData['last_message_at'] is Timestamp ? mapData['last_message_at'] : null;
     unreadCount = (mapData['unread_count'] as num?)?.toInt() ?? 0;
     if (unreadCount < 0) unreadCount = 0;
+    typingAt = mapData['typing_at'] is Timestamp ? mapData['typing_at'] : null;
   }
 
   /// Newest chat first; chats with no time yet fall back to when they were
