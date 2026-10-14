@@ -5,7 +5,7 @@
     "display": "standalone",
     "background_color": "#1D136F",
     "theme_color": "#4834D4",
-    "description": "A new Flutter project.",
+    "description": "EChat: a Flutter chat app with voice and video calls.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

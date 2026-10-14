@@ -26,6 +26,27 @@ android {
         multiDexEnabled = true
     }
 
+    // Agora ships optional add-ons that are loaded only when their feature is
+    // switched on. EChat uses plain voice/video calls, so leave out the ones
+    // it never turns on (~30 MB per CPU type). Noise suppression, echo
+    // cancellation and the video codecs stay.
+    packaging {
+        jniLibs {
+            excludes += listOf(
+                "lib/*/libagora_audio_beauty_extension.so",
+                "lib/*/libagora_clear_vision_extension.so",
+                "lib/*/libagora_content_inspect_extension.so",
+                "lib/*/libagora_face_capture_extension.so",
+                "lib/*/libagora_face_detection_extension.so",
+                "lib/*/libagora_lip_sync_extension.so",
+                "lib/*/libagora_screen_capture_extension.so",
+                "lib/*/libagora_segmentation_extension.so",
+                "lib/*/libagora_spatial_audio_extension.so",
+                "lib/*/libagora_video_quality_analyzer_extension.so",
+            )
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
