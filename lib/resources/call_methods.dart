@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/models/call_model.dart';
 import 'package:echat/resources/notification_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 /// started: both call docs written. busy: the server refused because the
@@ -66,6 +67,11 @@ class CallMethods{
         firestore.collection("Call").doc(callModel.callerId).delete(),
         firestore.collection("Call").doc(callModel.receiverId).delete(),
       ]);
+      // The caller ended it: silence the receiver's ringing notification.
+      // Not awaited; if it fails the notification still stops after 45 s.
+      if (FirebaseAuth.instance.currentUser?.uid == callModel.callerId) {
+        NotificationService.notifyCallEnded(receiverId: callModel.receiverId);
+      }
       return true;
     }catch(e){
       debugPrint('$e');

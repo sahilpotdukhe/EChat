@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echat/models/contact_model.dart';
+import 'package:echat/resources/call_methods.dart';
 import 'package:echat/resources/chat_firebase_methods.dart';
 import 'package:echat/resources/notification_router.dart';
 import 'package:echat/resources/notification_service.dart';
@@ -87,6 +88,15 @@ class _HomeScreenState extends State<HomeScreen> {
     _subscriptions.add(_chatMethods.fetchUnreadContacts(userId: user.uid).listen(
           (snapshot) => _onUnreadChanged(user.uid, snapshot),
           onError: (Object e) => debugPrint('Unread chats: $e'),
+        ));
+    // The call is over (hung up, declined or timed out): take down its
+    // ringing notification at once. This also runs while the app sits in the
+    // background, where the incoming call screen isn't built.
+    _subscriptions.add(CallMethods().callStream(uid: user.uid).listen(
+          (snapshot) {
+            if (!snapshot.exists) LocalNotifications.dismissCall();
+          },
+          onError: (Object e) => debugPrint('Call watch: $e'),
         ));
     // An iPhone only gets a push token once notifications are allowed, so
     // save it again here; the one saved at sign-in may be missing.

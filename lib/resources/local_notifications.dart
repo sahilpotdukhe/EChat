@@ -20,7 +20,11 @@ import 'package:flutter/material.dart';
 /// main.dart). iPhones get the system's own notification from the server.
 class LocalNotifications {
   static const _callId = 123;
+  // The small status-bar icon: the EChat logo as a one-colour silhouette
+  // (Android only allows one colour there). The full-colour app icon is used
+  // as the big picture when the sender has no profile photo.
   static const String _icon = 'resource://drawable/ic_stat_echat';
+  static const String _appIcon = 'resource://mipmap/ic_launcher';
   static const Color _brand = Color(0xFF6C5CE7);
 
   /// The chat on screen right now, so its own messages don't notify.
@@ -66,6 +70,13 @@ class LocalNotifications {
     final bool isCall = data['type'] == 'call';
     final String senderId = (data['senderId'] ?? data['callerId'] ?? '').toString();
 
+    // The caller hung up (or gave up): stop ringing right away instead of
+    // waiting out the 45 second timeout.
+    if (data['type'] == 'call_ended') {
+      await dismissCall(callerId: senderId);
+      return;
+    }
+
     // With the app open, an incoming call already fills the screen, and a
     // message for the chat you're reading is already in front of you.
     if (appOpen && isCall) return;
@@ -74,7 +85,8 @@ class LocalNotifications {
     final String title = (message.notification?.title ?? data['title'] ?? '').toString();
     final String body = (message.notification?.body ?? data['body'] ?? '').toString();
     if (title.isEmpty && body.isEmpty) return;
-    final String? avatar = _url(data['avatar']);
+    // No profile photo: show the EChat icon instead of an empty space.
+    final String avatar = _url(data['avatar']) ?? _appIcon;
 
     final badge = int.tryParse('${data['badge'] ?? ''}');
     if (badge != null) setBadge(badge);
@@ -98,7 +110,7 @@ class LocalNotifications {
     required String body,
     required String senderId,
     required String messageId,
-    String? avatar,
+    required String avatar,
     String? image,
   }) async {
     final payload = {'type': 'message', 'senderId': senderId, 'messageId': messageId};
@@ -145,12 +157,13 @@ class LocalNotifications {
     required String title,
     required String body,
     required String callerId,
-    String? avatar,
+    required String avatar,
   }) async {
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
         id: _callId,
         channelKey: 'call_channel',
+        groupKey: _callGroup(callerId),
         title: title,
         body: body,
         category: NotificationCategory.Call,
@@ -180,6 +193,8 @@ class LocalNotifications {
       ],
     );
   }
+
+  static String _callGroup(String callerId) => 'call_$callerId';
 
   static String? _url(Object? value) {
     final s = value?.toString() ?? '';
@@ -213,6 +228,21 @@ class LocalNotifications {
     }
     // Keep clear of the call notification's id.
     return hash == _callId ? hash + 1 : hash;
+  }
+
+  /// Takes down the ringing call notification. With [callerId], only if it
+  /// is that person's call (a late "call ended" for an older call must not
+  /// silence a new one).
+  static Future<void> dismissCall({String? callerId}) async {
+    try {
+      if (callerId != null && callerId.isNotEmpty) {
+        await AwesomeNotifications().dismissNotificationsByGroupKey(_callGroup(callerId));
+      } else {
+        await AwesomeNotifications().dismiss(_callId);
+      }
+    } catch (e) {
+      debugPrint('Could not clear the call notification: $e');
+    }
   }
 
   /// Clears a chat's notifications once it is opened.

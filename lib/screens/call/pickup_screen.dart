@@ -6,6 +6,8 @@ import 'package:echat/models/call_model.dart';
 import 'package:echat/models/user_model.dart';
 import 'package:echat/resources/auth_methods.dart';
 import 'package:echat/resources/call_methods.dart';
+import 'package:echat/resources/call_ringer.dart';
+import 'package:echat/resources/local_notifications.dart';
 import 'package:echat/resources/repositories/log_repository.dart';
 import 'package:echat/screens/call/audio_call_screen.dart';
 import 'package:echat/screens/call/call_screen.dart';
@@ -33,6 +35,7 @@ class _PickupScreenState extends State<PickupScreen> {
   UserModel? callerModel;
   late final CallMethods callMethods = CallMethods();
   Timer? _ringTimer;
+  late final AppLifecycleListener _lifecycle;
   static const Duration _ringTimeout = Duration(seconds: 45);
 
   // Adds this call to the call history on this phone.
@@ -54,6 +57,7 @@ class _PickupScreenState extends State<PickupScreen> {
   void initState() {
     super.initState();
     getUser();
+    _lifecycle = AppLifecycleListener(onResume: _ringIfOnScreen);
     _startRinging();
   }
 
@@ -76,11 +80,23 @@ class _PickupScreenState extends State<PickupScreen> {
       callMethods.endCall(callModel: widget.callModel);
       return;
     }
+    _ringIfOnScreen();
     _ringTimer = Timer(_ringTimeout, () {
       // Nobody answered. Deleting the docs closes this screen, and dispose()
       // logs the missed call.
       if (isCallMissed) callMethods.endCall(callModel: widget.callModel);
     });
+  }
+
+  // The ringtone plays only while the app is on screen. In the background the
+  // call notification rings instead, so it is left alone until the app opens;
+  // then it is cleared so the call doesn't ring twice.
+  void _ringIfOnScreen() {
+    if (!isCallMissed) return;
+    final state = WidgetsBinding.instance.lifecycleState;
+    if (state != null && state != AppLifecycleState.resumed) return;
+    LocalNotifications.dismissCall();
+    CallRinger.start();
   }
 
   Future<void> getUser() async {
@@ -97,12 +113,16 @@ class _PickupScreenState extends State<PickupScreen> {
   @override
   void dispose() {
     _ringTimer?.cancel();
+    _lifecycle.dispose();
+    CallRinger.stop();
+    LocalNotifications.dismissCall();
     super.dispose();
     if (isCallMissed) addToLocalStorage(callStatus: "missed");
   }
 
   void _decline() {
     _ringTimer?.cancel();
+    CallRinger.stop();
     // Deleting the call docs closes this screen; dispose() logs it as missed.
     callMethods.endCall(callModel: widget.callModel);
   }
@@ -117,6 +137,7 @@ class _PickupScreenState extends State<PickupScreen> {
 
   void _accept() {
     _ringTimer?.cancel();
+    CallRinger.stop();
     isCallMissed = false;
     // Logged with its length when the call screen closes (CallLifecycle).
     // Tells the caller (and the server rules) this call is live.

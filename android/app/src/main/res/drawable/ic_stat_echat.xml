@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Status-bar icon for EChat notifications. Android draws it as a white
-     silhouette (and tints it with notification_color), so it must be a plain
-     shape on a transparent background: a chat bubble with three dots. -->
+<!-- Status-bar icon for EChat notifications: the app logo (the "E" speech
+     bubble with the typing dots) as a silhouette. Android draws this icon in
+     a single colour (white, tinted with notification_color), so it must be a
+     plain shape on a transparent background, not the full-colour app icon. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -10,5 +11,5 @@
     <path
         android:fillColor="#FFFFFFFF"
         android:fillType="evenOdd"
-        android:pathData="M5,3H19A3,3 0,0 1,22 6V14A3,3 0,0 1,19 17H9.5L5,20.8V17A3,3 0,0 1,2 14V6A3,3 0,0 1,5 3Z M6.5,10a1.5,1.5 0,1 0,3 0a1.5,1.5 0,1 0,-3 0Z M10.5,10a1.5,1.5 0,1 0,3 0a1.5,1.5 0,1 0,-3 0Z M14.5,10a1.5,1.5 0,1 0,3 0a1.5,1.5 0,1 0,-3 0Z" />
+        android:pathData="M10.2,3.6H17.4A2,2 0,0 1,17.4 7.6H10.4C8.1,7.6 6.9,9.6 6.9,12C6.9,14.4 8.1,16.4 10.4,16.4H17.4A2,2 0,0 1,17.4 20.4H9.6L5.2,22.4C4.6,22.7 4.3,22.3 4.5,21.8L5.6,18.6C4,17 3,14.6 3,12C3,7.4 6.2,3.6 10.2,3.6Z M10.4,10.1H17.6A1.9,1.9 0,0 1,17.6 13.9H10.4A1.9,1.9 0,0 1,10.4 10.1Z M13.25,12a0.65,0.65 0,1 0,1.3 0a0.65,0.65 0,1 0,-1.3 0Z M15.05,12a0.65,0.65 0,1 0,1.3 0a0.65,0.65 0,1 0,-1.3 0Z M16.85,12a0.65,0.65 0,1 0,1.3 0a0.65,0.65 0,1 0,-1.3 0Z" />
 </vector>

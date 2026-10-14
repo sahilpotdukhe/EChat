@@ -220,6 +220,33 @@ test("call: no call is 404", async () => {
   assert.equal(res.status, 404);
 });
 
+test("call ended: silently tells the receiver to stop ringing", async () => {
+  const res = await post("/notify/call-ended", {receiverId: "bob"}, "token-alice");
+  assert.deepEqual(await res.json(), {sent: true});
+  assert.equal(sent[0].token, "tok-bob");
+  assert.deepEqual(sent[0].data, {type: "call_ended", callerId: "alice", senderId: "alice"});
+  // No visible alert on iPhones either.
+  assert.equal(sent[0].apns.payload.aps.alert, undefined);
+});
+
+test("call ended: refused while the call is still on", async () => {
+  await startCall("alice", "bob");
+  const res = await post("/notify/call-ended", {receiverId: "bob"}, "token-alice");
+  assert.equal(res.status, 409);
+  assert.equal(sent.length, 0);
+});
+
+test("call ended: someone else's call to the receiver doesn't block it", async () => {
+  await startCall("eve", "bob");
+  const res = await post("/notify/call-ended", {receiverId: "bob"}, "token-alice");
+  assert.deepEqual(await res.json(), {sent: true});
+});
+
+test("call ended: needs sign-in and a receiver", async () => {
+  assert.equal((await post("/notify/call-ended", {receiverId: "bob"})).status, 401);
+  assert.equal((await post("/notify/call-ended", {}, "token-alice")).status, 400);
+});
+
 test("agora: people in the call get a pass, others don't", async () => {
   await startCall("alice", "bob");
   for (const who of ["alice", "bob"]) {

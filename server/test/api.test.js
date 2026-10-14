@@ -27,7 +27,7 @@ test("health check on / and /health", async () => {
 });
 
 test("notify routes are reachable and require sign-in", async () => {
-  for (const path of ["/notify/message", "/notify/call"]) {
+  for (const path of ["/notify/message", "/notify/call", "/notify/call-ended"]) {
     const res = await fetch(baseUrl + path, {
       method: "POST",
       headers: {"content-type": "application/json"},

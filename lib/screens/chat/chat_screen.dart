@@ -9,6 +9,7 @@ import 'package:echat/resources/auth_methods.dart';
 import 'package:echat/resources/chat_firebase_methods.dart';
 import 'package:echat/resources/chat_media_uploader.dart';
 import 'package:echat/resources/local_notifications.dart';
+import 'package:echat/resources/media_compressor.dart';
 import 'package:echat/resources/notification_service.dart';
 import 'package:echat/screens/call/pickup_layout.dart';
 import 'package:echat/screens/chat/message_bubble.dart';
@@ -536,7 +537,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _pickImage(ImageSource source, ImageUploadProvider imageUploadProvider) async {
-    final XFile? selectedImage = await ImagePicker().pickImage(source: source);
+    // Shrunk while picking so it uploads (and loads) fast.
+    final XFile? selectedImage = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: MediaCompressor.maxPhotoSide,
+      maxHeight: MediaCompressor.maxPhotoSide,
+      imageQuality: MediaCompressor.photoQuality,
+    );
     // Picker closed without choosing: nothing to upload.
     if (selectedImage == null) return;
     setState(() => _uploadProgress = 0);

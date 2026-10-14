@@ -7,7 +7,7 @@
 
 const express = require("express");
 const {RtcTokenBuilder, RtcRole} = require("agora-token");
-const {describeMessage, sendToUser, unreadTotal} = require("./notifications");
+const {describeMessage, sendCallEnded, sendToUser, unreadTotal} = require("./notifications");
 
 // Agora project the app's calls use (lib/resources/agora_call_session.dart).
 // The certificate is secret: set AGORA_APP_CERTIFICATE on Vercel.
@@ -122,6 +122,21 @@ function createApp({db, auth, messaging, logger = console, agoraCertificate = pr
       data: {type: "call", callType: String(call.callType || ""), callerId: uid, senderId: uid},
       userSnap: receiverSnap,
     });
+    res.json({sent});
+  });
+
+  // Body: {receiverId}. The signed-in user hung up (or gave up on) a call to
+  // receiverId: stop their phone ringing now instead of after 45 s. Only once
+  // the call is really over (the receiver's Call doc is gone, or is someone
+  // else's newer call); a call that is still on is refused.
+  app.post("/notify/call-ended", async (req, res) => {
+    const uid = await signedInUid(req);
+    const {receiverId} = req.body || {};
+    if (!isId(receiverId)) throw new HttpError(400, "receiverId is required");
+
+    const call = await db.collection("Call").doc(receiverId).get();
+    if (call.exists && call.get("caller_id") === uid) throw new HttpError(409, "Call is still on");
+    const sent = await sendCallEnded(deps, receiverId, uid);
     res.json({sent});
   });
 

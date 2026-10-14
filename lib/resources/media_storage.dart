@@ -31,6 +31,11 @@ class MediaStorage {
   static const String thumbnailFolder = 'thumbnails';
   static const String profileFolder = 'Users';
 
+  // Every upload gets a new random path and is never changed, so phones and
+  // Supabase's CDN may keep a copy for a year instead of the default hour:
+  // media opened before loads from the cache instead of downloading again.
+  static const String _cacheSeconds = '31536000';
+
   static bool get isConfigured => url.isNotEmpty && publishableKey.isNotEmpty;
 
   static bool _initialized = false;
@@ -70,7 +75,7 @@ class MediaStorage {
     final api = _files;
     await _ensureSupabaseRole();
     final path = _pathFor(folder, uid, name);
-    await api.upload(path, file, fileOptions: FileOptions(contentType: contentType));
+    await api.upload(path, file, fileOptions: FileOptions(contentType: contentType, cacheControl: _cacheSeconds));
     return api.getPublicUrl(path);
   }
 
@@ -85,7 +90,7 @@ class MediaStorage {
     final api = _files;
     await _ensureSupabaseRole();
     final path = _pathFor(folder, uid, name);
-    await api.uploadBinary(path, bytes, fileOptions: FileOptions(contentType: contentType));
+    await api.uploadBinary(path, bytes, fileOptions: FileOptions(contentType: contentType, cacheControl: _cacheSeconds));
     return api.getPublicUrl(path);
   }
 

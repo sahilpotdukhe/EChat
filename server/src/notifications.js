@@ -86,4 +86,25 @@ async function sendToUser({db, messaging, logger = console}, uid, {title, body, 
   }
 }
 
-module.exports = {describeMessage, sendToUser, unreadTotal};
+// Tells a phone to stop showing a ringing call from [callerId]. Silent (data
+// only, no alert), so nothing pops up; the app takes the notification down.
+// Returns true if sent.
+async function sendCallEnded({db, messaging}, uid, callerId) {
+  const token = (await db.collection("Users").doc(uid).get()).get("notification_token");
+  if (!token) return false;
+  try {
+    await messaging.send({
+      token,
+      data: {type: "call_ended", callerId, senderId: callerId},
+      // Pointless once the 45 s ring is over anyway.
+      android: {priority: "high", ttl: 45 * 1000},
+      apns: {headers: {"apns-priority": "5", "apns-push-type": "background"}, payload: {aps: {"content-available": 1}}},
+    });
+    return true;
+  } catch (err) {
+    if (DEAD_TOKEN_CODES.has(err.code)) return false;
+    throw err;
+  }
+}
+
+module.exports = {describeMessage, sendCallEnded, sendToUser, unreadTotal};

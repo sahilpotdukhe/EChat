@@ -26,6 +26,11 @@ class NotificationService {
   static Future<void> notifyCall({required String receiverId}) =>
       _post('/notify/call', {'receiverId': receiverId});
 
+  /// The caller hung up or gave up: stops the receiver's phone ringing at
+  /// once, even with EChat closed (otherwise it rings for the full 45 s).
+  static Future<void> notifyCallEnded({required String receiverId}) =>
+      _post('/notify/call-ended', {'receiverId': receiverId});
+
   static DateTime? _lastWarmUp;
 
   /// Wakes the server up ahead of time. Vercel puts it to sleep when idle,

@@ -65,6 +65,7 @@ dependencies:
       ref: v0.2.1
   supabase_flutter: ^2.18.3
   connectivity_plus: ^7.3.2
+  video_compress: ^3.1.4
 
 dev_dependencies:
   flutter_test:
