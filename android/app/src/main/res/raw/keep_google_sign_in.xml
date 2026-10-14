@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- google_sign_in looks up the Google client ID by name at runtime
+     (getIdentifier("default_web_client_id", ...)), so the release build's
+     resource shrinker can't see it is used and would remove it. Without it,
+     Google sign-in fails with a configuration error in release builds only. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/default_web_client_id" />
