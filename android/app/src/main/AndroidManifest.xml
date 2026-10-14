@@ -12,7 +12,7 @@
         </intent>
     </queries>
     <application
-        android:label="echat"
+        android:label="EChat"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
